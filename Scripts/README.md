@@ -1,0 +1,38 @@
+# Scripts
+Here you find scripts that might be useful during the process of conducting an experiment based on P.808 using MTurk.
+
+## mturk_utils
+Set of utility commands based on MTurk python package ([Boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/mturk.html#MTurk.Client.reject_assignment))
+
+To use the utilities first you need to provide your 'AWS Access Key and AWS Secret Key', [see here](https://requester.mturk.com/developer)
+Put them in the corresponding field of configuration file.
+Note, the script looks into mturk.cfg if no other path is provided as argument.
+
+#### assign_bonus
+usage
+```
+python mturk_utils.py --send_bonus bonus.csv 
+```
+the bonus.csv should have following columns: workerId, assignmentId, bonusAmount, reason
+
+#### approve
+usage
+```
+python mturk_utils.py --approve approve.csv 
+```
+the approve.csv should have following columns: assignmentId
+
+#### reject
+usage
+```
+python mturk_utils.py --reject reject.csv 
+```
+the reject.csv should have following columns: assignmentId,feedback
+
+#### send_emails
+usage
+```
+python mturk_utils.py send_emails 
+```
+script reads the configuration from the section '[send_emails]' in config file.
+
