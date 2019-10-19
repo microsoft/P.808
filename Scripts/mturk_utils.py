@@ -27,7 +27,6 @@ def send_message(client, cfg):
          )
         print(json.dumps(response))
 
-
 """
 Assign bonuses to group of workers.
 A csv file with following columns need to be provided:
@@ -119,11 +118,11 @@ if __name__ == '__main__':
     cfgpath = os.path.join(os.path.dirname(__file__), args.cfg)
     assert os.path.exists(cfgpath), f"No configuration file as [{cfgpath}]"
     cfg = CP.ConfigParser()
-    cfg._interpolation = CP.ExtendedInterpolation()
     cfg.read(cfgpath)
 
+
     # create mturk client
-    mturk_general = cfg._sections['general']
+    mturk_general = cfg['general']
 
     client = boto3.client(
         'mturk',
@@ -134,7 +133,7 @@ if __name__ == '__main__':
         )
 
     if args.send_emails is not None:
-        send_message(client, cfg._sections['send_email'])
+        send_message(client, cfg['send_email'])
     if args.send_bonus is not None:
         bonus_list_path = os.path.join(os.path.dirname(__file__), args.send_bonus)
         assert os.path.exists(bonus_list_path), f"No input file found in [{bonus_list_path}]"
