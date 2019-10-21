@@ -15,7 +15,7 @@ Current files are taken from ITU-T P.501 dataset [2] and are degraded using `aud
 
 ## Results
 
-Result shows the SNR level that the subject can successfully recognize its difference with a reference sample (SNR 40) in 
+Result shows the SNR level that the subject can successfully recognize its difference with a reference sample (SNR 50) in 
 70.7% (or more) of times.
   
 

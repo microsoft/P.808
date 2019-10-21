@@ -3,7 +3,7 @@
 // JND setup: Adaptive staircase: 3AFC, 2 down- 1 up: targets 70.7% levelA
 var config ={
     jndMaxQuestions:45,
-    snrStart:35, // SNR-  worse quality
+    snrStart:30, // SNR-  worse quality
     snrEnd :50, // SNR-  best quality
     finishIfReversalIs:7, // use 7 as recommended by Levit t , H. (1992).
     exportFileName:"export.csv",
@@ -23,6 +23,7 @@ var questionAskedPerSNRLevel=new Array(config.snrEnd-config.snrStart+1).fill(0);
 var currentSNRIndex = 0; // first item of array refers to SNR= config.snrStart
 var correctAnsInCurrentSNRIndex = 0; // number of time that current snr level was answered correctly in a row
 
+var pick_is_added=false;
 
 // logs when reversal happens
 var reversalAtSNR =new Array(config.finishIfReversalIs).fill(0);
@@ -203,6 +204,7 @@ function start(){
 
 
 function addJNDQuestion(n,snrLevel){
+    pick_is_added = false ;
 	var tempelate='<fieldset id="fieldset_{0}"><label>{0}.&nbsp;Which sample has a better quality compared to the other one?</label><div class="row" style="margin-top:10px;"><div class="col-sm-4"><div align="center"><b>Sample A</b></div><div align="right">  <audio controls preload="auto"> <source src="{1}" type="audio/wav"></audio> </div></div><div class="col-sm-4"></div><div class="col-sm-4"><div align="center"><b>Sample B</b></div><div align="left"> <audio controls preload="auto"> <source src="{2}" type="audio/wav"></audio></div></div></div><div class="row"><div class="col-sm-4"></div><div class="col-sm-5"><div class="radio"><label><input type="radio" name="cmp{0}" required="" value="{3}">Quality of <b>Sample A</b> is better.</label></div><div class="radio"><label><input type="radio" name="cmp{0}" required="" value="-1">Difference is <b>not detectable</b>.</label></div><div class="radio"><label><input type="radio" name="cmp{0}" required="" value="{4}">Quality of <b>Sample B</b> is better.</label></div></div><div class="col-sm-3"></div></div><div class="row text-center" style="margin-top:20px">	<button type="button" class="btn btn-primary" id="bt{0}" onclick="submitAnsJnd({0},{3},{4});" >Next</button></div></fieldset>';
     a = snrLevel;
     b = config.snrEnd;
@@ -265,6 +267,7 @@ function submitAnsJnd(qNum,aSNR,bSNR){
                 reversalAtSNR[reversalAtSNRIndex] = currentSNRIndex + config.snrStart;
                 reversalAtSNRIndex ++;
                 direction = 1;
+                pick_is_added= true;
             }
 		    currentSNRIndex ++;
 		    correctAnsInCurrentSNRIndex= 0;
@@ -277,6 +280,7 @@ function submitAnsJnd(qNum,aSNR,bSNR){
 		    reversalAtSNR[reversalAtSNRIndex] = currentSNRIndex + config.snrStart;
 		    reversalAtSNRIndex ++;
 		    direction = -1;
+		    pick_is_added = true;
 		}
 		currentSNRIndex --;
 		correctAnsInCurrentSNRIndex =0
@@ -298,20 +302,34 @@ function getNextQuestion(){
 		//reached the upper range
 		if (nextQuestionSNR>config.snrEnd){
 			currentSNRIndex=currentSNRIndex-1;
-			// add it as a reveral point
-			reversalAtSNR[reversalAtSNRIndex] = currentSNRIndex + config.snrStart;
-            reversalAtSNRIndex ++;
+			// add it as a reversal point
+			if (!pick_is_added){
+			    reversalAtSNR[reversalAtSNRIndex] = currentSNRIndex + config.snrStart;
+                reversalAtSNRIndex ++;
+                pick_is_added= true;
+               }
 		}else if (nextQuestionSNR<config.snrStart){
 			currentSNRIndex=currentSNRIndex+1;
-			// add it as a reveral point
-			reversalAtSNR[reversalAtSNRIndex] = currentSNRIndex + config.snrStart;
-            reversalAtSNRIndex ++;
+			direction = 1;
+			// add it as a reversal point
+			if (!pick_is_added){
+			    reversalAtSNR[reversalAtSNRIndex] = currentSNRIndex + config.snrStart;
+                reversalAtSNRIndex ++;
+                pick_is_added= true;
+                }
 		}
 		nextQuestionSNR=currentSNRIndex + config.snrStart;
 		questionAskedPerSNRLevel[currentSNRIndex] ++;
 		addJNDQuestion(currentQuestionNum, nextQuestionSNR);
-	}else
-		finished();
+	}else{
+	    // if maximum number of questions achived, store the last SNR as well,
+	    if (reversalAtSNRIndex < reversalAtSNR.length){
+	        reversalAtSNR[reversalAtSNRIndex] = currentSNRIndex + config.snrStart;
+            reversalAtSNRIndex ++;
+         }
+         finished();
+	}
+
 	currentQuestionNum++;
 }
 
@@ -332,7 +350,7 @@ function finished(){
 	targetSNrLevel = config.snrStart;
 	if (reversalAtSNRIndex > 0){
 	    // do not consider the first reversal
-	    useReversals= reversalAtSNR.slice(1);
+	    useReversals= reversalAtSNR.slice(1,reversalAtSNRIndex);
 	    sum = useReversals.reduce(function(a, b) { return a + b; });
 	    targetSNrLevel = Math.round(sum /useReversals.length);
 	}
