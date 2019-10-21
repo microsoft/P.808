@@ -1,0 +1,89 @@
+
+<head>
+	<!-- bootstrap4 -->
+	<link rel="stylesheet" href="assets/css/bootstrap.min.css">
+	<!--
+	<script src="assets/js/jquery-3.4.1.min.js"></script>
+	-->
+	<script src="assets/js/jquery.min.js"></script>
+	<script src="assets/js/bootstrap.min.js"></script>
+	<!-- custom css/js files-->
+	<link rel="stylesheet" type="text/css" href="assets/css/env_test_main.css">
+	<script src="assets/js/env_test_main.js"></script>
+
+	<title>Environment Test</title>
+
+	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+	<meta content="utf-8" http-equiv="encoding">
+</head>
+
+<!-- End Instructions --><!-- Survey Body -->
+<section class="container" id="Survey" style="margin-bottom:15px; padding: 10px 10px; font-family: Verdana, Geneva, sans-serif; color:#333333; font-size:0.9em;">
+<section>
+
+<div class="row col-xs-12 col-md-12">
+<div class="panel panel-info">
+  <div class="panel-heading">
+    <h3 class="panel-title">	
+		<a data-toggle="collapse" >Welcome to the Environment Test!</a>
+	</h3>
+  </div>
+	
+    <div id="collapse1" class="panel-collapse collapse in">
+	  <div class="panel-body" >
+			<p>In this test, pairs of speech clips will be presented to you. Please listen to the both signals and select which one has the best quality. </p>
+			
+			<p>Next pair of speech clips will be selected according to your answers.</p>
+			</fieldset>
+				<fieldset><label>1.&nbsp; Participant's ID:</label>
+				<div align="center"><input id="p_name" name="p_name" required="" size="50" type="text" /> </div>
+
+			</fieldset>
+	  
+			<div style="text-align: center;margin:30px;"> <img src="assets/img/attention.png" alt="attention"> </img> <b>Please wear your headphones now.</b></div>
+	  
+			<fieldset><label>2. Please adjust the level of your computer to a comfortable level so that you hear the following audio sample very well.</label>
+				
+			<p align="center"> 
+			
+				<audio controls preload="auto" id="volumeSet" loop> <source src="assets/jnd_noise/50S_female2.wav" type="audio/wav" preload></audio>
+				</p>
+			
+			<div class="alert alert-warning" role="alert">
+			 After adjusting the level, you are not allowed to change the volume anymore. Otherwise your response will be rejected.
+			</div>
+
+		<div class="row text-center" style="margin-top:20px">
+			<button type="button" class="btn btn-success" onclick="start();" >Start</button>
+		</div>
+		
+	  
+	  </div>
+  </div>
+</div>
+</div>  
+</section>
+
+<section>
+
+<div class="row col-xs-12 col-md-12">
+<div class="panel panel-info">
+  <div class="panel-heading">
+    <h3 class="panel-title">	
+		<a data-toggle="collapse" href="#collapse1">Pairs</a>
+	</h3>
+  </div>
+	
+  <div id="collapse1" class="panel-collapse collapse in">
+	  <div class="panel-body" id="cmp-body">
+			  
+	  </div>
+  </div>
+</div>
+</div>  
+</section>
+
+<!-- Setup -->
+
+<style type="text/css">fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5px; }
+</style>

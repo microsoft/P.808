@@ -1,0 +1,62 @@
+body{font-family:Tahoma,"Times New Roman", Times, serif;}
+table.likert {font-size:medium;}
+td th{text-align:center;}
+td.q{padding:10px;text-align:left;}
+table.likert tr{height: 55px;}
+tr.gray{background-color:#D8D8D8 ;}
+tr.red{background-color:#33D8D8 ;}
+.green{background-color:#AEE8C1 ; padding:20px;}
+.red{background-color:#FFCFBF ; padding:20px;}
+.answertext{padding:20px;font-size:medium;}
+.table th, .table td {
+     border-top: none !important;
+}
+
+audio{margin:20px;}
+
+.sample{
+text-align:center;
+}
+
+/*Audio*/
+ div.audio{
+	background-color:#363636;
+	margin-left:15px;
+	vertical-align:middle;
+ }
+ button.audio{
+	height:36px;
+	width: 36px;
+	border:none;
+	background-size: 50% 50%;
+	background-position: center;
+	margin: 2px;
+	float:left;
+}
+button.play{background: url('ic_play_arrow_white_18dp.png') no-repeat;}
+button.pause{background: url('ic_pause_white_18dp.png') no-repeat;}
+
+div.remTime{
+	float:left;
+	color:white;
+	//clear:right;
+	margin-top:10px;
+	margin-left:10px;
+}
+div.duration{
+	float:left;
+	color:#aaaaaa;
+	clear:right;
+	margin-top:10px;
+	margin-left:10px;
+}
+
+div.timeline{
+	width: 400px;
+	height: 20px;
+	display:inline-block;
+	background: #4200f7;
+	margin-top: 20px;
+	float: left;
+	border-radius: 15px;
+}
