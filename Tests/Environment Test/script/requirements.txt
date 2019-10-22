@@ -1,0 +1,2 @@
+numpy
+-e git+https://github.com/microsoft/MS-SNSD.git#egg=audiolib
