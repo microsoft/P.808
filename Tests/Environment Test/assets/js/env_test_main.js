@@ -2,7 +2,7 @@
 
 // JND setup: Adaptive staircase: 3AFC, 2 down- 1 up: targets 70.7% levelA
 var config ={
-    jndMaxQuestions:45,
+    jndMaxQuestions:45, // maximum number of questions
     snrStart:30, // SNR-  worse quality
     snrEnd :50, // SNR-  best quality
     finishIfReversalIs:7, // use 7 as recommended by Levit t , H. (1992).
@@ -52,29 +52,13 @@ String.prototype.format = String.prototype.f = function() {
     return s;
 };
 
-String.prototype.toMMSS = function () {
-    var sec_num = parseInt(this, 10); // don't forget the second param
-    var minutes   = Math.floor(sec_num / 60);
-    var seconds = sec_num - (minutes * 60);
-    if (minutes < 10) {minutes = "0"+minutes;}
-    if (seconds < 10) {seconds = "0"+seconds;}
-    return minutes+':'+seconds;
-}
-
 $( document ).ready(function() {
     // disable logs if not debug
     if (!config.debug)
         console.log = function() {};
-
-    // when one audio start to play, pause the all the other ones.
-	$("audio").on("play", function() {
-		$("audio").not(this).each(function(index, audio) {
-			audio.pause();
-		});
-	});
 });
 
-//same as above, which one is correct!?
+ // when one audio start to play, pause the all the other ones.
 document.addEventListener('play', function(e){
     var audios = document.getElementsByTagName('audio');
     for(var i = 0, len = audios.length; i < len;i++){
@@ -213,8 +197,9 @@ function addJNDQuestion(n,snrLevel){
 	if (isEven(Math.floor(Math.random()*100))){
 	    tmp=b;b= a; a= tmp;
 	}
+
     // randomly choose one of the speakers
-	let index= Math.round(Math.random()*3);
+    let index= Math.round(Math.random()*3);
 
 	f1=fileNames[index].f(fileName.f(a));
 	f2=fileNames[index].f(fileName.f(b));;
@@ -272,8 +257,6 @@ function submitAnsJnd(qNum,aSNR,bSNR){
 		    currentSNRIndex ++;
 		    correctAnsInCurrentSNRIndex= 0;
 		}
-
-
 	}else{
 	    // previously direction was positive, now it was a positive answer, so it is a reversal
 		if (direction==1){
@@ -296,7 +279,7 @@ function getNextQuestion(){
      2. "it is recommended that test-ing continue for at least seven reversals, and that the last six reversals be used
      in obtaining the estimate." [Levit t , H. (1992)]
      */
-	if (currentQuestionNum<config.jndMaxQuestions &&
+	if (currentQuestionNum<=config.jndMaxQuestions &&
 	    reversalAtSNRIndex < reversalAtSNR.length){
 		nextQuestionSNR=currentSNRIndex + config.snrStart;
 		//reached the upper range
@@ -322,7 +305,7 @@ function getNextQuestion(){
 		questionAskedPerSNRLevel[currentSNRIndex] ++;
 		addJNDQuestion(currentQuestionNum, nextQuestionSNR);
 	}else{
-	    // if maximum number of questions achived, store the last SNR as well,
+	    // if maximum number of questions achieved, store the last SNR as well,
 	    if (reversalAtSNRIndex < reversalAtSNR.length){
 	        reversalAtSNR[reversalAtSNRIndex] = currentSNRIndex + config.snrStart;
             reversalAtSNRIndex ++;
