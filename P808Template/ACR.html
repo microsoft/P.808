@@ -7,15 +7,7 @@
 	<meta content="utf-8" http-equiv="encoding">
 </head>
 </head>
-<style type="text/css">
-	//td{text-align:center;}
-//td.q{padding:10px;text-align:left;}
-//tr.gray{background-color:#D8D8D8 ;}
-//tr.red{background-color:#33D8D8 ;}
-//.green{background-color:#AEE8C1 ; padding:20px;}
-//.red{background-color:#FFCFBF ; padding:20px;}
-//.answertext{padding:20px;font-size:medium;}
-</style>
+
 
 <style type="text/css">
 body{font-family:Tahoma,"Times New Roman", Times, serif;}
@@ -54,7 +46,7 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 
 var config ={
 	cookieName:"itu_p808_test",
-    forceRetrainingAfterHours:2,
+    forceRetrainingAfterHours:1,
     debug:true
 }
 
@@ -168,7 +160,7 @@ function playedAudioTraining(id){
 
 
 
-//----------------baudio.js
+//---------------- baudio.js -----------------
 var audioElements=[];
 function clickManager(event) {
 	ae=event.data.ae;
@@ -313,49 +305,47 @@ function playedAudioQ(id){
 
 <!-- Instructions -->
 <section class="container" id="Survey">
-<div class="panel panel-primary">
-<div class="panel-heading">
-<h3 class="panel-title">
-	<a data-target="#instruction" data-toggle="collapse" >Instructions for speech quality assessment (Part 2 - Rating)</a>
-</h3>
-</div>
-<div  class="panel-collapse collapse in" id="instruction">
-	  <div class="panel-body" >
-  	  <b>Introduction</b>
+	<div class="panel panel-primary">
+		<div class="panel-heading">
+			<h3 class="panel-title">
+				<a data-target="#instruction" data-toggle="collapse" >Instructions for speech quality assessment (Part 2 - Rating)</a>
+			</h3>
+		</div>
+		<div  class="panel-collapse collapse in" id="instruction">
+			  <div class="panel-body" >
+			  <b>Introduction</b>
 
-		<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/assets/Rating3.png" alt="scale" class="center" width="300px"></img>
-		
-		<p>Welcome and congratulation!</b> You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just once a day) sections:: 
-		<ul>
-			<li><b>Setup:</b> Configure your system and validate it by answering to 6 questions</li>
-			<li><b>Training (once a day):</b> 5 questions, same as "Ratings" but appears just once a day</li>
-			<li><b>Rating:</b> Listen to 11 audio files</b> and give <b>your opinion about the quality of the speech</b> you hear.</li>
-		</ul>
-		<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
-		<p><b>Rules:</b></p>
-		<ul>
-			<li>Use a headset, not the loudspeaker: otherwise your response will be rejected</li>
-			<li>Perform the task in a quite environment</li>
-			<li>Do not change the volume after modifying it in the Setup section.</li>
-		</ul>
-		
-		<p><b>Payment:</b></p>
-		<p>The result of this experiment is <b>very important for us and other scientist</b> working in this area. We have methods that analyse the consistency of your answers. We will use these methods to rank the submitted assignments according to quality.</p>
-		<p>For this experiment, we will pay a base reward of <b>$0.50/HIT</b> for every accepted HIT. We have made available a set of 57 different HITs. You will receive a bonus of:</p>
-		
-		<ul>
-		  <li>$0.10/HIT (for a total of <b>$0.60/HIT</b>) if you submit <b>more than 30 HITs</b> or</li>
-		  <li>$0.25/HIT (for a total of <b>$0.75/HIT</b>) if you submit <b>more than 30 HITs</b> <u>and</u> be in the <b>top 20% quality group</b>.</li>
-		</ul>
-		
-		<p>Bonuses will be assigned with in 7 days.</p>
-		<b>Please perform up to <u>57 HITs</u> from this group.</b>
+				<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/assets/Rating3.png" alt="scale" class="center" width="300px"></img>
+
+				<p>Welcome and congratulation!</b> You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just once a day) sections::
+				<ul>
+					<li><b>Setup:</b> Configure your system and validate it by answering to 6 questions</li>
+					<li><b>Training (every one hour):</b> 5 questions, same as "Ratings" but appears just once a day</li>
+					<li><b>Rating:</b> Listen to 11 audio files</b> and give <b>your opinion about the quality of the speech</b> you hear.</li>
+				</ul>
+				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
+				<p><b>Rules:</b></p>
+				<ul>
+					<li>Use a headset, not the loudspeaker: otherwise your response will be rejected</li>
+					<li>Perform the task in a quite environment</li>
+					<li>Do not change the volume after modifying it in the Setup section.</li>
+				</ul>
+
+				<p><b>Payment:</b></p>
+				<p>The result of this experiment is <b>very important for us and other scientist</b> working in this area. We have methods that analyse the consistency of your answers. We will use these methods to rank the submitted assignments according to quality.</p>
+				<p>For this experiment, we will pay a base reward of <b>$0.50/HIT</b> for every accepted HIT. We have made available a set of 57 different HITs. You will receive a bonus of:</p>
+
+				<ul>
+				  <li>$0.10/HIT (for a total of <b>$0.60/HIT</b>) if you submit <b>more than 30 HITs</b> or</li>
+				  <li>$0.25/HIT (for a total of <b>$0.75/HIT</b>) if you submit <b>more than 30 HITs</b> <u>and</u> be in the <b>top 20% quality group</b>.</li>
+				</ul>
+
+				<p>Bonuses will be assigned with in 7 days.</p>
+				<b>Please perform up to <u>57 HITs</u> from this group.</b>
+			</div>
+		</div>
+
 	</div>
-	
-	
-</div>
-
-</div>
 </section>
 
 <!-- Setup -->
@@ -505,7 +495,7 @@ function playedAudioQ(id){
 		<div class="panel panel-primary">
 			<div class="panel-heading">
 				<h3 class="panel-title">
-					<a data-target="#trainingS" data-toggle="collapse" >Training (appears once a day)</a>
+					<a data-target="#trainingS" data-toggle="collapse" >Training (appears once in an hour)</a>
 				</h3>
 			</div>
 			<div  class="panel-collapse collapse in" id="trainingS">
