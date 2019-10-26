@@ -50,6 +50,7 @@ var config ={
     debug:true,
     questionUrls: ["${Q1}","${Q2}","${Q3}","${Q4}","${Q5}","${Q6}","${Q7}","${Q8}","${Q9}","${Q10}","${TP}"],
     trainingUrls: ["${t1}","${t2}","${t3}","${t4}","${t5}"],
+    includeSetupIfMinutesPassedFromLastSetupIsBiggerThan:3,
 }
 
 $( document ).ready(function() {
@@ -58,13 +59,20 @@ $( document ).ready(function() {
         console.log = function() {};
 
     // given cookie availability disable the training
-    if (readCookie(config.cookieName)){
+    if (readCookie(config.cookieName+"_training")){
 		$('.trainingFieldset').prop("disabled", true);
 		$("#training").hide();
 	}
-	avoidAnsweringBeforeListeningThrough();
+
+    // given cookie availability disable the setup
+    if (readCookie(config.cookieName+"_setup")){
+		$('.setupFieldset').prop("disabled", true);
+		$("#setup").hide();
+	}
+
 	generate_training_section();
 	generate_rating_section();
+	avoidAnsweringBeforeListeningThrough();
 });
 
 //--------------- Utilities -----------------
@@ -113,29 +121,35 @@ function readCookie(name) {
 }
 
 
-
-//-------------------- by finishing the speech, make the scale clickable
-function xisfinished(id){
-	console.log("here is x id finished:"+id);
-}
-
-//------------------scale
+/*
+	callback when "Next" in Rating section is clicked.
+*/
 function next(){
 	id=$("#nav-tab-ul li.active").index();
 	id=id+2;
 	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
 }
+/*
+	callback when "Previous" in Rating section is clicked.
+*/
 function previous(){
 	id=$("#nav-tab-ul li.active").index();
 	id=id;
 	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
 }
 
+/*
+	callback when "Next" in Training section is clicked.
+*/
 function nextT(){
 	id=$("#trainingTabs li.active").index();
 	id=id+2;
 	$('#trainingTabs li:nth-child('+id+') a').tab('show');
 }
+
+/*
+	callback when "Previous" in Training section is clicked.
+*/
 function previousT(){
 	id=$("#trainingTabs li.active").index();
 	id=id;
@@ -143,12 +157,7 @@ function previousT(){
 }
 
 
-
-var t1_played=0;
-var t2_played=0;
-var t3_played=0;
-var t4_played=0;
-var t5_played=0;
+var trainingStimulusPlayed;
 
 /*
   If all training clips played until the end, add a cookie expiring after
@@ -156,13 +165,16 @@ var t5_played=0;
 */
 function playedAudioTraining(id){
 	$('input[name="'+id+'"]').off('change');
-	eval(id+"_played=1");
-	if (t1_played+t2_played+t3_played+t4_played+t5_played==5){
-		createCookie(config.cookieName,"2",config.forceRetrainingAfterHours*60);
+	trainingQuestionNumber= id.substring(1);
+	eval("trainingStimulusPlayed["+trainingQuestionNumber+"-1]=1;");
+	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
+		createCookie(config.cookieName+"_training","un_important",config.forceRetrainingAfterHours*60);
 	}
 }
 
-
+function getSum(total, num) {
+  return total + num;
+}
 
 //---------------- baudio.js -----------------
 var audioElements=[];
@@ -295,66 +307,80 @@ Now user can rate the quality.
 function playedAudioQ(id){
 	$('input[name="'+id+'"]').off('change');
 }
+
+/*
+Called when user answers to one question from setup (i.e. q2. math question). Here the cookie will be added/updated
+*/
+function userAnsweringToSetupQuestions(){
+	console.log ("userAnsweringToSetupQuestions")
+	createCookie(config.cookieName+"_setup","un_important",config.includeSetupIfMinutesPassedFromLastSetupIsBiggerThan);
+	$('input[name="math"]').off('change');
+}
+
 </script>
 
 <script type="text/javascript">
-	<!-- shuffle function for randomization of items -->
-	function shuffle(a) {
-		var j, x, i;
-		for (i = a.length - 1; i > 0; i--) {
-			j = Math.floor(Math.random() * (i + 1));
-			x = a[i];
-			a[i] = a[j];
-			a[j] = x;
-		}
-		return a;
+
+/*
+shuffle function for randomization of items -->
+*/
+function shuffle(a) {
+	var j, x, i;
+	for (i = a.length - 1; i > 0; i--) {
+		j = Math.floor(Math.random() * (i + 1));
+		x = a[i];
+		a[i] = a[j];
+		a[j] = x;
 	}
+	return a;
+}
 
 
-	function generate_training_section(){
-		acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link " data-toggle="tab"  href="#T{0}-panel" id="T{0}-tab " role="tab" aria-controls="T{0}" {2}>Q. {0}</a></li>';
-		acr_tab ='<div class="tab-pane fade {2}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p><p align="center"> <span class="baudio" id="t{0}" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p><fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the speech</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="4">Good</label></div></td><td class="c">4</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="3">Fair</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="2">Poor</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	   </tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
-		// this will show which url was shown by in which question as their orther will be randomized
-		input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" />';
+function generate_training_section(){
+	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link " data-toggle="tab"  href="#T{0}-panel" id="T{0}-tab " role="tab" aria-controls="T{0}" {2}>Q. {0}</a></li>';
+	acr_tab ='<div class="tab-pane fade {2}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p><p align="center"> <span class="baudio" id="t{0}" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p><fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the speech</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="4">Good</label></div></td><td class="c">4</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="3">Fair</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="2">Poor</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	   </tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
+	// this will show which url was shown by in which question as their orther will be randomized
+	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" />';
 
-		urls = shuffle(config['trainingUrls']);
+	urls = shuffle(config['trainingUrls']);
 
-		var i;
-		for (i = 0; i < urls.length; i++) {
-			if (i==0){
-				$('#trainingTabs').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'))
-				$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'in active'))
-			}else{
-				$('#trainingTabs').append(acr_nav_tab.f(i+1,'',''))
-				$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],''))
-			}
-			$('#av-tabContent').append(input_template.f(i+1, urls[i]))
+	var i;
+	for (i = 0; i < urls.length; i++) {
+		if (i==0){
+			$('#trainingTabs').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
+			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'in active'));
+		}else{
+			$('#trainingTabs').append(acr_nav_tab.f(i+1,'',''));
+			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],''));
 		}
-		$('.question_number_training').html(urls.length)
+		$('#av-tabContent').append(input_template.f(i+1, urls[i]));
 	}
+	$('.question_number_training').html(urls.length);
+	trainingStimulusPlayed = new Array(urls.length).fill(0);
+}
 
-	function generate_rating_section(){
-		acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#Q{0}-panel" id="Q{0}-tab" role="tab" aria-controls="Q{0}" {2}>Q. {0}</a></li>';
-		acr_tab ='<div class="tab-pane fade {2}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"> <p></p> <div class="row"> <div class="col-sm-3"></div> <div class="col-sm-6"> <p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p> <p align="center"> <span class="baudio" id="q{0}" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> <fieldset id="fieldset_q{0}" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >Quality of the speech</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="4">Good</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="3">Fair</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="2">Poor</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> <p></p> </div> <div class="col-sm-3"></div> </div> <p></p> </div>';
-		// this will show which url was shown by in which question as their orther will be randomized
-		input_template= '<input id="Q{0}_URL" name="Q{0}_URL" type="hidden" value="{1}" />';
+function generate_rating_section(){
+	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#Q{0}-panel" id="Q{0}-tab" role="tab" aria-controls="Q{0}" {2}>Q. {0}</a></li>';
+	acr_tab ='<div class="tab-pane fade {2}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"> <p></p> <div class="row"> <div class="col-sm-3"></div> <div class="col-sm-6"> <p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p> <p align="center"> <span class="baudio" id="q{0}" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> <fieldset id="fieldset_q{0}" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >Quality of the speech</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="4">Good</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="3">Fair</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="2">Poor</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> <p></p> </div> <div class="col-sm-3"></div> </div> <p></p> </div>';
+	// this will show which url was shown by in which question as their orther will be randomized
+	input_template= '<input id="Q{0}_URL" name="Q{0}_URL" type="hidden" value="{1}" />';
 
-		urls = shuffle(config['questionUrls']);
+	urls = shuffle(config['questionUrls']);
 
-		var i;
-		for (i = 0; i < urls.length; i++) {
-			if (i==0){
-				$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'))
-				$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],'in active'))
-			}else{
-				$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'',''))
-				$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],''))
-			}
-			$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i]))
+	var i;
+	for (i = 0; i < urls.length; i++) {
+		if (i==0){
+			$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
+			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],'in active'));
+		}else{
+			$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'',''));
+			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],''));
 		}
-		$('.question_number').html(urls.length)
-
+		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i]));
 	}
+	$('.question_number').html(urls.length);
+
+}
 
 </script>
 <!-- Instructions -->
@@ -403,19 +429,19 @@ function playedAudioQ(id){
 </section>
 
 <!-- Setup -->
-<section class="container">
+<section class="container" id="setup">
 <div class="panel panel-info">
   <div class="panel-heading">
     <h3 class="panel-title">	
-		<a data-target="#setup" data-toggle="collapse" >Setup</a>
+		<a data-target="#setup_panel" data-toggle="collapse" >Setup</a>
 	</h3>
   </div>
-  <div  class="panel-collapse collapse in" id="setup">
+  <div  class="panel-collapse collapse in" id="setup_panel">
 	  <div class="panel-body">
 	  
 	  <div style="text-align: center;margin:30px;"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/attention.png" alt="attention"> </img> <b>Please wear your headphones now.</b></div>
 	  
-		<fieldset><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
+		<fieldset class="setupFieldset" ><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
 				
 			<p align="center"> <span class="baudio" id="volume" data-src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/D401_c01_ef01_s001.wav" >&nbsp;</span> </p>
 			
@@ -429,19 +455,19 @@ function playedAudioQ(id){
 		</fieldset>
 
 
-		<fieldset><label>2.&nbsp; Please listen to the following audio file and type in the answer to the question: </label>
+		<fieldset  class="setupFieldset"><label>2.&nbsp; Please listen to the following audio file and type in the answer to the question: </label>
 			
 				<div align="center"> <span class="baudio" id="math1" data-src="${math}" >&nbsp;</span> </div>
 			
 
-		<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" /> </div>
+		<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" onchange="userAnsweringToSetupQuestions()"/> </div>
 
 		</fieldset>
 
 		<div class="alert alert-info" role="alert">For the following <b>four questions</b>, please specify which sample has a better quality compared to the other one from your perspective.</div>
 		
 		
-		<fieldset><label>3.&nbsp;Which sample has a better quality compared to the other one? </label>
+		<fieldset  class="setupFieldset"><label>3.&nbsp;Which sample has a better quality compared to the other one? </label>
 				
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
@@ -465,7 +491,7 @@ function playedAudioQ(id){
 
 		</fieldset>
 		
-		<fieldset><label>4.&nbsp;Which sample has a better quality compared to the other one? </label>
+		<fieldset  class="setupFieldset"><label>4.&nbsp;Which sample has a better quality compared to the other one? </label>
 
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
@@ -488,7 +514,7 @@ function playedAudioQ(id){
 		</div>
 
 		</fieldset>
-		<fieldset><label>5.&nbsp;Which sample has a better quality compared to the other one? </label>
+		<fieldset  class="setupFieldset"><label>5.&nbsp;Which sample has a better quality compared to the other one? </label>
 							
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
@@ -512,7 +538,7 @@ function playedAudioQ(id){
 
 		</fieldset>
 		
-		<fieldset><label>6.&nbsp;Which sample has a better quality compared to the other one? </label>
+		<fieldset  class="setupFieldset"><label>6.&nbsp;Which sample has a better quality compared to the other one? </label>
 			
 				
 		<div class="row" style="margin-top:10px;">
