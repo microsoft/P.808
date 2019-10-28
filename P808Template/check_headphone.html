@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Check headphone</title>
+
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+	<meta content="utf-8" http-equiv="encoding">
+</head>
+
+<body>
+
+<script type="text/javascript">
+
+    var device_list= "";
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+        console.log(devices);
+        devices.forEach(printDevice);
+        console.log(device_list);
+         document.getElementById("navmedia").innerHTML= device_list
+
+        });
+
+function printDevice(device) {
+    console.log(device);
+    device_list = device_list+ "<br>" + device.kind +":" +device.label +"("+device.deviceId+")";
+
+}
+
+
+const constraints = {
+  audio: true
+};
+
+
+// Start function
+const start = async function() {
+    await navigator.mediaDevices.getUserMedia(constraints);
+    navigator.mediaDevices.enumerateDevices()
+    .then(devices => {
+        // Check the connected devices
+        console.log(devices);
+        device_list= "";
+        devices.forEach(printDevice);
+        console.log(device_list);
+        document.getElementById("navmedia_perm").innerHTML= device_list
+
+  });
+}
+
+
+// Call start
+ start();
+
+
+
+</script>
+
+<div class="container">
+
+        <div class="row" style="margin-top:10px;">
+				<div class="col-sm-4">
+					navigator.mediaDevices.enumerateDevices
+				</div>
+
+				<div class="col-sm-8" id="navmedia"> Loading..
+				</div>
+		</div>
+       <div class="row" style="margin-top:10px;">
+				<div class="col-sm-4">
+					navigator.mediaDevices.enumerateDevices After getUserMedia permission
+				</div>
+
+				<div class="col-sm-8" id="navmedia_perm">Loading...
+				</div>
+		</div>
+
+</div>
+
+</body>
+</html>

@@ -6,7 +6,7 @@
 	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 	<meta content="utf-8" http-equiv="encoding">
 </head>
-</head>
+
 
 
 <style type="text/css">
@@ -47,7 +47,16 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 var config ={
 	cookieName:"itu_p808_test",
     forceRetrainingAfterHours:1,
-    debug:true
+    debug:true,
+    questionUrls: ["assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m1_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_FB_48k.wav","assets/clips/sample_speech/P501_C_english_f1_FB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_IRS_08k.wav","assets/clips/sample_tp.wav"],
+    trainingUrls: ["assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav"],
+    randomizeTrainingQuestions:"true",
+    randomizeRatingQuestions:"false",
+    forceSetupSectionEveryIfMinutesPassedFromLastSetupIsBiggerThan:3,
+    // the URL should appears in the questionUrls as well.
+    known_question_url:"assets/clips/sample_tp.wav",
+	// the correct answer
+    known_question_ans:"3"
 }
 
 $( document ).ready(function() {
@@ -56,10 +65,19 @@ $( document ).ready(function() {
         console.log = function() {};
 
     // given cookie availability disable the training
-    if (readCookie(config.cookieName)){
+    if (readCookie(config.cookieName+"_training")){
 		$('.trainingFieldset').prop("disabled", true);
 		$("#training").hide();
 	}
+
+    // given cookie availability disable the setup
+    if (readCookie(config.cookieName+"_setup")){
+		$('.setupFieldset').prop("disabled", true);
+		$("#setup").hide();
+	}
+
+	generate_training_section();
+	generate_rating_section();
 	avoidAnsweringBeforeListeningThrough();
 });
 
@@ -109,42 +127,43 @@ function readCookie(name) {
 }
 
 
-
-//-------------------- by finishing the speech, make the scale clickable
-function xisfinished(id){
-	console.log("here is x id finished:"+id);
-}
-
-//------------------scale
-function next(){
-	id=$("#myquestions li.active").index();
+/*
+	callback when "Next" in Rating section is clicked.
+*/
+function showNextQuestionInRatingSection(){
+	id=$("#nav-tab-ul li.active").index();
 	id=id+2;
-	$('#myquestions li:nth-child('+id+') a').tab('show');
+	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
 }
-function previous(){
-	id=$("#myquestions li.active").index();
+/*
+	callback when "Previous" in Rating section is clicked.
+*/
+function showPreviousQuestionInRatingSection(){
+	id=$("#nav-tab-ul li.active").index();
 	id=id;
-	$('#myquestions li:nth-child('+id+') a').tab('show');
+	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
 }
 
-function nextT(){
+/*
+	callback when "Next" in Training section is clicked.
+*/
+function showNextQuestionInTrainingSection(){
 	id=$("#trainingTabs li.active").index();
 	id=id+2;
 	$('#trainingTabs li:nth-child('+id+') a').tab('show');
 }
-function previousT(){
+
+/*
+	callback when "Previous" in Training section is clicked.
+*/
+function showPreviousQuestionInTrainingSection(){
 	id=$("#trainingTabs li.active").index();
 	id=id;
 	$('#trainingTabs li:nth-child('+id+') a').tab('show');
 }
 
 
-
-var t1_played=0;
-var t2_played=0;
-var t3_played=0;
-var t4_played=0;
-var t5_played=0;
+var trainingStimulusPlayed;
 
 /*
   If all training clips played until the end, add a cookie expiring after
@@ -152,13 +171,16 @@ var t5_played=0;
 */
 function playedAudioTraining(id){
 	$('input[name="'+id+'"]').off('change');
-	eval(id+"_played=1");
-	if (t1_played+t2_played+t3_played+t4_played+t5_played==5){
-		createCookie(config.cookieName,"2",config.forceRetrainingAfterHours*60);
+	trainingQuestionNumber= id.substring(1);
+	eval("trainingStimulusPlayed["+trainingQuestionNumber+"-1]=1;");
+	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
+		createCookie(config.cookieName+"_training","un_important",config.forceRetrainingAfterHours*60);
 	}
 }
 
-
+function getSum(total, num) {
+  return total + num;
+}
 
 //---------------- baudio.js -----------------
 var audioElements=[];
@@ -275,34 +297,126 @@ function alertForbiddenChange(){
 Users should not be able to vot before listening the audio clips until the end.
 */
 function avoidAnsweringBeforeListeningThrough(){
-	$('input[name="q1"]').on('change', alertForbiddenChange);
-	$('input[name="q2"]').on('change', alertForbiddenChange);
-	$('input[name="q3"]').on('change', alertForbiddenChange);
-	$('input[name="q4"]').on('change', alertForbiddenChange);
-	$('input[name="q5"]').on('change', alertForbiddenChange);
-	$('input[name="q6"]').on('change', alertForbiddenChange);
-	$('input[name="q7"]').on('change', alertForbiddenChange);
-	$('input[name="q8"]').on('change', alertForbiddenChange);
-	$('input[name="q9"]').on('change', alertForbiddenChange);
-	$('input[name="q10"]').on('change', alertForbiddenChange);
-	$('input[name="q11"]').on('change', alertForbiddenChange);
+	var i;
+	// Training section
+	for (i = 0; i < config['trainingUrls'].length; i++) {
+		$('input[name="t{0}"]'.f(i+1)).on('change', alertForbiddenChange);
+	}
+	// Rating section
+	for (i = 0; i < config['questionUrls'].length; i++) {
+		$('input[name="q{0}"]'.f(i+1)).on('change', alertForbiddenChange);
+	}
 
-	$('input[name="t1"]').on('change', alertForbiddenChange);
-	$('input[name="t2"]').on('change', alertForbiddenChange);
-	$('input[name="t3"]').on('change', alertForbiddenChange);
-	$('input[name="t4"]').on('change', alertForbiddenChange);
-	$('input[name="t5"]').on('change', alertForbiddenChange);
 }
 
 /*
-Called when the audio by the given id is completely played.
+	Listener on value change for the trapping question.
+	if the answer is correct, change the value of tp_check to 0.
+*/
+function onValueChangeForTpQuestion(){
+	if ($( this ).val()  == config['known_question_ans'])
+		$('#tp_check').val(0);
+	else
+		$('#tp_check').val(-1);
+	console.log($('#tp_check').val());
+}
+
+/*
+Called when the audio in rating section by the given id is completely played.
 Now user can rate the quality.
 */
 function playedAudioQ(id){
-	$('input[name="'+id+'"]').off('change');
+	console.log ($('span[id="'+id+'"]').attr("data-src"))
+	// check if it was the trapping question
+	if ($('span[id="'+id+'"]').attr("data-src") == config['known_question_url']){
+		element = $('input[name="'+id+'"]');
+		element.unbind();
+		element.on('change', onValueChangeForTpQuestion);
+	}else
+		$('input[name="'+id+'"]').off('change');
 }
+
+/*
+Called when user answers to one question from setup (i.e. q2. math question). Here the cookie will be added/updated
+*/
+function userAnsweringToSetupQuestions(){
+	createCookie(config.cookieName+"_setup","un_important",config.includeSetupIfMinutesPassedFromLastSetupIsBiggerThan);
+	$('input[name="math"]').off('change');
+}
+
 </script>
 
+<script type="text/javascript">
+
+/*
+shuffle function for randomization of items -->
+*/
+function shuffle(a) {
+	var j, x, i;
+	for (i = a.length - 1; i > 0; i--) {
+		j = Math.floor(Math.random() * (i + 1));
+		x = a[i];
+		a[i] = a[j];
+		a[j] = x;
+	}
+	return a;
+}
+
+
+function generate_training_section(){
+	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link " data-toggle="tab"  href="#T{0}-panel" id="T{0}-tab " role="tab" aria-controls="T{0}" {2}>Q. {0}</a></li>';
+	acr_tab ='<div class="tab-pane fade {2}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p><p align="center"> <span class="baudio" id="t{0}" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p><fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the speech</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="4">Good</label></div></td><td class="c">4</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="3">Fair</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="2">Poor</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	   </tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
+	// this will show which url was shown by in which question as their orther will be randomized
+	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" />';
+
+    if (JSON.parse(config['randomizeTrainingQuestions']))
+		urls = shuffle(config['trainingUrls']);
+	else
+		urls = config['trainingUrls'];
+
+	var i;
+	for (i = 0; i < urls.length; i++) {
+		if (i==0){
+			$('#trainingTabs').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
+			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'in active'));
+		}else{
+			$('#trainingTabs').append(acr_nav_tab.f(i+1,'',''));
+			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],''));
+		}
+		$('#av-tabContent').append(input_template.f(i+1, urls[i]));
+	}
+	$('.question_number_training').html(urls.length);
+	trainingStimulusPlayed = new Array(urls.length).fill(0);
+}
+
+function generate_rating_section(){
+	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#Q{0}-panel" id="Q{0}-tab" role="tab" aria-controls="Q{0}" {2}>Q. {0}</a></li>';
+	acr_tab ='<div class="tab-pane fade {2}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"> <p></p> <div class="row"> <div class="col-sm-3"></div> <div class="col-sm-6"> <p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p> <p align="center"> <span class="baudio" id="q{0}" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> <fieldset id="fieldset_q{0}" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >Quality of the speech</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="4">Good</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="3">Fair</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="2">Poor</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> <p></p> </div> <div class="col-sm-3"></div> </div> <p></p> </div>';
+	// this will show which url was shown by in which question as their orther will be randomized
+	input_template= '<input id="Q{0}_URL" name="Q{0}_URL" type="hidden" value="{1}" />';
+
+	if (JSON.parse(config['randomizeRatingQuestions']))
+		urls = shuffle(config['questionUrls']);
+	else
+		urls = config['questionUrls'];
+
+
+	var i;
+	for (i = 0; i < urls.length; i++) {
+		if (i==0){
+			$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
+			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],'in active'));
+		}else{
+			$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'',''));
+			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],''));
+		}
+		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i]));
+	}
+	$('.question_number').html(urls.length);
+
+}
+
+</script>
 <!-- Instructions -->
 <section class="container" id="Survey">
 	<div class="panel panel-primary">
@@ -321,7 +435,7 @@ function playedAudioQ(id){
 				<ul>
 					<li><b>Setup:</b> Configure your system and validate it by answering to 6 questions</li>
 					<li><b>Training (every one hour):</b> 5 questions, same as "Ratings" but appears just once a day</li>
-					<li><b>Rating:</b> Listen to 11 audio files</b> and give <b>your opinion about the quality of the speech</b> you hear.</li>
+					<li><b>Rating:</b> Listen to <b class="question_number"></b> audio files</b> and give <b>your opinion about the quality of the speech</b> you hear.</li>
 				</ul>
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
 				<p><b>Rules:</b></p>
@@ -349,19 +463,19 @@ function playedAudioQ(id){
 </section>
 
 <!-- Setup -->
-<section class="container">
+<section class="container" id="setup">
 <div class="panel panel-info">
   <div class="panel-heading">
     <h3 class="panel-title">	
-		<a data-target="#setup" data-toggle="collapse" >Setup</a>
+		<a data-target="#setup_panel" data-toggle="collapse" >Setup</a>
 	</h3>
   </div>
-  <div  class="panel-collapse collapse in" id="setup">
+  <div  class="panel-collapse collapse in" id="setup_panel">
 	  <div class="panel-body">
 	  
 	  <div style="text-align: center;margin:30px;"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/attention.png" alt="attention"> </img> <b>Please wear your headphones now.</b></div>
 	  
-		<fieldset><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
+		<fieldset class="setupFieldset" ><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
 				
 			<p align="center"> <span class="baudio" id="volume" data-src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/D401_c01_ef01_s001.wav" >&nbsp;</span> </p>
 			
@@ -375,19 +489,19 @@ function playedAudioQ(id){
 		</fieldset>
 
 
-		<fieldset><label>2.&nbsp; Please listen to the following audio file and type in the answer to the question: </label>
+		<fieldset  class="setupFieldset"><label>2.&nbsp; Please listen to the following audio file and type in the answer to the question: </label>
 			
 				<div align="center"> <span class="baudio" id="math1" data-src="assets/clips/math/math1.wav" >&nbsp;</span> </div>
 			
 
-		<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" /> </div>
+		<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" onchange="userAnsweringToSetupQuestions()"/> </div>
 
 		</fieldset>
 
 		<div class="alert alert-info" role="alert">For the following <b>four questions</b>, please specify which sample has a better quality compared to the other one from your perspective.</div>
 		
 		
-		<fieldset><label>3.&nbsp;Which sample has a better quality compared to the other one? </label>
+		<fieldset  class="setupFieldset"><label>3.&nbsp;Which sample has a better quality compared to the other one? </label>
 				
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
@@ -411,7 +525,7 @@ function playedAudioQ(id){
 
 		</fieldset>
 		
-		<fieldset><label>4.&nbsp;Which sample has a better quality compared to the other one? </label>
+		<fieldset  class="setupFieldset"><label>4.&nbsp;Which sample has a better quality compared to the other one? </label>
 
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
@@ -434,7 +548,7 @@ function playedAudioQ(id){
 		</div>
 
 		</fieldset>
-		<fieldset><label>5.&nbsp;Which sample has a better quality compared to the other one? </label>
+		<fieldset  class="setupFieldset"><label>5.&nbsp;Which sample has a better quality compared to the other one? </label>
 							
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
@@ -458,7 +572,7 @@ function playedAudioQ(id){
 
 		</fieldset>
 		
-		<fieldset><label>6.&nbsp;Which sample has a better quality compared to the other one? </label>
+		<fieldset  class="setupFieldset"><label>6.&nbsp;Which sample has a better quality compared to the other one? </label>
 			
 				
 		<div class="row" style="margin-top:10px;">
@@ -500,192 +614,22 @@ function playedAudioQ(id){
 			</div>
 			<div  class="panel-collapse collapse in" id="trainingS">
 				<div class="panel-body">
-				<p> Please answer the following 5 questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				<p> Please answer the following <b class="question_number_training"></b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
 				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
 
- 
+ 				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="trainingTabs">
-				  <li class="nav-item active">	<a class="nav-link " data-toggle="tab"  href="#T1-panel" id="T1-tab " role="tab" aria-controls="T1" aria-selected="true">Q. 1</a></li>
-				  <li class="nav-item">	<a class="nav-link " data-toggle="tab"  href="#T2-panel" id="T2-tab " role="tab" aria-controls="T2" >Q. 2</a></li>
-				  <li class="nav-item">	<a class="nav-link " data-toggle="tab"  href="#T3-panel" id="T3-tab " role="tab" aria-controls="T3" >Q. 3</a></li>
-				  <li class="nav-item">	<a class="nav-link " data-toggle="tab"  href="#T4-panel" id="T4-tab " role="tab" aria-controls="T4" >Q. 4</a></li>
-				  <li class="nav-item">	<a class="nav-link " data-toggle="tab"  href="#T5-panel" id="T5-tab " role="tab" aria-controls="T5" >Q. 5</a></li>
 				</ul>
 
 				<div class="tab-content" id="nav-tabContent">
-					<div class="tab-pane fade in active" id="T1-panel" role="tabpanel" aria-labelledby="T1-tab">				
-						<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">1. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="t1" data-onfinished="playedAudioTraining" data-src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c22_ef02_s003.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_t1" class="trainingFieldset" title="">
-								  <table class="table md scale" cellspacing="0" cellpadding="0">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t1" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t1" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t1" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t1" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t1" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
 
-						<p></p>
-					</div>
-				  <div class="tab-pane fade " id="T2-panel" role="tabpanel" aria-labelledby="T2-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">2. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="t2" data-onfinished="playedAudioTraining" data-src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c13_ef02_s002.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_t2" class="trainingFieldset" title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t2" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t2" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t2" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t2" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t2" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-				  
-				  <div class="tab-pane fade " id="T3-panel" role="tabpanel" aria-labelledby="T3-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">3. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="t3" data-onfinished="playedAudioTraining" data-src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c12_em02_s002.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_t3" class="trainingFieldset" title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t3" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t3" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t3" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t3" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t3" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-				  <div class="tab-pane fade " id="T4-panel" role="tabpanel" aria-labelledby="T4-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">4. How to you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="t4" data-onfinished="playedAudioTraining" data-src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c01_ef03_s004.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_t4" class="trainingFieldset" title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t4" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t4" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t4" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t4" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t4" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>				  
-				  
-				  <div class="tab-pane fade " id="T5-panel" role="tabpanel" aria-labelledby="T5-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">5. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="t5" data-onfinished="playedAudioTraining" data-src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c34_em03_s001.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_t5" class="trainingFieldset" title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t5" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t5" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t5" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t5" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="t5" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
 				  
 				</div>
-			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all 5 questions.</div>
+			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number_training"></b> questions.</div>
 			<nav aria-label="..." id="navNextPreT">
 			  <ul class="pager">
-				<li class="previous" onclick="previousT();"><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
-				<li class="next" onclick="nextT();"><a href="#trainingTabs" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+				<li class="previous" onclick="showPreviousQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
+				<li class="next" onclick="showNextQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 			  </ul>
 			</nav>
 			
@@ -696,7 +640,7 @@ function playedAudioQ(id){
 </section>
 <!-- Training section ends-->
 
-
+<input id="tp_check" name="tp_check" type="hidden" value="-1" />
 <!--- Rating task -->
 <section class="container">
 		<div class="panel panel-primary">
@@ -704,401 +648,18 @@ function playedAudioQ(id){
 				<h3 class="panel-title">Ratings</h3>
 			</div>
 			<div class="panel-body">	
-				<p> Please answer the following 11 questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				<p> Please answer the following <b class="question_number"></b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
 				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
 
- 
-				<ul class="nav nav-tabs" role="tablist" id="myquestions">
-				  <li class="nav-item active">	<a class="nav-link " data-toggle="tab"  href="#Q1-panel" id="Q1-tab " role="tab" aria-controls="Q1" aria-selected="true">Q. 1</a></li>
-				  <li class="nav-item">	<a class="nav-link " data-toggle="tab"  href="#Q2-panel" id="Q2-tab " role="tab" aria-controls="Q2" >Q. 2</a></li>
-				  <li class="nav-item">	<a class="nav-link " data-toggle="tab"  href="#Q3-panel" id="Q3-tab " role="tab" aria-controls="Q3" >Q. 3</a></li>
-				  <li class="nav-item">	<a class="nav-link " data-toggle="tab"  href="#Q4-panel" id="Q4-tab " role="tab" aria-controls="Q4" >Q. 4</a></li>
-				  <li class="nav-item">	<a class="nav-link " data-toggle="tab"  href="#Q5-panel" id="Q5-tab " role="tab" aria-controls="Q5" >Q. 5</a></li>
-				  <li class="nav-item">	<a class="nav-link " data-toggle="tab"  href="#Q6-panel" id="Q6-tab " role="tab" aria-controls="Q6" >Q. 6</a></li>
-					<li class="nav-item"><a class="nav-link " data-toggle="tab"  href="#Q7-panel" id="Q7-tab " role="tab" aria-controls="Q7" >Q. 7</a></li>
-					<li class="nav-item"><a class="nav-link " data-toggle="tab"  href="#Q8-panel" id="Q8-tab " role="tab" aria-controls="Q8" >Q. 8</a></li>
-					<li class="nav-item"><a class="nav-link " data-toggle="tab"  href="#Q9-panel" id="Q9-tab " role="tab" aria-controls="Q9" >Q. 9</a></li>
-					<li class="nav-item"><a class="nav-link " data-toggle="tab"  href="#Q10-panel" id="Q10-tab " role="tab" aria-controls="Q10" >Q. 10</a></li>
-					<li class="nav-item"><a class="nav-link " data-toggle="tab"  href="#Q11-panel" id="Q11-tab " role="tab" aria-controls="Q11" >Q. 11</a></li>
-				  
-				</ul>
-
-				<div class="tab-content" id="nav-tabContent">
-					<div class="tab-pane fade in active" id="Q1-panel" role="tabpanel" aria-labelledby="Q1-tab">				
-						<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">1. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q1" data-onfinished="playedAudioQ" data-src="assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q1" title="">
-								  <table class="table md scale" cellspacing="0" cellpadding="0">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q1" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q1" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q1" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q1" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q1" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-					</div>
-				  <div class="tab-pane fade " id="Q2-panel" role="tabpanel" aria-labelledby="Q2-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">2. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q2" data-onfinished="playedAudioQ" data-src="assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q2"  title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q2" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q2" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q2" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q2" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q2" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-				  
-				  <div class="tab-pane fade " id="Q3-panel" role="tabpanel" aria-labelledby="Q3-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">3. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q3" data-onfinished="playedAudioQ" data-src="assets/clips/sample_tp.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q3"  title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q3" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q3" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q3" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q3" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q3" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-				  <div class="tab-pane fade " id="Q4-panel" role="tabpanel" aria-labelledby="Q4-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">4. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q4" data-onfinished="playedAudioQ" data-src="assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q4"  title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q4" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q4" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q4" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q4" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q4" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>				  
-				  
-				  <div class="tab-pane fade " id="Q5-panel" role="tabpanel" aria-labelledby="Q5-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">5. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q5" data-onfinished="playedAudioQ" data-src="assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q5"  title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q5" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q5" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q5" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q5" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q5" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-				  <div class="tab-pane fade " id="Q6-panel" role="tabpanel" aria-labelledby="Q6-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">6. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q6" data-onfinished="playedAudioQ" data-src="assets/clips/sample_speech/P501_C_english_m1_IRS_08k.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q6"  title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q6" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q6" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q6" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q6" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q6" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-				  
-				  <div class="tab-pane fade " id="Q7-panel" role="tabpanel" aria-labelledby="Q7-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">7. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q7" data-onfinished="playedAudioQ" data-src="assets/clips/sample_speech/P501_C_english_f2_SWB_48k.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q7"  title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q7" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q7" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q7" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q7" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q7" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-				  
-				  <div class="tab-pane fade " id="Q8-panel" role="tabpanel" aria-labelledby="Q8-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">8. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q8" data-onfinished="playedAudioQ" data-src="assets/clips/sample_speech/P501_C_english_m2_FB_48k.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q8"  title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q8" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q8" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q8" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q8" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q8" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-
-				  <div class="tab-pane fade " id="Q9-panel" role="tabpanel" aria-labelledby="Q9-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">9. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q9" data-onfinished="playedAudioQ" data-src="assets/clips/sample_speech/P501_C_english_f1_FB_48k.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q9"  title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q9" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q9" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q9" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q9" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q9" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-				  
-				  <div class="tab-pane fade " id="Q10-panel" role="tabpanel" aria-labelledby="Q10-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">10. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q10" data-onfinished="playedAudioQ" data-src="assets/clips/sample_speech/P501_C_english_m2_IRS_08k.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q10"  title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q10" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q10" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q10" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q10" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q10" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-				  <div class="tab-pane fade " id="Q11-panel" role="tabpanel" aria-labelledby="Q11-tab">
-				  
-					<p></p>
-						<div class="row">
-							<div class="col-sm-3"></div>
-							<div class="col-sm-6">
-								<p style="margin-top:10px;">11. How do you rate the <b>overall quality</b> of the following speech sample? </p>
-								
-								<p align="center"> <span class="baudio" id="q11" data-onfinished="playedAudioQ" data-src="assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav" >&nbsp;</span> </p>
-								
-								<fieldset id="fieldset_q11"  title="">
-								  <table class="table md scale">
-									<thead>
-									  <tr><th >Quality of the speech</th><th class="c" >Score</th></tr>
-									</thead>
-									<tbody>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q11" value="5">Excellent</label></div></td><td class="c">5</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q11" value="4">Good</label></div></td><td class="c">4</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q11" value="3">Fair</label></div></td><td class="c">3</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q11" value="2">Poor</label></div></td><td class="c">2</td></tr>
-									  <tr><td><div class="radio" ><label ><input type="radio" name="q11" value="1" required="">Bad</label></div></td><td class="c">1</td></tr>	  
-								   </tbody>
-								  </table>
-								 </fieldset>
-								  <p></p>
-		
-							</div>
-								
-							<div class="col-sm-3"></div>
-						</div>
-
-						<p></p>
-				  </div>
-				  
-				</div>
-			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all 11 questions, then submit your response.</div>
+ 				<!-- will be generated -->
+				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
+				<!-- will be generated -->
+				<div class="tab-content" id="nav-tabContent-rating">	</div>
+			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number"></b> questions, then submit your response.</div>
 			<nav aria-label="..." id="navNextPre">
 			  <ul class="pager">
-				<li class="previous" onclick="previous();"><a href="#navNextPre" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
-				<li class="next" onclick="next();"><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+				<li class="previous" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
+				<li class="next" onclick="showNextQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 			  </ul>
 			</nav>
 			

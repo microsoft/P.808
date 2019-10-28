@@ -6,7 +6,7 @@
 	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 	<meta content="utf-8" http-equiv="encoding">
 </head>
-</head>
+
 
 
 <style type="text/css">
@@ -49,8 +49,14 @@ var config ={
     forceRetrainingAfterHours:1,
     debug:true,
     questionUrls: ["${Q1}","${Q2}","${Q3}","${Q4}","${Q5}","${Q6}","${Q7}","${Q8}","${Q9}","${Q10}","${TP}"],
-    trainingUrls: ["${t1}","${t2}","${t3}","${t4}","${t5}"],
-    includeSetupIfMinutesPassedFromLastSetupIsBiggerThan:3,
+    trainingUrls: ["${T1}","${T2}","${T3}","${T4}","${T5}"],
+    randomizeTrainingQuestions:"true",
+    randomizeRatingQuestions:"false",
+    forceSetupSectionEveryIfMinutesPassedFromLastSetupIsBiggerThan:3,
+    // the URL should appears in the questionUrls as well.
+    known_question_url:"${TP}",
+	// the correct answer
+    known_question_ans:"${TP_ANS}"
 }
 
 $( document ).ready(function() {
@@ -124,7 +130,7 @@ function readCookie(name) {
 /*
 	callback when "Next" in Rating section is clicked.
 */
-function next(){
+function showNextQuestionInRatingSection(){
 	id=$("#nav-tab-ul li.active").index();
 	id=id+2;
 	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
@@ -132,7 +138,7 @@ function next(){
 /*
 	callback when "Previous" in Rating section is clicked.
 */
-function previous(){
+function showPreviousQuestionInRatingSection(){
 	id=$("#nav-tab-ul li.active").index();
 	id=id;
 	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
@@ -141,7 +147,7 @@ function previous(){
 /*
 	callback when "Next" in Training section is clicked.
 */
-function nextT(){
+function showNextQuestionInTrainingSection(){
 	id=$("#trainingTabs li.active").index();
 	id=id+2;
 	$('#trainingTabs li:nth-child('+id+') a').tab('show');
@@ -150,7 +156,7 @@ function nextT(){
 /*
 	callback when "Previous" in Training section is clicked.
 */
-function previousT(){
+function showPreviousQuestionInTrainingSection(){
 	id=$("#trainingTabs li.active").index();
 	id=id;
 	$('#trainingTabs li:nth-child('+id+') a').tab('show');
@@ -181,7 +187,7 @@ var audioElements=[];
 function clickManager(event) {
 	ae=event.data.ae;
 	var id=event.data.id;
-	console.log(id);
+	//console.log(id);
 	if (ae.paused) {
 		pauseAll();
 		playAudio(ae);
@@ -291,28 +297,47 @@ function alertForbiddenChange(){
 Users should not be able to vot before listening the audio clips until the end.
 */
 function avoidAnsweringBeforeListeningThrough(){
-		var i;
-		for (i = 0; i < config['questionUrls'].length; i++) {
-			$('input[name="q{0}"]'.f(i+1)).on('change', alertForbiddenChange);
-		}
-		for (i = 0; i < config['trainingUrls'].length; i++) {
-			$('input[name="t{0}"]'.f(i+1)).on('change', alertForbiddenChange);
-		}
+	var i;
+	// Training section
+	for (i = 0; i < config['trainingUrls'].length; i++) {
+		$('input[name="t{0}"]'.f(i+1)).on('change', alertForbiddenChange);
+	}
+	// Rating section
+	for (i = 0; i < config['questionUrls'].length; i++) {
+		$('input[name="q{0}"]'.f(i+1)).on('change', alertForbiddenChange);
+	}
+
 }
 
 /*
-Called when the audio by the given id is completely played.
+	Listener on value change for the trapping question.
+	if the answer is correct, change the value of tp_check to 0.
+*/
+function onValueChangeForTpQuestion(){
+	if ($( this ).val()  == config['known_question_ans'])
+		$('#tp_check').val(0);
+	else
+		$('#tp_check').val(-1);
+}
+
+/*
+Called when the audio in rating section by the given id is completely played.
 Now user can rate the quality.
 */
 function playedAudioQ(id){
-	$('input[name="'+id+'"]').off('change');
+	// check if it was the trapping question
+	if ($('span[id="'+id+'"]').attr("data-src") == config['known_question_url']){
+		element = $('input[name="'+id+'"]');
+		element.unbind();
+		element.on('change', onValueChangeForTpQuestion);
+	}else
+		$('input[name="'+id+'"]').off('change');
 }
 
 /*
 Called when user answers to one question from setup (i.e. q2. math question). Here the cookie will be added/updated
 */
 function userAnsweringToSetupQuestions(){
-	console.log ("userAnsweringToSetupQuestions")
 	createCookie(config.cookieName+"_setup","un_important",config.includeSetupIfMinutesPassedFromLastSetupIsBiggerThan);
 	$('input[name="math"]').off('change');
 }
@@ -342,7 +367,10 @@ function generate_training_section(){
 	// this will show which url was shown by in which question as their orther will be randomized
 	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" />';
 
-	urls = shuffle(config['trainingUrls']);
+    if (JSON.parse(config['randomizeTrainingQuestions']))
+		urls = shuffle(config['trainingUrls']);
+	else
+		urls = config['trainingUrls'];
 
 	var i;
 	for (i = 0; i < urls.length; i++) {
@@ -365,7 +393,11 @@ function generate_rating_section(){
 	// this will show which url was shown by in which question as their orther will be randomized
 	input_template= '<input id="Q{0}_URL" name="Q{0}_URL" type="hidden" value="{1}" />';
 
-	urls = shuffle(config['questionUrls']);
+	if (JSON.parse(config['randomizeRatingQuestions']))
+		urls = shuffle(config['questionUrls']);
+	else
+		urls = config['questionUrls'];
+
 
 	var i;
 	for (i = 0; i < urls.length; i++) {
@@ -594,8 +626,8 @@ function generate_rating_section(){
 			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number_training"></b> questions.</div>
 			<nav aria-label="..." id="navNextPreT">
 			  <ul class="pager">
-				<li class="previous" onclick="previousT();"><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
-				<li class="next" onclick="nextT();"><a href="#trainingTabs" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+				<li class="previous" onclick="showPreviousQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
+				<li class="next" onclick="showNextQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 			  </ul>
 			</nav>
 			
@@ -606,7 +638,7 @@ function generate_rating_section(){
 </section>
 <!-- Training section ends-->
 
-
+<input id="tp_check" name="tp_check" type="hidden" value="-1" />
 <!--- Rating task -->
 <section class="container">
 		<div class="panel panel-primary">
@@ -624,8 +656,8 @@ function generate_rating_section(){
 			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number"></b> questions, then submit your response.</div>
 			<nav aria-label="..." id="navNextPre">
 			  <ul class="pager">
-				<li class="previous" onclick="previous();"><a href="#navNextPre" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
-				<li class="next" onclick="next();"><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+				<li class="previous" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
+				<li class="next" onclick="showNextQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 			  </ul>
 			</nav>
 			
