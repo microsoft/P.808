@@ -97,6 +97,33 @@ def approve_reject_assignments(client, assignment_path, approve):
         print(f'Processed {line_count} lines.')
 
 
+
+
+def create_hit(client, cfg, path_to_input_csv):
+    if cfg['use_assignment_review_policy']:
+        assignment_review_policy = {
+        'PolicyName': 'ScoreMyKnownAnswers/2011-09-01',
+        'Parameters': [
+            {'Key': "AnswerKey",
+             'MapEntries': [
+                 {'Key': f"{cfg['arp_question_name']}", 'Values': [f"{cfg['arp_correct_answer']}"]}
+             ]},
+            {'Key': "RejectIfKnownAnswerScoreIsLessThan",
+             'Values': [f"{cfg['arp_RejectIfKnownAnswerScoreIsLessThan']}"]
+             },{
+                'Key': "RejectReason",
+                'Values': [f"{cfg['arp_RejectReason']}"]
+             },{
+                'Key': "ExtendIfKnownAnswerScoreIsLessThan",
+                'Values': [f"{cfg['arp_ExtendIfKnownAnswerScoreIsLessThan']}"]
+             }
+        ]
+
+        }
+    else:
+        assignment_review_policy= None
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Utility script to handle a MTurk study.')
@@ -113,6 +140,12 @@ if __name__ == '__main__':
     parser.add_argument("--reject", type=str,
                         help="Reject all assignments found in the input csv file. Path to a csv file "
                              "(columns: assignmentId,feedback)")
+
+    parser.add_argument("--create_hit", type=str, default="../P808Template/create_acr_hit.cfg",
+                        help="Create a HIT. Configuration file")
+    parser.add_argument("--create_hit_input", type=str, default="../P808Template/input.csv",
+                        help="Input.csv containing dynamic contents of HIT")
+
     args = parser.parse_args()
 
     cfgpath = os.path.join(os.path.dirname(__file__), args.cfg)
@@ -146,5 +179,17 @@ if __name__ == '__main__':
         assignments_list_path = os.path.join(os.path.dirname(__file__), args.reject)
         assert os.path.exists(assignments_list_path), f"No input file found in [{assignments_list_path}]"
         approve_reject_assignments(client, assignments_list_path, approve=False)
+
+    if args.create_hit is not None:
+        create_hit_cfg = os.path.join(os.path.dirname(__file__), args.create_hit)
+        assert os.path.exists(create_hit_cfg), f"No configuration file for create_hit found in [{create_hit_cfg}]"
+
+        input_csv = os.path.join(os.path.dirname(__file__), args.create_hit_input)
+        assert os.path.exists(input_csv), f"No configuration file for create_hit found in [{input_csv}]"
+
+        ch_cfg = CP.ConfigParser()
+        ch_cfg.read(create_hit_cfg)
+
+        create_hit(client, ch_cfg, input_csv)
 
 

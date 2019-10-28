@@ -187,7 +187,7 @@ var audioElements=[];
 function clickManager(event) {
 	ae=event.data.ae;
 	var id=event.data.id;
-	console.log(id);
+	//console.log(id);
 	if (ae.paused) {
 		pauseAll();
 		playAudio(ae);
@@ -318,7 +318,6 @@ function onValueChangeForTpQuestion(){
 		$('#tp_check').val(0);
 	else
 		$('#tp_check').val(-1);
-	console.log($('#tp_check').val());
 }
 
 /*
@@ -326,7 +325,6 @@ Called when the audio in rating section by the given id is completely played.
 Now user can rate the quality.
 */
 function playedAudioQ(id){
-	console.log ($('span[id="'+id+'"]').attr("data-src"))
 	// check if it was the trapping question
 	if ($('span[id="'+id+'"]').attr("data-src") == config['known_question_url']){
 		element = $('input[name="'+id+'"]');
