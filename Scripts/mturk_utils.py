@@ -9,7 +9,7 @@ import configparser as CP
 import csv
 import xml.etree.ElementTree as ET
 import re
-
+import random
 
 """
 Sends an email to list of workers given the worker ids. 
@@ -100,12 +100,9 @@ def approve_reject_assignments(client, assignment_path, approve):
         print(f'Processed {line_count} lines.')
 
 
-
-
-def create_hit(client, cfg, path_to_input_csv):
-    print (cfg['general']['use_assignment_review_policy'])
+def get_assignment_review_policy(cfg):
     assignment_review_policy = None
-    if cfg['general']['use_assignment_review_policy']:
+    if cfg['general'].getboolean('use_assignment_review_policy'):
         arp = cfg['assignment_review_policy']
         assignment_review_policy = {
          'PolicyName': 'ScoreMyKnownAnswers/2011-09-01',
@@ -124,11 +121,66 @@ def create_hit(client, cfg, path_to_input_csv):
                 'Values': [f"{arp['arp_ExtendIfKnownAnswerScoreIsLessThan']}"]
              }
         ]}
+    return assignment_review_policy
 
+'''
+    create qualification list to filter just workers with:
+    - + 98% approval rate
+    - + 500 or more accepted HIT
+    - Location USA
+    - TODO: internal qualification  
+'''
+
+
+def get_typical_qualifications(cfg):
+
+    if not cfg['hit_type'].getboolean('apply_qualification'):
+        return []
+    qualification_requirements=[
+        {
+            'QualificationTypeId': '00000000000000000040', # Worker_​NumberHITsApproved
+            'Comparator': 'GreaterThanOrEqualTo',
+            'IntegerValues': [
+                500,
+            ],
+            'RequiredToPreview': False,
+            'ActionsGuarded': 'Accept'
+        },{
+            'QualificationTypeId': '000000000000000000L0', # Worker_​PercentAssignmentsApproved
+            'Comparator': 'GreaterThanOrEqualTo',
+            'IntegerValues': [
+                98,
+            ],
+            'RequiredToPreview': False,
+            'ActionsGuarded': 'Accept'
+        },{
+            'QualificationTypeId': '00000000000000000071', # Worker_Locale
+            'Comparator': 'EqualTo',
+            'LocaleValues': [
+                {
+                   'Country':"US"
+                }
+            ],
+            'RequiredToPreview': False,
+            'ActionsGuarded': 'Accept'
+        },
+    ]
+    return qualification_requirements
+
+"""
+Create a batch of HITs given hit_layout_id and other configurations in the cfg file, and an input.csv.
+Generate a report which should be used for getting responses.
+
+NOTe: If you register a HIT type with values that match an existing HIT type, the HIT type ID of the existing type will
+ be returned. That means if some HITs from that type are existing, the new HITs will be added to them (from workers' 
+ perspective). 
+
+"""
+def create_hit(client, cfg, path_to_input_csv):
 
     # 1. create HITType
-    auto_approval_delay_in_days = cfg['hit_type'].get('auto_approval_delay_in_days', fallback=3)
-    assignment_duration_in_minutes = cfg['hit_type'].get('assignment_duration_in_minutes', fallback=60)
+    auto_approval_delay_in_days = cfg['hit_type'].get('auto_approve_and_pay_workers_in_days', fallback=3)
+    assignment_duration_in_minutes = cfg['hit_type'].get('time_allotted_per_Worker_in_minutes', fallback=60)
 
     response = client.create_hit_type(
         AutoApprovalDelayInSeconds=int(auto_approval_delay_in_days) * 24*60*60,
@@ -136,45 +188,72 @@ def create_hit(client, cfg, path_to_input_csv):
         Reward=cfg['hit_type'].get('reward', '0.4'),
         Title=cfg['hit_type'].get('title', 'title'),
         Keywords=cfg['hit_type'].get('keywords', 'keywords'),
-        Description=cfg['hit_type'].get('description', 'description')
+        Description=cfg['hit_type'].get('description', 'description'),
+        QualificationRequirements= get_typical_qualifications(cfg)
     )
     print(response)
-    # 2. create a HIT for a line in path_to_input_csv
+
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
         hit_type_id = response['HITTypeId']
-        with open(path_to_input_csv, mode='r') as input_csv:
-            reader = csv.DictReader(input_csv)
-            line_count = 0
-            for row in reader:
-                line_count += 1
-                response = client.create_hit_with_hit_type(
-                    HITTypeId=hit_type_id,
-                    MaxAssignments=int(cfg['create_hit'].get('number_of_respondents', 10)),
-                    LifetimeInSeconds=int(cfg['create_hit'].get('task_expires_in_days', 7)) * 24 * 60 * 60,
-                    AssignmentReviewPolicy=assignment_review_policy,
-                    HITLayoutId=cfg['general']['hit_layout_id'],
-                    HITLayoutParameters=[{'Name': key, 'Value': row[key]} for key in row.keys()]
-                )
-                print (f"{line_count}. Create HIT:{response}")
+        # 2. create a HIT
+        batch_output_file_name = f"Batch_{hit_type_id}_{random.randint(1000, 9999)}.csv"
+        created_hits = []
+        assignment_review_policy = get_assignment_review_policy(cfg)
+
+        # if no path_to_input_csv available then there is no dynamic content
+        if path_to_input_csv is None:
+            # just create one HIT
+            response = client.create_hit_with_hit_type(
+                HITTypeId=hit_type_id,
+                MaxAssignments=int(cfg['create_hit'].get('number_of_respondents', 10)),
+                LifetimeInSeconds=int(cfg['create_hit'].get('task_expires_in_days', 7)) * 24 * 60 * 60,
+                AssignmentReviewPolicy=assignment_review_policy,
+                HITLayoutId=cfg['general']['hit_layout_id'],
+                RequesterAnnotation= batch_output_file_name
+            )
+            if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                created_hits.append({'HITTypeId': hit_type_id, 'HITId': response['HIT']['HITId'],
+                                     'HITGroupId': response['HIT']['HITGroupId']})
+
+        else:
+            # for a line in path_to_input_csv
+            with open(path_to_input_csv, mode='r') as input_csv:
+                reader = csv.DictReader(input_csv)
+                line_count = 0
+                for row in reader:
+                    line_count += 1
+                    response = client.create_hit_with_hit_type(
+                        HITTypeId=hit_type_id,
+                        MaxAssignments=int(cfg['create_hit'].get('number_of_respondents', 10)),
+                        LifetimeInSeconds=int(cfg['create_hit'].get('task_expires_in_days', 7)) * 24 * 60 * 60,
+                        AssignmentReviewPolicy=assignment_review_policy,
+                        HITLayoutId=cfg['general']['hit_layout_id'],
+                        HITLayoutParameters=[{'Name': key, 'Value': row[key]} for key in row.keys()],
+                        RequesterAnnotation = batch_output_file_name
+                    )
+                    print(f"{line_count}. Create HIT response:{response}")
+                    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                        created_hits.append({'HITTypeId': hit_type_id, 'HITId': response['HIT']['HITId'],
+                                             'HITGroupId': response['HIT']['HITGroupId']})
+
+        # write the report
+        with open(batch_output_file_name, 'w', newline='') as output_file:
+            writer = csv.DictWriter(output_file, fieldnames=['HITId','HITTypeId','HITGroupId'])
+            writer.writeheader()
+            for hit in created_hits:
+                writer.writerow(hit)
+        print (f"{len(created_hits)} HITs are created. Report is stored in {batch_output_file_name}")
     else:
-        print("Unsuccessful to create hit type:  create_hit_type: "+ response)
+        print("Error in create hit type:  create_hit_type: "+ response)
 
+'''
+Given the report file, generated after create_hit process, it will download all available answers for those HITs. 
+'''
 
-def list_hits (client, hit_type_id):
-    response = client.list_hits(
-        MaxResults=100
-    )
-    print (response)
-
-    response = client.list_assignments_for_hit(
-        HITId='3SD15I2WD2UH9LMAA8CCWQ0LEN1361'
-    )
-    print(response)
-
-
-def get_answer_csv(client, tmp_file_path):
-    with open(tmp_file_path, mode='r') as tmp_file:
-        with open("answer.csv", 'w', newline='') as output_file:
+def get_answer_csv(client, report_file_path):
+    answer_file = os.path.splitext(report_file_path)[0]+'_answer.csv'
+    with open(report_file_path, mode='r') as tmp_file:
+        with open(answer_file, 'w', newline='') as output_file:
             reader = csv.DictReader(tmp_file)
             headers_written=False
             for row in reader:
@@ -196,10 +275,12 @@ def get_answer_csv(client, tmp_file_path):
                         writer.writerow(ans_dict)
 
 
+'''
+ Converts an answer in xml format to dict 
+'''
 
 
 def xml_answer_to_dict(xml_text):
-    print (xml_text)
     xml_text_no_namespace = re.sub(' xmlns="[^"]+"', '', xml_text, count=1)
     root = ET.fromstring(xml_text_no_namespace)
     ans_dict={}
@@ -207,15 +288,14 @@ def xml_answer_to_dict(xml_text):
         question =""
         answer=""
         for sec_child in child:
-            print (sec_child.tag)
             if sec_child.tag == 'QuestionIdentifier':
                 question = sec_child.text
             if sec_child.tag == 'FreeText':
                 answer = sec_child.text
 
         ans_dict[question]= answer
-    print (ans_dict)
     return ans_dict
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Utility script to handle a MTurk study.')
@@ -233,10 +313,14 @@ if __name__ == '__main__':
                         help="Reject all assignments found in the input csv file. Path to a csv file "
                              "(columns: assignmentId,feedback)")
 
-    parser.add_argument("--create_hit", type=str, default="../P808Template/create_acr_hit.cfg",
-                        help="Create a HIT. Configuration file")
-    parser.add_argument("--create_hit_input", type=str, default="../P808Template/input.csv",
-                        help="Input.csv containing dynamic contents of HIT")
+
+    parser.add_argument("--create_hit", type=str,
+                        help="Create one or more  HITs.Con figuration file for creating HIT: ../P808Template")
+    parser.add_argument("--create_hit_input", type=str,
+                        help="Input.csv containing dynamic contents of HIT (columns: all Layout Parameters)")
+
+    parser.add_argument("--answers", type=str,
+                        help="Download answers for given report file (columns: HITId, HITTypeId,HITGroupId")
 
     args = parser.parse_args()
 
@@ -277,12 +361,15 @@ if __name__ == '__main__':
         assert os.path.exists(create_hit_cfg), f"No configuration file for create_hit found in [{create_hit_cfg}]"
 
         input_csv = os.path.join(os.path.dirname(__file__), args.create_hit_input)
-        assert os.path.exists(input_csv), f"No configuration file for create_hit found in [{input_csv}]"
+        # can be just one HIT
+        #assert os.path.exists(input_csv), f"No input file found in [{input_csv}]"
 
         ch_cfg = CP.ConfigParser()
         ch_cfg.read(create_hit_cfg)
 
-        # create_hit(client, ch_cfg, input_csv)
-        # list_hits(client, '36J1BMOAIYRF3RBGW3QA15CECNUR48')
-        get_answer_csv(client, '../P808Template/36J1BMOAIYRF3RBGW3QA15CECNUR48.csv')
+        create_hit(client, ch_cfg, input_csv)
 
+    if args.answers is not None:
+        report_file = os.path.join(os.path.dirname(__file__), args.answers)
+        assert os.path.exists(report_file), f"No configuration file for create_hit found in [{report_file}]"
+        get_answer_csv(client, report_file)
