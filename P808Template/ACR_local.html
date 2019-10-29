@@ -46,7 +46,7 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 
 var config ={
 	cookieName:"itu_p808_test",
-    forceRetrainingAfterHours:1,
+    forceRetrainingInHours:1,
     debug:true,
     questionUrls: ["assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m1_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_FB_48k.wav","assets/clips/sample_speech/P501_C_english_f1_FB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_IRS_08k.wav","assets/clips/sample_tp.wav"],
     trainingUrls: ["assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav"],
@@ -167,7 +167,7 @@ var trainingStimulusPlayed;
 
 /*
   If all training clips played until the end, add a cookie expiring after
-  config.forceRetrainingAfterHours
+  config.forceRetrainingInHours
 */
 function playedAudioTraining(id){
 	$('input[name="'+id+'"]').off('change');
@@ -175,7 +175,7 @@ function playedAudioTraining(id){
 	eval("trainingStimulusPlayed["+trainingQuestionNumber+"-1]=1;");
 	console.log(trainingStimulusPlayed.reduce(getSum, 0))
 	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
-		createCookie(config.cookieName+"_training","un_important",config.forceRetrainingAfterHours*60);
+		createCookie(config.cookieName+"_training","un_important",config['forceRetrainingInHours']*60);
 	}
 }
 
@@ -430,10 +430,10 @@ function generate_rating_section(){
 
 				<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/assets/Rating3.png" alt="scale" class="center" width="300px">
 
-				  <p>Welcome and congratulation! You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just once a day) sections::</p>
+				  <p>Welcome and congratulation! You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just every one hour) sections::</p>
 				<ul>
 					<li><b>Setup:</b> Configure your system and validate it by answering to 6 questions</li>
-					<li><b>Training (every one hour):</b> 5 questions, same as "Ratings" but appears just once a day</li>
+					<li><b>Training (every one hour):</b> <b class="question_number_training"></b> questions, same as "Ratings" but appears just once a day</li>
 					<li><b>Rating:</b> Listen to <b class="question_number"></b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
 				</ul>
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
