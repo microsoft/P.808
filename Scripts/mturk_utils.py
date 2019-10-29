@@ -7,6 +7,9 @@ import json
 import os
 import configparser as CP
 import csv
+import xml.etree.ElementTree as ET
+import re
+
 
 """
 Sends an email to list of workers given the worker ids. 
@@ -100,32 +103,121 @@ def approve_reject_assignments(client, assignment_path, approve):
 
 
 def create_hit(client, cfg, path_to_input_csv):
-    if cfg['use_assignment_review_policy']:
+    print (cfg['general']['use_assignment_review_policy'])
+    assignment_review_policy = None
+    if cfg['general']['use_assignment_review_policy']:
+        arp = cfg['assignment_review_policy']
         assignment_review_policy = {
-        'PolicyName': 'ScoreMyKnownAnswers/2011-09-01',
-        'Parameters': [
+         'PolicyName': 'ScoreMyKnownAnswers/2011-09-01',
+         'Parameters': [
             {'Key': "AnswerKey",
              'MapEntries': [
-                 {'Key': f"{cfg['arp_question_name']}", 'Values': [f"{cfg['arp_correct_answer']}"]}
+                 {'Key': f"{arp['arp_question_name']}", 'Values': [f"{arp['arp_correct_answer']}"]}
              ]},
             {'Key': "RejectIfKnownAnswerScoreIsLessThan",
-             'Values': [f"{cfg['arp_RejectIfKnownAnswerScoreIsLessThan']}"]
-             },{
+             'Values': [f"{arp['arp_RejectIfKnownAnswerScoreIsLessThan']}"]
+             }, {
                 'Key': "RejectReason",
-                'Values': [f"{cfg['arp_RejectReason']}"]
-             },{
+                'Values': [f"{arp['arp_RejectReason']}"]
+             }, {
                 'Key': "ExtendIfKnownAnswerScoreIsLessThan",
-                'Values': [f"{cfg['arp_ExtendIfKnownAnswerScoreIsLessThan']}"]
+                'Values': [f"{arp['arp_ExtendIfKnownAnswerScoreIsLessThan']}"]
              }
-        ]
+        ]}
 
-        }
+
+    # 1. create HITType
+    auto_approval_delay_in_days = cfg['hit_type'].get('auto_approval_delay_in_days', fallback=3)
+    assignment_duration_in_minutes = cfg['hit_type'].get('assignment_duration_in_minutes', fallback=60)
+
+    response = client.create_hit_type(
+        AutoApprovalDelayInSeconds=int(auto_approval_delay_in_days) * 24*60*60,
+        AssignmentDurationInSeconds=int(assignment_duration_in_minutes) * 60,
+        Reward=cfg['hit_type'].get('reward', '0.4'),
+        Title=cfg['hit_type'].get('title', 'title'),
+        Keywords=cfg['hit_type'].get('keywords', 'keywords'),
+        Description=cfg['hit_type'].get('description', 'description')
+    )
+    print(response)
+    # 2. create a HIT for a line in path_to_input_csv
+    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        hit_type_id = response['HITTypeId']
+        with open(path_to_input_csv, mode='r') as input_csv:
+            reader = csv.DictReader(input_csv)
+            line_count = 0
+            for row in reader:
+                line_count += 1
+                response = client.create_hit_with_hit_type(
+                    HITTypeId=hit_type_id,
+                    MaxAssignments=int(cfg['create_hit'].get('number_of_respondents', 10)),
+                    LifetimeInSeconds=int(cfg['create_hit'].get('task_expires_in_days', 7)) * 24 * 60 * 60,
+                    AssignmentReviewPolicy=assignment_review_policy,
+                    HITLayoutId=cfg['general']['hit_layout_id'],
+                    HITLayoutParameters=[{'Name': key, 'Value': row[key]} for key in row.keys()]
+                )
+                print (f"{line_count}. Create HIT:{response}")
     else:
-        assignment_review_policy= None
+        print("Unsuccessful to create hit type:  create_hit_type: "+ response)
 
+
+def list_hits (client, hit_type_id):
+    response = client.list_hits(
+        MaxResults=100
+    )
+    print (response)
+
+    response = client.list_assignments_for_hit(
+        HITId='3SD15I2WD2UH9LMAA8CCWQ0LEN1361'
+    )
+    print(response)
+
+
+def get_answer_csv(client, tmp_file_path):
+    with open(tmp_file_path, mode='r') as tmp_file:
+        with open("answer.csv", 'w', newline='') as output_file:
+            reader = csv.DictReader(tmp_file)
+            headers_written=False
+            for row in reader:
+                response = client.list_assignments_for_hit(
+                    HITId=f'{row["HITId"]}',
+                    MaxResults=100
+                )
+                if response and response['NumResults']>0:
+                    for assignment in response['Assignments']:
+                        ans_dict= xml_answer_to_dict(assignment['Answer'])
+
+                        for key in assignment.keys():
+                            if key == 'Answer': continue
+                            ans_dict[key] = assignment[key]
+                        if not headers_written:
+                            writer = csv.DictWriter(output_file, fieldnames=sorted(ans_dict) )
+                            headers_written= True
+                            writer.writeheader()
+                        writer.writerow(ans_dict)
+
+
+
+
+def xml_answer_to_dict(xml_text):
+    print (xml_text)
+    xml_text_no_namespace = re.sub(' xmlns="[^"]+"', '', xml_text, count=1)
+    root = ET.fromstring(xml_text_no_namespace)
+    ans_dict={}
+    for child in root:
+        question =""
+        answer=""
+        for sec_child in child:
+            print (sec_child.tag)
+            if sec_child.tag == 'QuestionIdentifier':
+                question = sec_child.text
+            if sec_child.tag == 'FreeText':
+                answer = sec_child.text
+
+        ans_dict[question]= answer
+    print (ans_dict)
+    return ans_dict
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='Utility script to handle a MTurk study.')
     # Configuration: read it from mturk.cfg
     parser.add_argument("--cfg", default="mturk.cfg",
@@ -170,7 +262,7 @@ if __name__ == '__main__':
     if args.send_bonus is not None:
         bonus_list_path = os.path.join(os.path.dirname(__file__), args.send_bonus)
         assert os.path.exists(bonus_list_path), f"No input file found in [{bonus_list_path}]"
-        assign_bonus(client,bonus_list_path)
+        assign_bonus(client, bonus_list_path)
     if args.approve is not None:
         assignments_list_path = os.path.join(os.path.dirname(__file__), args.approve)
         assert os.path.exists(assignments_list_path), f"No input file found in [{assignments_list_path}]"
@@ -190,6 +282,7 @@ if __name__ == '__main__':
         ch_cfg = CP.ConfigParser()
         ch_cfg.read(create_hit_cfg)
 
-        create_hit(client, ch_cfg, input_csv)
-
+        # create_hit(client, ch_cfg, input_csv)
+        # list_hits(client, '36J1BMOAIYRF3RBGW3QA15CECNUR48')
+        get_answer_csv(client, '../P808Template/36J1BMOAIYRF3RBGW3QA15CECNUR48.csv')
 
