@@ -41,6 +41,32 @@ python mturk_utils.py send_emails
 ```
 script reads the configuration from the section `[send_emails]` in config file.
 
+#### create_hit
+usage 
+
+```
+python mturk_utils.py --create_hit ../P808Template/create_acr_hit.cfg --create_hit_input ../P808Template/input.csv  
+```
+
+Crate one or more HITs in MTurk. The AssignmentReviewPolicy is just applicable when HITs are created using API.
+This command create one HIT per a row in the input.csv file. See `--create_hit_input ../P808Template/input.csv` 
+ for details. It generates a report as well to be used with 
+`--answers` command later to download the worker's answers. Note that HITs created using API are not visible
+in the GUI.
+
+
+#### answers
+usage 
+
+```
+python mturk_utils.py --answers [REPORT_FILE]   
+```
+
+Check the status of HITs listed in the [REPORT_FILE] (i.e. outcome of '--create_hit' e.f. Batch_fdhdgede_123.csv)) 
+file, and download alla answers available for them. As HITs created using API are not visible in the GUI, this 
+command should be used to get the results.
+
+
 ## create_trapping_stimuli
 Script to create set of trapping stimuli(Gold standard question) based on the ITU-T Rec. P.808 (section 6.3.8) and 
 tailored to the test dataset.

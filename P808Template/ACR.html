@@ -4,7 +4,7 @@
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
-	<meta content="utf-8" http-equiv="encoding">
+	<meta content="utf-8">
 </head>
 
 
@@ -46,17 +46,17 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 
 var config ={
 	cookieName:"itu_p808_test",
-    forceRetrainingAfterHours:1,
+    forceRetrainingInHours:1,
     debug:true,
     questionUrls: ["${Q1}","${Q2}","${Q3}","${Q4}","${Q5}","${Q6}","${Q7}","${Q8}","${Q9}","${Q10}","${TP}"],
     trainingUrls: ["${T1}","${T2}","${T3}","${T4}","${T5}"],
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"false",
-    forceSetupSectionEveryIfMinutesPassedFromLastSetupIsBiggerThan:3,
+    showSetupEveryMinutes:3,
     // the URL should appears in the questionUrls as well.
-    known_question_url:"${TP}",
+    knownQuestionUrl:"${TP}",
 	// the correct answer
-    known_question_ans:"${TP_ANS}"
+    knownQuestionAns:"${TP_ANS}"
 }
 
 $( document ).ready(function() {
@@ -167,14 +167,15 @@ var trainingStimulusPlayed;
 
 /*
   If all training clips played until the end, add a cookie expiring after
-  config.forceRetrainingAfterHours
+  config.forceRetrainingInHours
 */
 function playedAudioTraining(id){
 	$('input[name="'+id+'"]').off('change');
 	trainingQuestionNumber= id.substring(1);
 	eval("trainingStimulusPlayed["+trainingQuestionNumber+"-1]=1;");
+	console.log(trainingStimulusPlayed.reduce(getSum, 0))
 	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
-		createCookie(config.cookieName+"_training","un_important",config.forceRetrainingAfterHours*60);
+		createCookie(config.cookieName+"_training","un_important",config['forceRetrainingInHours']*60);
 	}
 }
 
@@ -314,7 +315,7 @@ function avoidAnsweringBeforeListeningThrough(){
 	if the answer is correct, change the value of tp_check to 0.
 */
 function onValueChangeForTpQuestion(){
-	if ($( this ).val()  == config['known_question_ans'])
+	if ($( this ).val()  == config['knownQuestionAns'])
 		$('#tp_check').val(0);
 	else
 		$('#tp_check').val(-1);
@@ -326,7 +327,7 @@ Now user can rate the quality.
 */
 function playedAudioQ(id){
 	// check if it was the trapping question
-	if ($('span[id="'+id+'"]').attr("data-src") == config['known_question_url']){
+	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionUrl']){
 		element = $('input[name="'+id+'"]');
 		element.unbind();
 		element.on('change', onValueChangeForTpQuestion);
@@ -338,7 +339,7 @@ function playedAudioQ(id){
 Called when user answers to one question from setup (i.e. q2. math question). Here the cookie will be added/updated
 */
 function userAnsweringToSetupQuestions(){
-	createCookie(config.cookieName+"_setup","un_important",config.includeSetupIfMinutesPassedFromLastSetupIsBiggerThan);
+	createCookie(config.cookieName+"_setup","un_important",config['showSetupEveryMinutes']);
 	$('input[name="math"]').off('change');
 }
 
@@ -427,13 +428,13 @@ function generate_rating_section(){
 			  <div class="panel-body" >
 			  <b>Introduction</b>
 
-				<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/assets/Rating3.png" alt="scale" class="center" width="300px"></img>
+				<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/assets/Rating3.png" alt="scale" class="center" width="300px">
 
-				<p>Welcome and congratulation!</b> You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just once a day) sections::
+				  <p>Welcome and congratulation! You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just every one hour) sections::</p>
 				<ul>
 					<li><b>Setup:</b> Configure your system and validate it by answering to 6 questions</li>
-					<li><b>Training (every one hour):</b> 5 questions, same as "Ratings" but appears just once a day</li>
-					<li><b>Rating:</b> Listen to <b class="question_number"></b> audio files</b> and give <b>your opinion about the quality of the speech</b> you hear.</li>
+					<li><b>Training (every one hour):</b> <b class="question_number_training"></b> questions, same as "Ratings" but appears just once a day</li>
+					<li><b>Rating:</b> Listen to <b class="question_number"></b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
 				</ul>
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
 				<p><b>Rules:</b></p>
@@ -471,7 +472,7 @@ function generate_rating_section(){
   <div  class="panel-collapse collapse in" id="setup_panel">
 	  <div class="panel-body">
 	  
-	  <div style="text-align: center;margin:30px;"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/attention.png" alt="attention"> </img> <b>Please wear your headphones now.</b></div>
+	  <div style="text-align: center;margin:30px;"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/attention.png" alt="attention">  <b>Please wear your headphones now.</b></div>
 	  
 		<fieldset class="setupFieldset" ><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
 				
@@ -634,7 +635,7 @@ function generate_rating_section(){
 			</div>
 			</div>
 		</div>
-	</div>
+
 </section>
 <!-- Training section ends-->
 
@@ -653,17 +654,16 @@ function generate_rating_section(){
 				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
 				<!-- will be generated -->
 				<div class="tab-content" id="nav-tabContent-rating">	</div>
-			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number"></b> questions, then submit your response.</div>
-			<nav aria-label="..." id="navNextPre">
-			  <ul class="pager">
-				<li class="previous" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
-				<li class="next" onclick="showNextQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
-			  </ul>
-			</nav>
+				<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number"></b> questions, then submit your response.</div>
+				<nav aria-label="..." id="navNextPre">
+				  <ul class="pager">
+					<li class="previous" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
+					<li class="next" onclick="showNextQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+				  </ul>
+				</nav>
 			
 			</div>
 		</div>
-	</div>
 </section>
 
 
