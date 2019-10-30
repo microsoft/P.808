@@ -3,9 +3,9 @@
 // JND setup: Adaptive staircase: 3AFC, 2 down- 1 up: targets 70.7% levelA
 var config ={
     jndMaxQuestions:45, // maximum number of questions
-    snrStart:30, // SNR-  worse quality
+    snrStart:35, // SNR-  worse quality
     snrEnd :50, // SNR-  best quality
-    finishIfReversalIs:7, // use 7 as recommended by Levit t , H. (1992).
+    finishIfReversalIs:2, // use 7 as recommended by Levit t , H. (1992).
     exportFileName:"export.csv",
     debug:true
 }
