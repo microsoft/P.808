@@ -1,0 +1,412 @@
+
+<head>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> 
+	
+</head> 
+<section class="container" id="Survey" style="margin-bottom:15px; padding: 10px 10px; font-family: Verdana, Geneva, sans-serif; color:#333333; font-size:0.9em;">
+
+
+<style type="text/css">
+
+body{font-family:Tahoma,"Times New Roman", Times, serif;}
+td{ text-align:center;}
+.table th, .table td { border-top: none !important; }
+fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5px; }
+
+p.increase_indent{	margin:20px; }
+.center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 40%;
+}
+
+.baudio {margin:5px;}
+.baudio .baudio_table{display: inline;}
+.baudio .bn{margin:10px;}
+.baudio td{text-align:center;}
+.baudio .blabel{margin-top:50px;font-size: 70%;	color: #636363;}
+</style>
+
+<script type="text/javascript">
+
+$(document).ready(function(){
+    randomizeHearingtestItems();
+    makeCheckboxBeRequired();
+    forceNoSpaceInInput();
+});
+
+function randomizeHearingtestItems(){
+    var cards = $(".rnd");
+	for(var i = 0; i < cards.length; i++){
+		var target = Math.floor(Math.random() * cards.length -1) + 1;
+		var target2 = Math.floor(Math.random() * cards.length -1) +1;
+		cards.eq(target).before(cards.eq(target2));
+    }
+}
+
+function makeCheckboxBeRequired(){
+    var requiredCheckboxes = $('.4_lds :checkbox[required]');
+    requiredCheckboxes.change(function(){
+        if(requiredCheckboxes.is(':checked')) {
+            requiredCheckboxes.removeAttr('required');
+        } else {
+            requiredCheckboxes.attr('required', 'required');
+        }
+    });
+}
+function forceNoSpaceInInput(){
+    $(".nospace").on({
+          keydown: function(e) {
+            if (e.which === 32)
+              return false;
+          },
+          change: function() {
+            this.value = this.value.replace(/\s/g, "");
+          }
+        });
+}
+//--------------- Utilities -----------------
+
+String.prototype.format = String.prototype.f = function() {
+    var s = this,
+        i = arguments.length;
+    while (i--) {
+        s = s.replace(new RegExp('\\{' + i + '\\}', 'gm'), arguments[i]);
+    }
+    return s;
+};
+
+String.prototype.toMMSS = function () {
+    var sec_num = parseInt(this, 10); // don't forget the second param
+    var minutes   = Math.floor(sec_num / 60);
+    var seconds = sec_num - (minutes * 60);
+    if (minutes < 10) {minutes = "0"+minutes;}
+    if (seconds < 10) {seconds = "0"+seconds;}
+    return minutes+':'+seconds;
+}
+</script>
+
+<script type="text/javascript">
+//---------------- baudio.js -----------------
+var audioElements=[];
+function clickManager(event) {
+	ae=event.data.ae;
+	var id=event.data.id;
+	//console.log(id);
+	if (ae.paused) {
+		pauseAll();
+		playAudio(ae);
+	} else {
+		pauseAudio(ae);
+	}
+};
+
+function playAudio(audio){
+	audio.play();
+	var idT=audio.id;
+	var id=idT.substring(6,idT.length);
+	console.log(id);
+	$("#baudio_s_"+id).removeClass("glyphicon-repeat");
+	$("#baudio_s_"+id).removeClass("glyphicon-play");
+	$("#baudio_s_"+id).addClass("glyphicon-pause");
+	$("#baudio_"+id).addClass("btn-primary");
+	$("#audio_n_play_"+id).val(parseInt($("#audio_n_play_"+id).val())+1);
+}
+
+function pauseAudio(audio){
+	audio.pause();
+	var idT=audio.id;
+	var id=idT.substring(6,idT.length);
+	console.log(id);
+	$("#baudio_s_"+id).removeClass("glyphicon-pause");
+	$("#baudio_"+id).removeClass("btn-primary");
+	$("#baudio_s_"+id).addClass("glyphicon-play");
+}
+
+function pauseAll(){
+	console.log("++++ pauseAll +++"+audioElements.length);
+	for (i = 0; i < audioElements.length; i++) {
+		if (!audioElements[i].paused){
+			pauseAudio(audioElements[i]);
+		}
+	}
+	console.log("---pauseAll finished---");
+}
+
+function canPlay(event){
+	var ae=this;
+	var idText =this.id;
+	var id=idText.substring(6,idText.length);
+	console.log(id);
+	$("#baudio_l_d_"+id).text(" / " + (ae.duration).toString().toMMSS());
+	$("#baudio_"+id).removeClass("disabled");
+
+}
+function timeUpdate(){
+	var ae=this;
+	var idText =this.id;
+	var id=idText.substring(6,idText.length);
+	$("#baudio_l_c_"+id).text(ae.currentTime.toString().toMMSS());
+}
+
+function isended(){
+	var ae=this;
+	var idText =this.id;
+	var id=idText.substring(6,idText.length);
+
+	$("#baudio_s_"+id).removeClass("glyphicon-pause");
+	$("#baudio_"+id).removeClass("btn-primary");
+	$("#baudio_s_"+id).addClass("glyphicon-repeat");
+	$("#audio_n_finish_"+id).val(parseInt($("#audio_n_finish_"+id).val())+1);
+	if ($("#"+id).attr('data-onfinished')){
+		window[$("#"+id).attr('data-onfinished')](id);
+	}
+}
+
+$(function() {
+    $( ".baudio" ).each(function(){
+		titleTextTemplate='<tr><td>{1}</td></tr>';
+		insert='';
+		title='';
+		a='<audio id="audio_{0}" preload="true"><source src="{1}" type="audio/wav"> </audio>'+
+		'<input type="hidden" id="audio_n_play_{0}" name="audio_n_play_{0}" value="0">'+
+		'<input type="hidden" id="audio_n_finish_{0}" name="audio_n_finish_{0}" value="0">';
+		if ($(this).attr('title')){
+			insert=titleTextTemplate;
+			title=$(this).attr('title');
+		}
+
+		t='<table class="baudio_table" border="0">'+insert+' <tr><td><button id="baudio_{0}" type="button" class="btn bn disabled"><span id ="baudio_s_{0}" class="glyphicon glyphicon-play"></span></button></td></tr><tr><td><span id="baudio_l_c_{0}" class="blabel" >00:00</span><span id="baudio_l_d_{0}" class="blabel" > / 00:00</span></td></tr></table>';
+		src=$(this).attr('data-src');
+		id=$(this).attr('id');
+
+		$(this).append(a.f(id,src));
+		$(this).append(t.f(id,title));
+		var audioElement = document.getElementById("audio_"+id);
+		//save for later
+		audioElements.push(audioElement);
+		$( "#baudio_"+id ).click({ae: audioElement, id: id},clickManager);
+		$( "#baudio_"+id ).disabled=false;
+		audioElement.addEventListener("canplay",canPlay.bind(audioElement),false);
+		audioElement.addEventListener("timeupdate",timeUpdate.bind(audioElement),false);
+		audioElement.addEventListener("ended",isended.bind(audioElement),false);
+	});
+});
+</script>
+
+
+<!-- Instructions -->
+<section >
+<div class="row col-xs-12 col-md-12">
+	<div class="panel panel-primary">
+		<div class="panel-heading"><h3 class="panel-title">Instructions for speech quality assessment (Part 1 - Qualification)</h3></div>
+		<div class="panel-body">
+			<b>Introduction</b>
+
+			<p class="increase_indent">We are looking for crowdworkers who are willing to participate in a <b>speech quality assessment</b> experiment. During that test you will listen to <b>11 audio files</b>, each 6-8 seconds long (two sentences), via your listening device and you will be asked to indicate your opinion quality of each on the following scale:</p>
+
+			<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/scale.png" alt="scale" class="center" width="100px"></img>
+			
+			<p class="increase_indent">Each of those HITs can be completed in about <b>5 minutes</b>. There will be a total of <b>60 HITs</b> available for each crowdworker. It results to <b>$ 48 </b>payout including bonuses. Bonuses will be granted based on 1)number of tasks you perform, 2)quality of your work.</p>
+			
+			<b>Procedure:</b>			
+			<ol type="1">
+				<li>To get access to the above mentioned <b>rating job</b>, you should first complete this <b>qualification job</b>. </li>
+				<li>Selected group of crowdworkers will be invited to perform the <b>training job (2 minutes)</b> in which you will listen to 6 sample audio files.</li>
+				<li>Then, they get access to the <b>rating job</b> and can perform up to 57 tasks.</li>
+			</ol>
+			
+			
+			<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/process_2.png" alt="scale" class="center" width="70px"></img>
+			
+			<b>Conditions:</b>			
+			<ul>
+				<li>You must perform the task in a <b>quiet environment</b> like at home.</li>
+				<li>You must use <b>headphones</b>. Note that, <u>loudspeakers</u> are <b>not acceptable</b>.</li>
+			</ul>
+			
+			<p>Thank you for <b>your help</b> in this experiment.</p>
+		</div>
+	</div>
+</div>
+</section >
+<!-- End Instructions --><!-- Survey Body -->
+
+<!-- Qualification -->
+<section >
+
+<div class="row col-xs-12 col-md-12">
+<div class="panel panel-info">
+  <div class="panel-heading">
+    <h3 class="panel-title">	
+		<a data-toggle="collapse" href="#collapse1">Qualification</a>
+	</h3>
+  </div>
+  <div id="collapse1" class="panel-collapse collapse in">
+	  <div class="panel-body">
+		
+		<fieldset><label>1.&nbsp;What is your gender?</label>
+				<div class="radio">
+				  <label><input type="radio" name="1_gender" value="M" required="">Male</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="1_gender" value="F">Female</label>
+				</div>
+				<div class="radio disabled">
+				  <label><input type="radio" name="1_gender" value="O">Other</label>
+				</div> 
+		</fieldset>
+		<fieldset><label>2.&nbsp;In what year were you born? </label>
+				<div class="form-group">
+				  <input type="text" class="form-control" name="2_birth_year" required="">
+				</div>
+		</fieldset>
+		
+		<fieldset><label>3.&nbsp;What is your mother tongue? </label>
+				<div class="form-group">
+				  <input type="text" class="form-control" name="3_mother_tongue" required="">
+				</div>
+		</fieldset>
+	
+		
+		<fieldset><label>4.&nbsp; What type of listening devices do you have and able to use now (select all)?</label>
+
+			<div class="table-responsive 4_lds">
+			  <table class="table" border="0" cellpadding="0" cellspacing="0" >
+				<tbody>
+					<tr>
+						<td style="width:25%"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/inear.png" alt="in-ear headphones" width="100px"> </td>
+						<td style="width:25%"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/overear.png" alt="Over-the-ear headphones" width="100px"> </td>
+						<td style="width:25%"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/louadspeaker.png" alt="louadspeaker" width="100px"> </td>
+						<td style="width:25%"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/inbuild.png" alt="inbuild speakers" width="100px"> </td>
+					</tr>
+					<tr>
+						<td><div class="checkbox"><label><input type="checkbox" value="in-ear" name="4_ld" required>In-ear headphones</label></div></td>
+						<td><div class="checkbox"><label><input type="checkbox" value="over-ear" name="4_ld" required>Over-the-ear headphones</label></div></td>
+						<td><div class="checkbox"><label><input type="checkbox" value="ex-ls" name="4_ld" required>External loudspeaker</label></div></td>
+						<td><div class="checkbox"><label><input type="checkbox" value="ib-ls" name="4_ld" required>In-build loudspeaker</label></div></td>
+					</tr>
+					
+				</tbody>
+			  </table>
+			</div>
+
+		</fieldset>
+		
+		<fieldset>
+				 <div class="form-group">
+				  <label for="sel1">5.&nbsp;When was the last time you participated in <span title="Giving your opinion about a product or media, for example what is the over all quality of this video. "><u>a subjective test</u></span>?</label>
+				  <select class="form-control" id="sel1" name="5_last_subjective" required="">
+					<option value="">Please select</option>
+					<option value="0d">Today</option>
+					<option value="3d">In last 3 days</option>
+					<option value="7d">In last week</option>
+					<option value="30d">In last month</option>
+					<option value="nn">Never participated</option>
+				  </select>
+				</div> 
+		</fieldset>
+
+		<fieldset>
+				 <div class="form-group">
+				  <label for="sel1">6.	When was the last time you participated in an <span title="Giving your opinion about an audio sample"><u>audio listening test</u></span>?</label>
+				  <select class="form-control" id="sel1" name="6_audio_test" required="">
+					<option value="">Please select</option>
+					<option value="0d">Today</option>
+					<option value="3d">In last 3 days</option>
+					<option value="7d">In last week</option>
+					<option value="30d">In last month</option>
+					<option value="nn">Never participated</option>
+				  </select>
+				</div> 
+		</fieldset>
+		
+		<fieldset><label>7.&nbsp;Have you ever been directly involved in work connected with assessment of the performance of telephone systems, or related work such as speech coding?</label>
+				<div class="radio">
+				  <label><input type="radio" name="7_working_area" value="Y" required="">Yes</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="7_working_area" value="N">No</label>
+				</div>	
+		</fieldset>
+		
+		<fieldset><label>8.&nbsp; I belive, ...</label>
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="normal" required="">I have a normal hearing ability.</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="mid">I have difficulties keeping up with conversations, especially in noisy surroundings (mid hearing loss).</label>
+				</div>	
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="moderate">I have difficulty keeping up with conversations when I am not using a hearing aid (moderate hearing loss).</label>
+				</div>	
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="severe">I rely on lip-reading even when I am using hearing aids (severe or profound hearing loss). </label>
+				</div>	
+		</fieldset>
+
+		
+		<div style="text-align: center;margin:30px;"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/attention.png" alt="attention"> </img> <b>Please wear your headphones now.</b></div> 
+		
+	   <fieldset><label>10.&nbsp;Please adjust the level of your computer to a comfortable level so that you hear the following audio sample very well.</label>
+				
+			<p align="center"> <span class="baudio" id="volume" data-src="./assets/clips/signal_level.wav" >&nbsp;</span> </p>
+			
+			<div class="alert alert-warning" role="alert">
+			  <b>NOTE:</b> After that, you are not allowed to change the volume anymore. Otherwise your response will be rejected.
+			</div>
+
+		</fieldset>
+
+		<fieldset><label>11.&nbsp;In each of the following tests, you hear combination of three digits (for example 1 5 3), spoken with noise in the background. Simply enter the three numbers that you have understood on the answer box below each audio file. </label>
+			
+
+			<div class="row" style="margin: 30px;">
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="n1" title="" data-src="./assets/clips/sample_hearing_test/s0.wav" >&nbsp;</span>
+					</div>
+					<input type="text" name="num1" required="" class="nospace">
+				</div>
+
+
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="n2" title="" data-src="./assets/clips/sample_hearing_test/s1.wav" >&nbsp;</span>
+					</div>
+					<input type="text" name="num2" required="" class="nospace">
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row"style="text-align:center;">
+						<span class="baudio" id="n3" title="" data-src="./assets/clips/sample_hearing_test/s2.wav" >&nbsp;</span>
+					</div>
+					<input type="text" name="num3" required="" class="nospace">
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row"style="text-align:center;">
+						<span class="baudio" id="n4" title="" data-src="./assets/clips/sample_hearing_test/s3.wav" >&nbsp;</span>
+					</div>
+					<input type="text" name="num4" required="" class="nospace">
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="n5" title="" data-src="./assets/clips/sample_hearing_test/s4.wav" >&nbsp;</span>
+					</div>
+					<input type="text" name="num5" required="" class="nospace">
+				</div>
+			</div>
+			
+		</fieldset>
+		
+
+		<h5> Thank you for your participation. The qualifications will be assigned to selected group of participants in up to next 3 days.</h5>
+		
+	  </div>
+  </div>
+</div>
+
+</div>
+</section>
