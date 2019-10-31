@@ -66,6 +66,11 @@ Check the status of HITs listed in the [REPORT_FILE] (i.e. outcome of '--create_
 file, and download alla answers available for them. As HITs created using API are not visible in the GUI, this 
 command should be used to get the results.
 
+#### create_qualification_type
+[tba]
+
+#### assign_qualification_type
+[tba]
 
 ## create_trapping_stimuli
 Script to create set of trapping stimuli(Gold standard question) based on the ITU-T Rec. P.808 (section 6.3.8) and 
