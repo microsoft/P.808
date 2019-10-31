@@ -8,7 +8,15 @@ import configparser as CP
 import librosa as lr
 import numpy as np
 import soundfile as sf
+import csv
 
+message_to_values={
+    "bad_short":1,
+    "poor_short":2,
+    "fair_short":3,
+    "good_short":4,
+    "excellent_short":5
+}
 
 def create_trap_db(cfg):
     # create directory names
@@ -25,6 +33,7 @@ def create_trap_db(cfg):
     msg_files = [join(msg_folder, f) for f in os.listdir(msg_folder)
                  if isfile(join(msg_folder, f)) and cfg['message_file_prefix'] in f]
     count = 0
+    list_of_file=[]
     for s_f in source_files:
         for msg_f in msg_files:
             # cut last part of message file name to be appended to the output file
@@ -38,6 +47,17 @@ def create_trap_db(cfg):
                                  msg_f,
                                  output_filename,cfg)
             count +=1
+            list_of_file.append({'file_name':output_filename, 'correct_answer':message_to_values[msg]})
+    output_report = join(output_folder,'output_report.csv')
+    with open(output_report, 'w', newline='') as output_file:
+        headers_written = False
+        for f in list_of_file:
+            if not headers_written:
+                writer = csv.DictWriter(output_file, fieldnames=sorted(f))
+                headers_written = True
+                writer.writeheader()
+            writer.writerow(f)
+
     return count
 
 

@@ -57,7 +57,7 @@ Steps:
         // should the order of audio clips be randomized in training section? Recommended: True
         randomizeTrainingQuestions:"true",
         // should the order of audio clips be randomized in Ratings section? Recommended: True
-        randomizeRatingQuestions:"false",
+        randomizeRatingQuestions:"true",
         // how often should the "Setup" section be presented to worker? Recommended: 3min --> everytime
         showSetupEveryMinutes:3,
         // In case you want to use Assignment Review Policies, what is the URL of file with known correct answer

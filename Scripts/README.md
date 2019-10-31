@@ -16,21 +16,21 @@ pip install -r mturk_utilis_requirements.txt
 #### assign_bonus
 usage
 ```
-python mturk_utils.py --send_bonus bonus.csv 
+python mturk_utils.py --send_bonus cfgs_and_inputs/bonus.csv 
 ```
 the bonus.csv should have following columns: workerId, assignmentId, bonusAmount, reason
 
 #### approve
 usage
 ```
-python mturk_utils.py --approve approve.csv 
+python mturk_utils.py --approve cfgs_and_inputs/approve.csv 
 ```
 the approve.csv should have following columns: assignmentId
 
 #### reject
 usage
 ```
-python mturk_utils.py --reject reject.csv 
+python mturk_utils.py --reject cfgs_and_inputs/reject.csv 
 ```
 the reject.csv should have following columns: assignmentId,feedback
 
@@ -67,10 +67,26 @@ file, and download alla answers available for them. As HITs created using API ar
 command should be used to get the results.
 
 #### create_qualification_type
-[tba]
+usage
+
+```
+python mturk_utils.py --create_qualification_type cfgs_and_inputs/qualification_type.cfg
+
+```
+
+Create a new Qualification Type Without Test given the configuration. A name and description are needed.
+See `cfgs_and_inputs/qualification_type.cfg` for more details.
+
 
 #### assign_qualification_type
-[tba]
+
+usage
+```
+python mturk_utils.py --assign_qualification_type cfgs_and_inputs/assign_qualification.csv
+```
+for each row of `assign_qualification.csv` assign the given qualification and its value to the worker.
+The csv file should have following columns: `workerId`, `qualification_name` ,`value`
+
 
 ## create_trapping_stimuli
 Script to create set of trapping stimuli(Gold standard question) based on the ITU-T Rec. P.808 (section 6.3.8) and 
@@ -84,7 +100,7 @@ pip install -r create_trapping_stimuli_requirements.txt
 How to use is?
 
 ```
-python create_trapping_stimuli.py trapping.cfg 
+python create_trapping_stimuli.py --cfg trapping.cfg 
 ```
 The `input_directory` should have the following structure:
 

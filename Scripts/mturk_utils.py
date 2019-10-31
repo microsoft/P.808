@@ -331,14 +331,13 @@ def assign_qualification_to_workers(client, input_csv_path):
         line_count = 1
         for row in reader:
             if line_count == 1:
-                print (row)
                 assert 'workerId' in row,  f"No column found with workerId in [{input_csv_path}]"
                 assert 'qualification_name' in row, f"No column found with qualification_name in [{input_csv_path}]"
                 assert 'value' in row, f"No column found with value in [{input_csv_path}]"
             q_name = row['qualification_name'].strip()
             if q_name not in qualification_ids:
                 qualification_ids[q_name] = get_qualification_id(client, q_name)
-            print(qualification_ids)
+
             response = client.associate_qualification_with_worker(
                 QualificationTypeId=qualification_ids[q_name],
                 WorkerId=row['workerId'],
