@@ -297,6 +297,60 @@ def xml_answer_to_dict(xml_text):
     return ans_dict
 
 
+def create_qualification_type_without_test(client,cfg):
+    response = client.create_qualification_type(
+        Name=cfg['qualification_type']['name'],
+        Description=cfg['qualification_type']['description'],
+        QualificationTypeStatus=cfg['qualification_type']['qualification_type_status'],
+    )
+    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        print(f"Qualification Type {cfg['qualification_type']['name']} is created")
+    else:
+        print(f"Problem by creating the qualification {cfg['qualification_type']['name']}: {response}")
+
+
+def get_qualification_id(client, name):
+    response = client.list_qualification_types(
+        Query=name,
+        MustBeRequestable=True,
+        MustBeOwnedByCaller=True,
+        MaxResults=10
+    )
+    print(response)
+    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        return response['QualificationTypes'][0]['QualificationTypeId']
+    else:
+        print(f"Could not find qualification name {name}: {response}")
+        return name
+
+
+def assign_qualification_to_workers(client, input_csv_path):
+    qualification_ids={}
+    with open(input_csv_path, mode='r') as input:
+        reader = csv.DictReader(input)
+        line_count = 1
+        for row in reader:
+            if line_count == 1:
+                print (row)
+                assert 'workerId' in row,  f"No column found with workerId in [{input_csv_path}]"
+                assert 'qualification_name' in row, f"No column found with qualification_name in [{input_csv_path}]"
+                assert 'value' in row, f"No column found with value in [{input_csv_path}]"
+            q_name = row['qualification_name'].strip()
+            if q_name not in qualification_ids:
+                qualification_ids[q_name] = get_qualification_id(client, q_name)
+            print(qualification_ids)
+            response = client.associate_qualification_with_worker(
+                QualificationTypeId=qualification_ids[q_name],
+                WorkerId=row['workerId'],
+                IntegerValue=int(row['value'])
+            )
+            if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                print(f"{line_count}. Qualification Type {q_name} with value {row['value']} is assigned to {row['workerId']}")
+            else:
+                print(f"Error: {line_count}. Qualification Type {q_name} with value {row['value']} is NOT assigned to {row['workerId']}")
+            line_count += 1
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Utility script to handle a MTurk study.')
     # Configuration: read it from mturk.cfg
@@ -313,7 +367,6 @@ if __name__ == '__main__':
                         help="Reject all assignments found in the input csv file. Path to a csv file "
                              "(columns: assignmentId,feedback)")
 
-
     parser.add_argument("--create_hit", type=str,
                         help="Create one or more  HITs.Con figuration file for creating HIT: ../P808Template")
     parser.add_argument("--create_hit_input", type=str,
@@ -321,6 +374,13 @@ if __name__ == '__main__':
 
     parser.add_argument("--answers", type=str,
                         help="Download answers for given report file (columns: HITId, HITTypeId,HITGroupId")
+
+    parser.add_argument("--create_qualification_type", type=str,
+                        help="Create qualification type without test given the cfg file. see qualification.cfg")
+
+    parser.add_argument("--assign_qualification_type", type=str,
+                        help="Assign qualification type wto workers. "
+                            "Input csv file (columns: workerId, qualification_name, value)")
 
     args = parser.parse_args()
 
@@ -373,3 +433,15 @@ if __name__ == '__main__':
         report_file = os.path.join(os.path.dirname(__file__), args.answers)
         assert os.path.exists(report_file), f"No configuration file for create_hit found in [{report_file}]"
         get_answer_csv(client, report_file)
+
+    if args.create_qualification_type is not None:
+        qualification_cfg_path = os.path.join(os.path.dirname(__file__), args.create_qualification_type)
+        assert os.path.exists(qualification_cfg_path), f"No configuration file as [{qualification_cfg_path}]"
+        cfg_qualification = CP.ConfigParser()
+        cfg_qualification.read(qualification_cfg_path)
+        create_qualification_type_without_test(client, cfg_qualification)
+
+    if args.assign_qualification_type is not None:
+        input_path = os.path.join(os.path.dirname(__file__), args.assign_qualification_type)
+        assert os.path.exists(input_path), f"No configuration file as [{input_path}]"
+        assign_qualification_to_workers(client,input_path)
