@@ -12,8 +12,8 @@
 <style type="text/css">
 body{font-family:Tahoma,"Times New Roman", Times, serif;}
 
-.table th, .table td { 
-     border-top: none !important; 
+.table th, .table td {
+     border-top: none !important;
 }
 .center {
     display: block;
@@ -47,38 +47,42 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 var config ={
 	cookieName:"itu_p808_test",
     forceRetrainingInHours:1,
-    debug:true,
+    debug:"true",
     questionUrls: ["assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m1_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_FB_48k.wav","assets/clips/sample_speech/P501_C_english_f1_FB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_IRS_08k.wav","assets/clips/sample_tp.wav"],
-    trainingUrls: ["assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav"],
-    randomizeTrainingQuestions:"true",
-    randomizeRatingQuestions:"true",
-    showSetupEveryMinutes:3,
-    // the URL should appears in the questionUrls as well.
+    trainingUrls: ["assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_tp.wav"],
+    showSetupEveryMinutes:30,
+    knownQuestionInTrainingUrl:"assets/clips/sample_tp.wav",
+    knownQuestionInTrainingAns: "1",
     knownQuestionUrl:"assets/clips/sample_tp.wav",
-	// the correct answer
-    knownQuestionAns:"3"
+    knownQuestionAns: "3",
+    randomizeTrainingQuestions:"false",
+    randomizeRatingQuestions:"true",
+    allowedMaxHITsInProject:2,
+	allowedMaxContinuesSessionDurationInMinutes:2
 }
 
-$( document ).ready(function() {
+$(function() {
     // disable logs if not debug
-    if (!config.debug)
-        console.log = function() {};
-
+    //console.log[
+   // if (!configdebug)
+    //    console.log = function() {};
     // given cookie availability disable the training
     if (readCookie(config.cookieName+"_training")){
 		$('.trainingFieldset').prop("disabled", true);
 		$("#training").hide();
 	}
-
     // given cookie availability disable the setup
     if (readCookie(config.cookieName+"_setup")){
 		$('.setupFieldset').prop("disabled", true);
 		$("#setup").hide();
 	}
-
 	generate_training_section();
 	generate_rating_section();
 	avoidAnsweringBeforeListeningThrough();
+	console.log("+++++++++++++++++++++")
+	counts= updateCounterCookie(config['cookieName']+"_counter",1);
+	if (counts >= config['allowedMaxHITsInProject'])
+		disableTheHIT();
 });
 
 //--------------- Utilities -----------------
@@ -101,6 +105,15 @@ String.prototype.toMMSS = function () {
     return minutes+':'+seconds;
 }
 
+function disableTheHIT(){
+	$("#training").hide();
+	$("#setup").hide();
+	$("#rating_section").hide();
+	$("#Survey").hide();
+	$("#thanks").hide();
+	$("#max_allowed_HITs_reached").show();
+}
+
 function createCookie(name, value, minutes) {
     var expires;
     if (minutes) {
@@ -111,6 +124,20 @@ function createCookie(name, value, minutes) {
         expires = "";
     }
     document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + expires + "; path=/";
+}
+
+function updateCounterCookie(name, updateBy){
+
+	expiry_in_a_month= 30*24*60
+	c = readCookie(name);
+	if (c==null){
+		createCookie(name, 1, expiry_in_a_month);
+		return 1;
+	}else{
+	 	console.log(c);
+	 	createCookie(name, Number(c)+updateBy, expiry_in_a_month);
+	}
+	return Number(c)+updateBy;
 }
 
 function readCookie(name) {
@@ -148,9 +175,20 @@ function showPreviousQuestionInRatingSection(){
 	callback when "Next" in Training section is clicked.
 */
 function showNextQuestionInTrainingSection(){
+	var count = $("#trainingTabs li").length;
 	id=$("#trainingTabs li.active").index();
-	id=id+2;
-	$('#trainingTabs li:nth-child('+id+') a').tab('show');
+	console.log ("{0} out of {1}".f( id, count))
+	if (id+1!=count){
+		id=id+2;
+		$('#trainingTabs li:nth-child('+id+') a').tab('show');
+	}else{
+		// last next is called
+		console.log("hello");
+		setTimeout(function (){
+			window.location.hash="navNextPre";
+		},  50);
+
+	}
 }
 
 /*
@@ -177,6 +215,11 @@ function playedAudioTraining(id){
 	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
 		createCookie(config.cookieName+"_training","un_important",config['forceRetrainingInHours']*60);
 	}
+	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionInTrainingUrl']){
+		element = $('input[name="'+id+'"]');
+		element.unbind();
+		element.on('change', onValueChangeForTpQuestionInTraining);
+	}
 }
 
 function getSum(total, num) {
@@ -192,7 +235,7 @@ function clickManager(event) {
 	if (ae.paused) {
 		pauseAll();
 		playAudio(ae);
-	} else { 
+	} else {
 		pauseAudio(ae);
 	}
 };
@@ -236,7 +279,7 @@ function canPlay(event){
 	console.log(id);
 	$("#baudio_l_d_"+id).text(" / " + (ae.duration).toString().toMMSS());
 	$("#baudio_"+id).removeClass("disabled");
-	
+
 }
 function timeUpdate(){
 	var ae=this;
@@ -249,7 +292,7 @@ function isended(){
 	var ae=this;
 	var idText =this.id;
 	var id=idText.substring(6,idText.length);
-	
+
 	$("#baudio_s_"+id).removeClass("glyphicon-pause");
 	$("#baudio_"+id).removeClass("btn-primary");
 	$("#baudio_s_"+id).addClass("glyphicon-repeat");
@@ -258,7 +301,7 @@ function isended(){
 		window[$("#"+id).attr('data-onfinished')](id);
 	}
 }
-	
+
 $(function() {
     $( ".baudio" ).each(function(){
 		titleTextTemplate='<tr><td>{1}</td></tr>';
@@ -271,11 +314,11 @@ $(function() {
 			insert=titleTextTemplate;
 			title=$(this).attr('title');
 		}
-		
-		t='<table class="baudio_table" border="0">'+insert+' <tr><td><button id="baudio_{0}" type="button" class="btn bn disabled"><span id ="baudio_s_{0}" class="glyphicon glyphicon-play"></span></button></td></tr><tr><td><span id="baudio_l_c_{0}" class="blabel" >00:00</span><span id="baudio_l_d_{0}" class="blabel" > / 00:00</span></td></tr></table>';	
+
+		t='<table class="baudio_table" border="0">'+insert+' <tr><td><button id="baudio_{0}" type="button" class="btn bn disabled"><span id ="baudio_s_{0}" class="glyphicon glyphicon-play"></span></button></td></tr><tr><td><span id="baudio_l_c_{0}" class="blabel" >00:00</span><span id="baudio_l_d_{0}" class="blabel" > / 00:00</span></td></tr></table>';
 		src=$(this).attr('data-src');
 		id=$(this).attr('id');
-				
+
 		$(this).append(a.f(id,src));
 		$(this).append(t.f(id,title));
 		var audioElement = document.getElementById("audio_"+id);
@@ -321,6 +364,17 @@ function onValueChangeForTpQuestion(){
 		$('#tp_check').val(-1);
 }
 
+/*
+	Listener on value change for the trapping question in training.
+	if the answer is wrong, show a message.
+*/
+function onValueChangeForTpQuestionInTraining(){
+	if ($( this ).val()  != config['knownQuestionInTrainingAns']){
+		alert('Error: In case you hear an interruption message, please follow the instruction given in the message.');
+		$(this).prop('checked', false);
+	}
+
+}
 /*
 Called when the audio in rating section by the given id is completely played.
 Now user can rate the quality.
@@ -393,12 +447,11 @@ function generate_rating_section(){
 	acr_tab ='<div class="tab-pane fade {2}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"> <p></p> <div class="row"> <div class="col-sm-3"></div> <div class="col-sm-6"> <p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p> <p align="center"> <span class="baudio" id="q{0}" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> <fieldset id="fieldset_q{0}" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >Quality of the speech</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="4">Good</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="3">Fair</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="2">Poor</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> <p></p> </div> <div class="col-sm-3"></div> </div> <p></p> </div>';
 	// this will show which url was shown by in which question as their orther will be randomized
 	input_template= '<input id="Q{0}_URL" name="Q{0}_URL" type="hidden" value="{1}" />';
-
-	if (JSON.parse(config['randomizeRatingQuestions']))
+	if (JSON.parse(config['randomizeRatingQuestions'])){
 		urls = shuffle(config['questionUrls']);
-	else
+	}else{
 		urls = config['questionUrls'];
-
+	}
 
 	var i;
 	for (i = 0; i < urls.length; i++) {
@@ -465,21 +518,21 @@ function generate_rating_section(){
 <section class="container" id="setup">
 <div class="panel panel-info">
   <div class="panel-heading">
-    <h3 class="panel-title">	
+    <h3 class="panel-title">
 		<a data-target="#setup_panel" data-toggle="collapse" >Setup</a>
 	</h3>
   </div>
   <div  class="panel-collapse collapse in" id="setup_panel">
 	  <div class="panel-body">
-	  
+
 	  <div style="text-align: center;margin:30px;"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/attention.png" alt="attention">  <b>Please wear your headphones now.</b></div>
-	  
+
 		<fieldset class="setupFieldset" ><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
-				
+
 			<p align="center"> <span class="baudio" id="volume" data-src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/D401_c01_ef01_s001.wav" >&nbsp;</span> </p>
-			
+
 			<div class="alert alert-danger" role="alert">
-			  <b>NOTE:</b> Missing this step can strongly affect quality of your answer. 
+			  <b>NOTE:</b> Missing this step can strongly affect quality of your answer.
 			</div>
 
 			<div class="alert alert-warning" role="alert">
@@ -489,19 +542,19 @@ function generate_rating_section(){
 
 
 		<fieldset  class="setupFieldset"><label>2.&nbsp; Please listen to the following audio file and type in the answer to the question: </label>
-			
+
 				<div align="center"> <span class="baudio" id="math1" data-src="assets/clips/math/math1.wav" >&nbsp;</span> </div>
-			
+
 
 		<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" onchange="userAnsweringToSetupQuestions()"/> </div>
 
 		</fieldset>
 
 		<div class="alert alert-info" role="alert">For the following <b>four questions</b>, please specify which sample has a better quality compared to the other one from your perspective.</div>
-		
-		
+
+
 		<fieldset  class="setupFieldset"><label>3.&nbsp;Which sample has a better quality compared to the other one? </label>
-				
+
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
 					<div align="right"> <span class="baudio" id="CMP1_A" title="Sample A" data-src="assets/clips/sample_jnd/45S_Female1.wav" >&nbsp;</span> </div>
@@ -511,7 +564,7 @@ function generate_rating_section(){
 					<div align="left"> <span class="baudio" id="CMP1_B" title="Sample B" data-src="assets/clips/sample_jnd/50S_Female1.wav" >&nbsp;</span> </div>
 				</div>
 		</div>
-		
+
 		<div class="row" >
 				<div class="col-sm-4"></div>
 				<div class="col-sm-5">
@@ -523,7 +576,7 @@ function generate_rating_section(){
 		</div>
 
 		</fieldset>
-		
+
 		<fieldset  class="setupFieldset"><label>4.&nbsp;Which sample has a better quality compared to the other one? </label>
 
 		<div class="row" style="margin-top:10px;">
@@ -535,7 +588,7 @@ function generate_rating_section(){
 					<div align="left"> <span class="baudio" id="CMP2_B" title="Sample B" data-src="assets/clips/sample_jnd/50S_Male1.wav" >&nbsp;</span> </div>
 				</div>
 		</div>
-		
+
 		<div class="row" >
 				<div class="col-sm-4"></div>
 				<div class="col-sm-5">
@@ -548,7 +601,7 @@ function generate_rating_section(){
 
 		</fieldset>
 		<fieldset  class="setupFieldset"><label>5.&nbsp;Which sample has a better quality compared to the other one? </label>
-							
+
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
 					<div align="right"> <span class="baudio" id="CMP3_A" title="Sample A" data-src="assets/clips/sample_jnd/50S_Female2.wav" >&nbsp;</span> </div>
@@ -558,7 +611,7 @@ function generate_rating_section(){
 					<div align="left"> <span class="baudio" id="CMP3_B" title="Sample B" data-src="assets/clips/sample_jnd/45S_Female2.wav" >&nbsp;</span> </div>
 				</div>
 		</div>
-		
+
 		<div class="row">
 				<div class="col-sm-4"></div>
 				<div class="col-sm-5">
@@ -570,10 +623,10 @@ function generate_rating_section(){
 		</div>
 
 		</fieldset>
-		
+
 		<fieldset  class="setupFieldset"><label>6.&nbsp;Which sample has a better quality compared to the other one? </label>
-			
-				
+
+
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
 					<div align="right"> <span class="baudio" id="CMP4_A" title="Sample A" data-src="assets/clips/sample_jnd/45S_Male2.wav" >&nbsp;</span> </div>
@@ -583,7 +636,7 @@ function generate_rating_section(){
 					<div align="left"> <span class="baudio" id="CMP4_B" title="Sample B" data-src="assets/clips/sample_jnd/50S_Male2.wav" >&nbsp;</span> </div>
 				</div>
 		</div>
-		
+
 		<div class="row">
 				<div class="col-sm-4"></div>
 				<div class="col-sm-5">
@@ -594,8 +647,8 @@ function generate_rating_section(){
 				<div class="col-sm-3"></div>
 		</div>
 
-		</fieldset>	
-		
+		</fieldset>
+
 	  </div>
   </div>
 </div>
@@ -622,7 +675,7 @@ function generate_rating_section(){
 
 				<div class="tab-content" id="nav-tabContent">
 
-				  
+
 				</div>
 			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number_training"></b> questions.</div>
 			<nav aria-label="..." id="navNextPreT">
@@ -631,7 +684,7 @@ function generate_rating_section(){
 				<li class="next" onclick="showNextQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 			  </ul>
 			</nav>
-			
+
 			</div>
 			</div>
 		</div>
@@ -641,12 +694,12 @@ function generate_rating_section(){
 
 <input id="tp_check" name="tp_check" type="hidden" value="-1" />
 <!--- Rating task -->
-<section class="container">
+<section class="container" id="rating_section">
 		<div class="panel panel-primary">
 			<div class="panel-heading">
 				<h3 class="panel-title">Ratings</h3>
 			</div>
-			<div class="panel-body">	
+			<div class="panel-body">
 				<p> Please answer the following <b class="question_number"></b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
 				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
 
@@ -657,16 +710,28 @@ function generate_rating_section(){
 				<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number"></b> questions, then submit your response.</div>
 				<nav aria-label="..." id="navNextPre">
 				  <ul class="pager">
-					<li class="previous" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
+					<li class="previous" id="prev-rating" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button" ><span aria-hidden="true">&larr;</span>Previous</a></li>
 					<li class="next" onclick="showNextQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 				  </ul>
 				</nav>
-			
+
 			</div>
 		</div>
 </section>
 
 
-<section class="container">
+<section class="container" id="thanks">
 	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
+</section>
+
+
+<section class="container" id="max_allowed_HITs_reached" hidden>
+	<p><h2>Well done! </h2> You performed the maximum number of HITs that you were allowed to.</p>
+
+	<div class="alert alert-danger" role="alert">
+		<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/attention.png" alt="attention">
+			  <b>NOTE:</b> Performing more HITs
+		than what is explained in the description is forbidden and leads ro rejection of all of your submissions.
+			</div>
+
 </section>

@@ -50,35 +50,39 @@ var config ={
     debug:"true",
     questionUrls: ["${Q1}","${Q2}","${Q3}","${Q4}","${Q5}","${Q6}","${Q7}","${Q8}","${Q9}","${Q10}","${TP}"],
     trainingUrls: ["${T1}","${T2}","${T3}","${T4}","${T5_TP}"],
-    showSetupEveryMinutes:3,
+    showSetupEveryMinutes:30,
+    knownQuestionInTrainingUrl:"${T5_TP}",
+    knownQuestionInTrainingAns: "${T5_ANS}",
     knownQuestionUrl:"${TP}",
     knownQuestionAns: "${TP_ANS}",
-    randomizeTrainingQuestions:"true",
+    randomizeTrainingQuestions:"false",
     randomizeRatingQuestions:"true",
+    allowedMaxHITsInProject:2,
+	allowedMaxContinuesSessionDurationInMinutes:2
 }
 
 $(function() {
-	console.log("hello");
     // disable logs if not debug
     //console.log[
    // if (!configdebug)
     //    console.log = function() {};
-	console.log("hello");
     // given cookie availability disable the training
     if (readCookie(config.cookieName+"_training")){
 		$('.trainingFieldset').prop("disabled", true);
 		$("#training").hide();
 	}
-console.log("hello2");
     // given cookie availability disable the setup
     if (readCookie(config.cookieName+"_setup")){
 		$('.setupFieldset').prop("disabled", true);
 		$("#setup").hide();
 	}
-console.log("hello3");
 	generate_training_section();
 	generate_rating_section();
 	avoidAnsweringBeforeListeningThrough();
+	console.log("+++++++++++++++++++++")
+	counts= updateCounterCookie(config['cookieName']+"_counter",1);
+	if (counts >= config['allowedMaxHITsInProject'])
+		disableTheHIT();
 });
 
 //--------------- Utilities -----------------
@@ -101,6 +105,15 @@ String.prototype.toMMSS = function () {
     return minutes+':'+seconds;
 }
 
+function disableTheHIT(){
+	$("#training").hide();
+	$("#setup").hide();
+	$("#rating_section").hide();
+	$("#Survey").hide();
+	$("#thanks").hide();
+	$("#max_allowed_HITs_reached").show();
+}
+
 function createCookie(name, value, minutes) {
     var expires;
     if (minutes) {
@@ -111,6 +124,20 @@ function createCookie(name, value, minutes) {
         expires = "";
     }
     document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + expires + "; path=/";
+}
+
+function updateCounterCookie(name, updateBy){
+
+	expiry_in_a_month= 30*24*60
+	c = readCookie(name);
+	if (c==null){
+		createCookie(name, 1, expiry_in_a_month);
+		return 1;
+	}else{
+	 	console.log(c);
+	 	createCookie(name, Number(c)+updateBy, expiry_in_a_month);
+	}
+	return Number(c)+updateBy;
 }
 
 function readCookie(name) {
@@ -148,9 +175,20 @@ function showPreviousQuestionInRatingSection(){
 	callback when "Next" in Training section is clicked.
 */
 function showNextQuestionInTrainingSection(){
+	var count = $("#trainingTabs li").length;
 	id=$("#trainingTabs li.active").index();
-	id=id+2;
-	$('#trainingTabs li:nth-child('+id+') a').tab('show');
+	console.log ("{0} out of {1}".f( id, count))
+	if (id+1!=count){
+		id=id+2;
+		$('#trainingTabs li:nth-child('+id+') a').tab('show');
+	}else{
+		// last next is called
+		console.log("hello");
+		setTimeout(function (){
+			window.location.hash="navNextPre";
+		},  50);
+
+	}
 }
 
 /*
@@ -176,6 +214,11 @@ function playedAudioTraining(id){
 	console.log(trainingStimulusPlayed.reduce(getSum, 0))
 	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
 		createCookie(config.cookieName+"_training","un_important",config['forceRetrainingInHours']*60);
+	}
+	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionInTrainingUrl']){
+		element = $('input[name="'+id+'"]');
+		element.unbind();
+		element.on('change', onValueChangeForTpQuestionInTraining);
 	}
 }
 
@@ -321,6 +364,17 @@ function onValueChangeForTpQuestion(){
 		$('#tp_check').val(-1);
 }
 
+/*
+	Listener on value change for the trapping question in training.
+	if the answer is wrong, show a message.
+*/
+function onValueChangeForTpQuestionInTraining(){
+	if ($( this ).val()  != config['knownQuestionInTrainingAns']){
+		alert('Error: In case you hear an interruption message, please follow the instruction given in the message.');
+		$(this).prop('checked', false);
+	}
+
+}
 /*
 Called when the audio in rating section by the given id is completely played.
 Now user can rate the quality.
@@ -640,7 +694,7 @@ function generate_rating_section(){
 
 <input id="tp_check" name="tp_check" type="hidden" value="-1" />
 <!--- Rating task -->
-<section class="container">
+<section class="container" id="rating_section">
 		<div class="panel panel-primary">
 			<div class="panel-heading">
 				<h3 class="panel-title">Ratings</h3>
@@ -656,7 +710,7 @@ function generate_rating_section(){
 				<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number"></b> questions, then submit your response.</div>
 				<nav aria-label="..." id="navNextPre">
 				  <ul class="pager">
-					<li class="previous" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
+					<li class="previous" id="prev-rating" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button" ><span aria-hidden="true">&larr;</span>Previous</a></li>
 					<li class="next" onclick="showNextQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 				  </ul>
 				</nav>
@@ -666,6 +720,18 @@ function generate_rating_section(){
 </section>
 
 
-<section class="container">
+<section class="container" id="thanks">
 	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
+</section>
+
+
+<section class="container" id="max_allowed_HITs_reached" hidden>
+	<p><h2>Well done! </h2> You performed the maximum number of HITs that you were allowed to.</p>
+
+	<div class="alert alert-danger" role="alert">
+		<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/attention.png" alt="attention">
+			  <b>NOTE:</b> Performing more HITs
+		than what is explained in the description is forbidden and leads ro rejection of all of your submissions.
+			</div>
+
 </section>
