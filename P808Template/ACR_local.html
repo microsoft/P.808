@@ -57,9 +57,10 @@ var config ={
     knownQuestionAns: "3",
     randomizeTrainingQuestions:"false",
     randomizeRatingQuestions:"true",
-    allowedMaxHITsInProject:2,
+    allowedMaxHITsInProject:5,
 	allowedMaxContinuesSessionDurationInMinutes:2
 }
+var hitCounterIncreased = false;
 
 $(function() {
     // disable logs if not debug
@@ -79,10 +80,12 @@ $(function() {
 	generate_training_section();
 	generate_rating_section();
 	avoidAnsweringBeforeListeningThrough();
-	console.log("+++++++++++++++++++++")
-	counts= updateCounterCookie(config['cookieName']+"_counter",1);
-	if (counts >= config['allowedMaxHITsInProject'])
+
+	howManyHITsAnswered= Number(readCookie(config['cookieName']+"_counter"));
+	if (howManyHITsAnswered >= config['allowedMaxHITsInProject'])
 		disableTheHIT();
+	hitCounterIncreased = false;
+
 });
 
 //--------------- Utilities -----------------
@@ -385,8 +388,14 @@ function playedAudioQ(id){
 		element = $('input[name="'+id+'"]');
 		element.unbind();
 		element.on('change', onValueChangeForTpQuestion);
-	}else
+	}else{
 		$('input[name="'+id+'"]').off('change');
+		// check if already this HIT is counted
+		if (!hitCounterIncreased){
+			updateCounterCookie(config['cookieName']+"_counter",1);
+			hitCounterIncreased=true
+		}
+	}
 }
 
 /*

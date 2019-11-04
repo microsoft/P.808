@@ -1,0 +1,14 @@
+<AnswerKey xmlns="http://mechanicalturk.amazonaws.com/AWSMechanicalTurkDataSchemas/2005-10-01/AnswerKey.xsd">
+  <Question>
+    <QuestionIdentifier>1_gender</QuestionIdentifier>
+    <AnswerOption>
+      <SelectionIdentifier>m</SelectionIdentifier>
+      <AnswerScore>1</AnswerScore>
+    </AnswerOption>
+  </Question>
+  <QualificationValueMapping>
+    <PercentageMapping>
+      <MaximumSummedScore>1</MaximumSummedScore>
+    </PercentageMapping>
+  </QualificationValueMapping>
+</AnswerKey>

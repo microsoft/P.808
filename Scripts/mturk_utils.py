@@ -10,6 +10,7 @@ import csv
 import xml.etree.ElementTree as ET
 import re
 import random
+import urllib.parse
 
 """
 Sends an email to list of workers given the worker ids. 
@@ -309,6 +310,62 @@ def create_qualification_type_without_test(client,cfg):
         print(f"Problem by creating the qualification {cfg['qualification_type']['name']}: {response}")
 
 
+def create_qualification_type_with_test(client,cfg):
+    with open('cfgs_and_inputs/qualification.xml', 'r') as test_file:
+        test = test_file.read()
+        #test_url_escaped= urllib.parse.quote(test)
+        test_url_escaped = test
+        print(test_url_escaped)
+        with open('cfgs_and_inputs/answer_key.xml', 'r') as answer_file:
+            ans = answer_file.read()
+
+            response = client.create_qualification_type(
+                Name=cfg['qualification_type']['name'],
+                Keywords='abc',
+                Description=cfg['qualification_type']['description'],
+                QualificationTypeStatus=cfg['qualification_type']['qualification_type_status'],
+                RetryDelayInSeconds=120,
+                Test=test_url_escaped,
+                AnswerKey=ans,
+                TestDurationInSeconds=3600,
+                AutoGranted=False
+            )
+            if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                print(f"Qualification Type {cfg['qualification_type']['name']} is created")
+            else:
+                print(f"Problem by creating the qualification {cfg['qualification_type']['name']}: {response}")
+
+
+def update_qualification_type_with_test(client,cfg):
+    with open('cfgs_and_inputs/qualification.xml', 'r') as test_file:
+        test = test_file.read()
+        #test_url_escaped= urllib.parse.quote(test)
+        test_url_escaped = test
+        print(test_url_escaped)
+        q_id= get_qualification_id(client,'test4')
+        with open('cfgs_and_inputs/answer_key.xml', 'r') as answer_file:
+            ans = answer_file.read()
+
+            response = client.update_qualification_type(
+                QualificationTypeId=q_id,
+                Description=cfg['qualification_type']['description'],
+                QualificationTypeStatus=cfg['qualification_type']['qualification_type_status'],
+                RetryDelayInSeconds=120,
+                Test=test_url_escaped,
+                AnswerKey=ans,
+                TestDurationInSeconds=3600,
+                AutoGranted=False
+            )
+            if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                print(f"Qualification Type {cfg['qualification_type']['name']} is created")
+            else:
+                print(f"Problem by creating the qualification {cfg['qualification_type']['name']}: {response}")
+
+
+
+
+
+
 def get_qualification_id(client, name):
     response = client.list_qualification_types(
         Query=name,
@@ -439,6 +496,7 @@ if __name__ == '__main__':
         cfg_qualification = CP.ConfigParser()
         cfg_qualification.read(qualification_cfg_path)
         create_qualification_type_without_test(client, cfg_qualification)
+        #update_qualification_type_with_test(client, cfg_qualification)
 
     if args.assign_qualification_type is not None:
         input_path = os.path.join(os.path.dirname(__file__), args.assign_qualification_type)

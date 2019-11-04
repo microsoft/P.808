@@ -11,33 +11,40 @@
 </head>
 
 <body>
-
+<style type="text/css">
+	body{font-family:Tahoma,"Times New Roman", Times, serif;}
+	p{	margin:20px; }
+	.center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 40%;
+}
+</style>
 <script type="text/javascript">
 
     var device_list= "";
-    navigator.mediaDevices.enumerateDevices().then(devices => {
-        console.log(devices);
-        devices.forEach(printDevice);
-        console.log(device_list);
-         document.getElementById("navmedia").innerHTML= device_list
 
-        });
 
 function printDevice(device) {
     console.log(device);
-    device_list = device_list+ "<br>" + device.kind +":" +device.label +"("+device.deviceId+")";
-
+    if (device.kind.startsWith('audio')){
+    	device_list = device_list+ "+" + device.kind + ":" +device.label +"+";
+    	$('#status').html("Done, you can continue.")
+    }
 }
 
-
 const constraints = {
-  audio: true
+  	audio: true,
+	video:false
 };
 
 
 // Start function
 const start = async function() {
+	$('#status').html("waiting for allowance...")
     await navigator.mediaDevices.getUserMedia(constraints);
+
     navigator.mediaDevices.enumerateDevices()
     .then(devices => {
         // Check the connected devices
@@ -45,39 +52,99 @@ const start = async function() {
         device_list= "";
         devices.forEach(printDevice);
         console.log(device_list);
-        document.getElementById("navmedia_perm").innerHTML= device_list
+
+        $( "input[name*='device_detected']" ).val(device_list);
+
 
   });
 }
 
-
+function startMeasure(){
 // Call start
  start();
+ }
 
 
 
 </script>
 
-<div class="container">
-
-        <div class="row" style="margin-top:10px;">
-				<div class="col-sm-4">
-					navigator.mediaDevices.enumerateDevices
-				</div>
-
-				<div class="col-sm-8" id="navmedia"> Loading..
-				</div>
+<section class="container" id="Survey">
+	<div class="panel panel-primary">
+		<div class="panel-heading">
+			<h3 class="panel-title">
+				<a data-target="#instruction" data-toggle="collapse" >Loudspeaker vs. Headphones/headsets</a>
+			</h3>
 		</div>
-       <div class="row" style="margin-top:10px;">
-				<div class="col-sm-4">
-					navigator.mediaDevices.enumerateDevices After getUserMedia permission
-				</div>
+		<div  class="panel-collapse collapse in" id="instruction">
+			  <div class="panel-body" >
+			  <b>Hello!</b>
 
-				<div class="col-sm-8" id="navmedia_perm">Loading...
-				</div>
-		</div>
 
-</div>
+				  <p>We are investigating the difference between loudspeakers in laptop/PC/smatphone and different type
+					  of headphones/headsets. </p>
+
+				  <p>Can you use <b>headphones</b> and listen to the following clip?</p>
+
+				  <p> if you do not have the possibility to use <b>headphones</b>, it is also OK to use any loudspeaker, headset, or headphone
+					  that you have now, just carefully select it in question 1.</p>
+
+				  <div class="center" style="margin-bottom:20px;margin-top:20px;">
+				  	<audio controls preload="auto" id="volumeSet" loop> <source src="https://p808.s3.amazonaws.com/assets/clips/sample_jnd/50S_Male1.wav" type="audio/wav" preload></audio>
+				  </div>
+
+				   <p>In parallel, we try to recognize your device.
+					   When you are <b>ready with your setup</b>, play the above audio and <b>click on start</b>.</p>
+				  <p>
+					   Your browser may ask you for your permission for "using your microphone". <b>Please click on "Allow".</b>
+					   We do not record anything rather just identify your device. </p>
+
+
+				    <div class="center">
+						<button type="button" class="btn btn-primary btn-lg" onclick="startMeasure()">Start</button>
+						<span id="status"></span>
+					</div>
+
+				  <p> </br></p>
+
+				  	<fieldset><label>1.&nbsp;What type of listening devices do you used now?</label>
+
+						<div class="table-responsive 4_lds">
+						  <table class="table" border="0" cellpadding="0" cellspacing="0" >
+							<tbody>
+								<tr>
+									<td style="width:25%"> <img src="https://p808.s3.amazonaws.com/assets/img/inear.png" alt="in-ear headphones" width="100px"> </td>
+									<td style="width:25%"> <img src="https://p808.s3.amazonaws.com/assets/img/overear.png" alt="Over-the-ear headphones" width="100px"> </td>
+									<td style="width:25%"> <img src="https://p808.s3.amazonaws.com/assets/img/louadspeaker.png" alt="louadspeaker" width="100px"> </td>
+									<td style="width:25%"> <img src="https://p808.s3.amazonaws.com/assets/img/inbuild.png" alt="inbuild speakers" width="100px"> </td>
+								</tr>
+								<tr>
+									<td><div class="radio"><label><input type="radio" value="in-ear" name="4_ld" required>In-ear headphones</label></div></td>
+									<td><div class="radio"><label><input type="radio" value="over-ear" name="4_ld" required>Over-the-ear headphones</label></div></td>
+									<td><div class="radio"><label><input type="radio" value="ex-ls" name="4_ld" required>External loudspeaker</label></div></td>
+									<td><div class="radio"><label><input type="radio" value="ib-ls" name="4_ld" required>In-build loudspeaker</label></div></td>
+								</tr>
+
+							</tbody>
+						  </table>
+						</div>
+
+					</fieldset>
+
+				  <fieldset><label>2. Can you please write the model of your device?</label>
+						<div class="form-group">
+						  <input type="text" class="form-control" name="device_type" required>
+						</div>
+
+					</fieldset>
+			</div>
+			</div>
+
+			</div>
+</section>
+
+  <input type="text" name="device_detected" hidden>
+
+
 
 </body>
 </html>

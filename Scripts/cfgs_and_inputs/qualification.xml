@@ -1,0 +1,83 @@
+<QuestionForm
+xmlns="http://mechanicalturk.amazonaws.com/AWSMechanicalTurkDataSchemas/2017-11-06/QuestionForm.xsd">
+  <Question>
+    <QuestionIdentifier>1_gender</QuestionIdentifier>
+	 <IsRequired>true</IsRequired>
+	<QuestionContent>
+     <Title>Gender</Title>
+	 <Text>What is your gender?</Text>
+	 </QuestionContent>
+    <AnswerSpecification>
+    <SelectionAnswer>
+  <StyleSuggestion>radiobutton</StyleSuggestion>
+  <Selections>
+    <Selection>
+      <SelectionIdentifier>m</SelectionIdentifier>
+      <Text>Male</Text>
+    </Selection>
+    <Selection>
+      <SelectionIdentifier>f</SelectionIdentifier>
+      <Text>Female</Text>
+    </Selection>
+    <Selection>
+      <SelectionIdentifier>o</SelectionIdentifier>
+      <Text>Other</Text>
+    </Selection>
+    
+  </Selections>
+</SelectionAnswer>
+
+    </AnswerSpecification>
+  </Question>
+   <Question>
+    <QuestionIdentifier>2_language</QuestionIdentifier>
+	 <IsRequired>true</IsRequired>
+	<QuestionContent>
+     <Title>Language</Title>
+	 <Text>What is the language for this audo clip?</Text>
+
+	 <Binary>
+  <MimeType>
+    <Type>audio</Type>
+    <SubType>wav</SubType>
+  </MimeType>
+  <DataURL>https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s0.wav</DataURL>
+  <AltText>audio clip</AltText> 
+</Binary>
+
+ <EmbeddedBinary>
+  <EmbeddedMimeType>
+    <Type>audio</Type>
+    <SubType>wav</SubType>
+  </EmbeddedMimeType>
+  <DataURL>https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s0.wav</DataURL>
+  <AltText>audio clip</AltText> 
+   <Width>400</Width>
+  <Height>300</Height>
+</EmbeddedBinary>
+
+	 </QuestionContent>
+    <AnswerSpecification>
+    <SelectionAnswer>
+  <StyleSuggestion>radiobutton</StyleSuggestion>
+  <Selections>
+    <Selection>
+      <SelectionIdentifier>en</SelectionIdentifier>
+      <Text>English</Text>
+    </Selection>
+    <Selection>
+      <SelectionIdentifier>dde</SelectionIdentifier>
+      <Text>Deutsch</Text>
+    </Selection>
+    <Selection>
+      <SelectionIdentifier>o</SelectionIdentifier>
+      <Text>Other</Text>
+    </Selection>
+    
+  </Selections>
+</SelectionAnswer>
+
+    </AnswerSpecification>
+  </Question>
+  
+</QuestionForm>
