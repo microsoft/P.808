@@ -115,3 +115,47 @@ dataset.
  
 `[input_directory]\output\`: Directory which will contain the generated trapping stimuli.
   
+  
+## process_qualification_ans
+Script can be used to select workers given their answers to the qualification job.
+Install required packages using following command:
+ 
+ ```
+pip install -r process_qualification_ans_requirments.txt
+```
+
+How to use is?
+
+```
+python process_qualification_ans.py --check [ANSWER_FILE]
+```
+The `ANSWER_FILE` is a csv file you download from MTurk. A sample is given in 
+`cfgs_and_inputs/Batch_256535_batch_results.csv`. 
+The configuration that script use to make the decisions can also be edited.
+Open the script code, on top you find the `config` object:
+
+```
+config= {
+    # correct answers to each question
+    '3_mother_tongue': ['english','en'],
+    '4_ld':['in-ear','over-ear'],
+    '5_last_subjective':['7d','30d','nn'],
+    '6_audio_test':['7d','30d','nn'],
+    '7_working_area':['N'],
+    '8_hearing':['normal'],
+    'hearing_test':{
+        'num1':'289',
+        'num2':'246',
+        'num3':'626',
+        'num4':'802',
+        'num5':'913'
+    },
+    # criteria to accept/rejet one workers
+    'acceptance_criteria': {
+        # which questions to include
+        'consider_fileds': ['3_mother_tongue', '4_ld', '7_working_area', '8_hearing'],
+        # how many of answers to hearing test should be correct
+        'correct_hearing_test_bigger_equal': 3
+    }
+}
+````
