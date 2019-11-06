@@ -159,3 +159,21 @@ config= {
     }
 }
 ````
+
+## create_input_acr
+
+script can be used to create the input.csv for the ACR hitapp. 
+Install required packages using following command:
+ 
+ ```
+pip install -r create_input_acr_requirments.txt
+```
+
+How to use is?
+
+```
+python create_input_acr.py --cfg [CONFIG_FILE] --row_input [ROW_INPUT]
+```
+Check `cfgs_and_inputs/create_input.cfg` as a sample for `[CONFIG_FILE]` and 
+`cfgs_and_inputs/row_input_librivox.csv` for `[ROW_INPUT]`.
+

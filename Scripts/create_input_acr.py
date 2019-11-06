@@ -10,11 +10,6 @@ import math
 import random
 import numpy as np
 
-import librosa as lr
-import numpy as np
-import soundfile as sf
-import csv
-
 
 """
 validate the structure, and fields in row_input.csv and configuration file

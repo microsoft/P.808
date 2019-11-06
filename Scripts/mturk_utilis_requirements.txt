@@ -1,6 +1,4 @@
 boto3
 json
-csv
-os
 configparser
 argparse
