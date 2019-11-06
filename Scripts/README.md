@@ -136,6 +136,13 @@ Open the script code, on top you find the `config` object:
 
 ```
 config= {
+    # criteria to accept/reject one workers
+    'acceptance_criteria': {
+        # which questions to include
+        'consider_fileds': ['3_mother_tongue', '4_ld', '7_working_area', '8_hearing'],
+        # how many of answers to hearing test should be correct
+        'correct_hearing_test_bigger_equal': 3
+    },
     # correct answers to each question
     '3_mother_tongue': ['english','en'],
     '4_ld':['in-ear','over-ear'],
@@ -149,15 +156,9 @@ config= {
         'num3':'626',
         'num4':'802',
         'num5':'913'
-    },
-    # criteria to accept/rejet one workers
-    'acceptance_criteria': {
-        # which questions to include
-        'consider_fileds': ['3_mother_tongue', '4_ld', '7_working_area', '8_hearing'],
-        # how many of answers to hearing test should be correct
-        'correct_hearing_test_bigger_equal': 3
     }
 }
+
 ````
 
 ## create_input_acr
