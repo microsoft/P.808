@@ -34,6 +34,9 @@ def create_trap_db(cfg):
     assert os.path.exists(source_folder), f"No 'source' directory found, expected in {source_folder}]"
     assert os.path.exists(msg_folder), f"No 'messages' directory found, expected in {msg_folder}]"
 
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
     # find list of files
     source_files = [join(source_folder, f) for f in os.listdir(source_folder) if isfile(join(source_folder, f))]
     msg_files = [join(msg_folder, f) for f in os.listdir(msg_folder)
