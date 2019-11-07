@@ -10,15 +10,17 @@ import csv
 import xml.etree.ElementTree as ET
 import re
 import random
-import urllib.parse
-
-"""
-Sends an email to list of workers given the worker ids. 
-Configuration should be set in section "send_emaiil" in the mturk.cfg file
-"""
 
 
 def send_message(client, cfg):
+    """
+    Sends an email to list of workers given the worker ids.
+    Configuration should be set in section "send_emaiil" in the mturk.cfg file
+    :param client: boto3 client object for communicating to MTurk
+    :param cfg: configuration file with section "send_emaiil"
+    :return:
+    """
+
     worker_ids = cfg['worker_ids'].replace(' ','').split(',')
     # in each call it is possible to send up to 100 messages
     worker_pack_size= 100
@@ -31,14 +33,15 @@ def send_message(client, cfg):
          )
         print(json.dumps(response))
 
-"""
-Assign bonuses to group of workers.
-A csv file with following columns need to be provided:
-workerId, assignmentId, bonusAmount, reason  
-"""
-
 
 def assign_bonus(client, bonus_list_path):
+    """
+    Assign bonuses to group of workers.
+    A csv file with following columns need to be provided: workerId, assignmentId, bonusAmount, reason
+    :param client: boto3 client object for communicating to MTurk
+    :param bonus_list_path: path to the csv file with following columns:workerId, assignmentId, bonusAmount, reason
+    :return:
+    """
     print('send bonus')
     with open(bonus_list_path, mode='r') as bonus_list:
         reader = csv.DictReader(bonus_list)
@@ -61,14 +64,16 @@ def assign_bonus(client, bonus_list_path):
             line_count += 1
         print(f'Processed {line_count} lines.')
 
-"""
-Assign bonuses to group of workers.
-A csv file with following columns need to be provided:
-workerId, assignmentId, bonusAmount, reason  
-"""
-
 
 def approve_reject_assignments(client, assignment_path, approve):
+    """
+    Assign bonuses to group of workers.
+    A csv file with following columns need to be provided: workerId, assignmentId, bonusAmount, reason
+    :param client: boto3 client object for communicating to MTurk
+    :param assignment_path: path to the csv file with: workerId, assignmentId, bonusAmount, reason
+    :param approve: boolean when false the script reject answers
+    :return:
+    """
     if approve:
         print('Approving assignments')
     else:
@@ -102,6 +107,11 @@ def approve_reject_assignments(client, assignment_path, approve):
 
 
 def get_assignment_review_policy(cfg):
+    """
+    Create an Assigment Review Policy as explained by MTurke
+    :param cfg: configuration object
+    :return:
+    """
     assignment_review_policy = None
     if cfg['general'].getboolean('use_assignment_review_policy'):
         arp = cfg['assignment_review_policy']
@@ -124,38 +134,40 @@ def get_assignment_review_policy(cfg):
         ]}
     return assignment_review_policy
 
-'''
-    create qualification list to filter just workers with:
+
+def get_typical_qualifications(cfg):
+    """
+     create qualification list to filter just workers with:
     - + 98% approval rate
     - + 500 or more accepted HIT
     - Location USA
-    - TODO: internal qualification  
-'''
-
-
-def get_typical_qualifications(cfg):
-
+    :param cfg:
+    :return:
+    """
     if not cfg['hit_type'].getboolean('apply_qualification'):
         return []
     qualification_requirements=[
         {
-            'QualificationTypeId': '00000000000000000040', # Worker_​NumberHITsApproved
+            # Worker_​NumberHITsApproved
+            'QualificationTypeId': '00000000000000000040',
             'Comparator': 'GreaterThanOrEqualTo',
             'IntegerValues': [
                 500,
             ],
             'RequiredToPreview': False,
             'ActionsGuarded': 'Accept'
-        },{
-            'QualificationTypeId': '000000000000000000L0', # Worker_​PercentAssignmentsApproved
+        }, {
+            # Worker_​PercentAssignmentsApproved
+            'QualificationTypeId': '000000000000000000L0',
             'Comparator': 'GreaterThanOrEqualTo',
             'IntegerValues': [
                 98,
             ],
             'RequiredToPreview': False,
             'ActionsGuarded': 'Accept'
-        },{
-            'QualificationTypeId': '00000000000000000071', # Worker_Locale
+        }, {
+            # Worker_Locale
+            'QualificationTypeId': '00000000000000000071',
             'Comparator': 'EqualTo',
             'LocaleValues': [
                 {
@@ -168,16 +180,20 @@ def get_typical_qualifications(cfg):
     ]
     return qualification_requirements
 
-"""
-Create a batch of HITs given hit_layout_id and other configurations in the cfg file, and an input.csv.
-Generate a report which should be used for getting responses.
 
-NOTe: If you register a HIT type with values that match an existing HIT type, the HIT type ID of the existing type will
- be returned. That means if some HITs from that type are existing, the new HITs will be added to them (from workers' 
- perspective). 
-
-"""
 def create_hit(client, cfg, path_to_input_csv):
+    """
+    Create a batch of HITs given hit_layout_id and other configurations in the cfg file, and an input.csv.
+    Generate a report which should be used for getting responses.
+
+    NOTe: If you register a HIT type with values that match an existing HIT type, the HIT type ID of the existing type
+    willbe returned. That means if some HITs from that type are existing, the new HITs will be added to them (
+     from workers' perspective).
+    :param client:
+    :param cfg:
+    :param path_to_input_csv:
+    :return:
+    """
 
     # 1. create HITType
     auto_approval_delay_in_days = cfg['hit_type'].get('auto_approve_and_pay_workers_in_days', fallback=3)
@@ -247,11 +263,15 @@ def create_hit(client, cfg, path_to_input_csv):
     else:
         print("Error in create hit type:  create_hit_type: "+ response)
 
-'''
-Given the report file, generated after create_hit process, it will download all available answers for those HITs. 
-'''
 
 def get_answer_csv(client, report_file_path):
+    """
+    Given the report file, generated after create_hit process, it will download all available answers for those HITs.
+
+    :param client:
+    :param report_file_path:
+    :return:
+    """
     answer_file = os.path.splitext(report_file_path)[0]+'_answer.csv'
     with open(report_file_path, mode='r') as tmp_file:
         with open(answer_file, 'w', newline='') as output_file:
@@ -276,25 +296,25 @@ def get_answer_csv(client, report_file_path):
                         writer.writerow(ans_dict)
 
 
-'''
- Converts an answer in xml format to dict 
-'''
-
-
 def xml_answer_to_dict(xml_text):
+    """
+    Converts an answer in xml format to dict
+    :param xml_text:
+    :return:
+    """
     xml_text_no_namespace = re.sub(' xmlns="[^"]+"', '', xml_text, count=1)
     root = ET.fromstring(xml_text_no_namespace)
-    ans_dict={}
+    ans_dict = {}
     for child in root:
-        question =""
-        answer=""
+        question = ""
+        answer = ""
         for sec_child in child:
             if sec_child.tag == 'QuestionIdentifier':
                 question = sec_child.text
             if sec_child.tag == 'FreeText':
                 answer = sec_child.text
 
-        ans_dict[question]= answer
+        ans_dict[question] = answer
     return ans_dict
 
 
@@ -360,10 +380,6 @@ def update_qualification_type_with_test(client,cfg):
                 print(f"Qualification Type {cfg['qualification_type']['name']} is created")
             else:
                 print(f"Problem by creating the qualification {cfg['qualification_type']['name']}: {response}")
-
-
-
-
 
 
 def get_qualification_id(client, name):

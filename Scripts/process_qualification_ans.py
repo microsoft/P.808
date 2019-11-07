@@ -105,40 +105,44 @@ def evaluate_asnwers(answe_path):
     for field in fields_to_consider:
         report[field] = 0
     report['hearing_test'] = 0
+    full_list=[]
 
     with open(answe_path, mode='r') as input:
         reader = csv.DictReader(input)
         for row in reader:
+            judge={}
             accept = True
             if '3_mother_tongue' in fields_to_consider:
                 r = check_mother_tongue(row['Answer.3_mother_tongue'])
                 accept = accept and r
                 if not r: report['3_mother_tongue'] += 1
-
+                judge['3_'] = r
             if '4_ld' in fields_to_consider:
                 r = check_listening_device(row['Answer.4_ld'])
                 accept = accept and r
                 if not r: report['4_ld'] += 1
-
+                judge['4_'] = r
             if '5_last_subjective' in fields_to_consider:
                 r = check_last_subjective_test(row['Answer.5_last_subjective'])
                 accept = accept and r
                 if not r: report['5_last_subjective'] += 1
-
+                judge['5'] = r
             if '6_audio_test' in fields_to_consider:
                 r = check_last_audio_test(row['Answer.6_audio_test'])
                 accept = accept and r
                 if not r: report['6_audio_test'] += 1
-
+                judge['6_'] = r
             if '7_working_area' in fields_to_consider:
                 r = check_working_experities(row['Answer.7_working_area'])
                 accept = accept and r
                 if not r: report['7_working_area'] += 1
+                judge['7_'] = r
 
             if '8_hearing' in fields_to_consider:
                 r = check_hearing_question(row['Answer.8_hearing'])
                 accept = accept and r
                 if not r: report['8_hearing'] += 1
+                judge['8_'] = r
 
             n_correct = check_hearing_test(row['Answer.num1'],
                                            row['Answer.num2'],
@@ -148,22 +152,38 @@ def evaluate_asnwers(answe_path):
             if n_correct < config['acceptance_criteria']['correct_hearing_test_bigger_equal']:
                 accept = False
                 report['hearing_test'] += 1
+            judge['9_'] = n_correct
 
             if accept:
                 accepted_list.append(row['WorkerId'])
+                judge['finall_'] = 'accept'
             else:
                 n_rejections += 1
+                judge['finall_'] = 'reject'
+            judge['wid'] = row['WorkerId']
+            full_list.append(judge)
 
     print(f'In total reject {n_rejections} and accept {len(accepted_list)}')
     print('detailed report')
     print(report)
 
     output_file_path = os.path.splitext(answe_path)[0] + '_output.csv'
+    '''
+    with open(output_file_path, 'w', newline='') as output_file:
+        headers_written = False
+        for f in full_list:
+            if not headers_written:
+                writer = csv.DictWriter(output_file, fieldnames=sorted(f))
+                headers_written = True
+                writer.writeheader()
+            writer.writerow(f)
+    '''
     with open(output_file_path, 'w', newline='') as output_file:
         writer = csv.writer(output_file)
         writer.writerow(['WorkerId'])
         for wid in accepted_list:
                     writer.writerow([wid])
+
     print(f'WorkerIds for accepted ones are saved in {output_file_path}')
 
 

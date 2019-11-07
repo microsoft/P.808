@@ -11,14 +11,20 @@ import soundfile as sf
 import csv
 
 message_to_values={
-    "bad_short":1,
-    "poor_short":2,
-    "fair_short":3,
-    "good_short":4,
-    "excellent_short":5
+    "bad_short": 1,
+    "poor_short": 2,
+    "fair_short": 3,
+    "good_short": 4,
+    "excellent_short": 5
 }
 
+
 def create_trap_db(cfg):
+    """
+    Creates the trapping dataset
+    :param cfg: configuration file
+    :return:
+    """
     # create directory names
     source_folder = join(dirname(__file__), cfg['input_directory'], 'source')
     msg_folder = join(dirname(__file__), cfg['input_directory'], 'messages')
@@ -41,13 +47,14 @@ def create_trap_db(cfg):
             msg = os.path.splitext(
                 basename(msg_f))[0].replace(cfg['message_file_prefix'], '').lower()
             # create output filename format [source_filename]_tp_[suffix from
-            output_filename = join(output_folder,
-                                   f'{os.path.splitext(basename(s_f))[0]}_{msg}.wav')
+            output_f_name = f'{os.path.splitext(basename(s_f))[0]}_{msg}.wav'
+            output_path = join(output_folder,
+                               output_f_name)
             create_trap_stimulus(s_f,
                                  msg_f,
-                                 output_filename,cfg)
+                                 output_path,cfg)
             count +=1
-            list_of_file.append({'file_name':output_filename, 'correct_answer':message_to_values[msg]})
+            list_of_file.append({'trapping_clips':output_f_name, 'trapping_ans':message_to_values[msg]})
     output_report = join(output_folder,'output_report.csv')
     with open(output_report, 'w', newline='') as output_file:
         headers_written = False
@@ -62,6 +69,14 @@ def create_trap_db(cfg):
 
 
 def create_trap_stimulus(source, message, output, cfg):
+    """
+    Create a trapping stimulus
+    :param source: path to source stimuli from dataset
+    :param message: path to the message clip
+    :param output: path to output file
+    :param cfg: configuration
+    :return:
+    """
     # check how to set the duration
     if ('keep_original_duration' in cfg) and \
             (cfg['keep_original_duration'].upper() == 'TRUE'):

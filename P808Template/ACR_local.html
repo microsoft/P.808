@@ -47,18 +47,23 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 var config ={
 	cookieName:"itu_p808_test",
     forceRetrainingInHours:1,
-    debug:"true",
-    questionUrls: ["assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m1_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_FB_48k.wav","assets/clips/sample_speech/P501_C_english_f1_FB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_IRS_08k.wav","assets/clips/sample_tp.wav"],
-    trainingUrls: ["assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_tp.wav"],
     showSetupEveryMinutes:30,
-    knownQuestionInTrainingUrl:"assets/clips/sample_tp.wav",
-    knownQuestionInTrainingAns: "1",
+    debug:"true",
+    questionUrls: ["${Q0}","assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m1_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_FB_48k.wav","assets/clips/sample_speech/P501_C_english_f1_FB_48k.wav","assets/clips/sample_tp.wav","${gold_clips}"],
+    trainingUrls: ["https://audiosamplesp808.blob.core.windows.net/librivox/book_00166_chp_0016_reader_06671_3.wav",
+		"https://audiosamplesp808.blob.core.windows.net/librivox/book_06204_chp_0005_reader_03422_2.wav",
+		"https://audiosamplesp808.blob.core.windows.net/librivox/book_07495_chp_0004_reader_01747_1.wav",
+		"https://audiosamplesp808.blob.core.windows.net/librivox/book_07790_chp_0007_reader_11722_6.wav",
+		"https://p808.s3.amazonaws.com/tps/book_00255_chp_0011_reader_04471_8_excellent_short.wav"],
+
+    knownQuestionInTrainingUrl:"https://p808.s3.amazonaws.com/tps/book_00255_chp_0011_reader_04471_8_excellent_short.wav",
+    knownQuestionInTrainingAns: "5",
     knownQuestionUrl:"assets/clips/sample_tp.wav",
     knownQuestionAns: "3",
-    randomizeTrainingQuestions:"false",
+    randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
-    allowedMaxHITsInProject:5,
-	allowedMaxContinuesSessionDurationInMinutes:2
+    allowedMaxHITsInProject:2,
+	allowedMaxContinuesSessionDurationInMinutes:45
 }
 var hitCounterIncreased = false;
 
