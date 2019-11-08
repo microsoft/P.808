@@ -1,6 +1,11 @@
 """
+/*---------------------------------------------------------------------------------------------
+*  Copyright (c) Microsoft Corporation. All rights reserved.
+*  Licensed under the MIT License. See License.txt in the project root for license information.
+*--------------------------------------------------------------------------------------------*/
 @author: Babak Naderi
 """
+
 import argparse
 from os.path import isfile, join, basename, dirname
 import os
