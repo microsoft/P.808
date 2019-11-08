@@ -1,3 +1,10 @@
+<!--
+/*---------------------------------------------------------------------------------------------
+*  Copyright (c) Microsoft Corporation. All rights reserved.
+*  Licensed under the MIT License. See License.txt in the project root for license information.
+*--------------------------------------------------------------------------------------------*/
+@author: Babak Naderi
+-->
 
 <head>
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
@@ -62,7 +69,7 @@ var config ={
     knownQuestionAns: "3",
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
-    allowedMaxHITsInProject:2,
+    allowedMaxHITsInProject:40,
 	allowedMaxContinuesSessionDurationInMinutes:45
 }
 var hitCounterIncreased = false;
@@ -495,7 +502,7 @@ function generate_rating_section(){
 			  <div class="panel-body" >
 			  <b>Introduction</b>
 
-				<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/process_2.png" alt="scale" class="center" width="300px">
+				<img src="https://p808.s3.amazonaws.com/assets/img/process_2.png" alt="scale" class="center" width="300px">
 
 				  <p>Welcome and congratulation! You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just every one hour) sections::</p>
 				<ul>
@@ -539,11 +546,11 @@ function generate_rating_section(){
   <div  class="panel-collapse collapse in" id="setup_panel">
 	  <div class="panel-body">
 
-	  <div style="text-align: center;margin:30px;"> <img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/attention.png" alt="attention">  <b>Please wear your headphones now.</b></div>
+	  <div style="text-align: center;margin:30px;"> <img src="https://p808.s3.amazonaws.com/assets/img/attention.png" alt="attention">  <b>Please wear your headphones now.</b></div>
 
 		<fieldset class="setupFieldset" ><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
 
-			<p align="center"> <span class="baudio" id="volume" data-src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/D401_c01_ef01_s001.wav" >&nbsp;</span> </p>
+			<p align="center"> <span class="baudio" id="volume" data-src="https://p808.s3.amazonaws.com/assets/clips/signal_level.wav" >&nbsp;</span> </p>
 
 			<div class="alert alert-danger" role="alert">
 			  <b>NOTE:</b> Missing this step can strongly affect quality of your answer.
@@ -571,11 +578,11 @@ function generate_rating_section(){
 
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
-					<div align="right"> <span class="baudio" id="CMP1_A" title="Sample A" data-src="assets/clips/sample_jnd/45S_Female1.wav" >&nbsp;</span> </div>
+					<div align="right"> <span class="baudio" id="CMP1_A" title="Sample A" data-src="assets/clips/sample_jnd/42S_female1.wav" >&nbsp;</span> </div>
 				</div>
 				<div class="col-sm-4"></div>
 				<div class="col-sm-4">
-					<div align="left"> <span class="baudio" id="CMP1_B" title="Sample B" data-src="assets/clips/sample_jnd/50S_Female1.wav" >&nbsp;</span> </div>
+					<div align="left"> <span class="baudio" id="CMP1_B" title="Sample B" data-src="assets/clips/sample_jnd/50S_female1.wav" >&nbsp;</span> </div>
 				</div>
 		</div>
 
@@ -595,11 +602,11 @@ function generate_rating_section(){
 
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
-					<div align="right"> <span class="baudio" id="CMP2_A" title="Sample A" data-src="assets/clips/sample_jnd/45S_Male1.wav" >&nbsp;</span> </div>
+					<div align="right"> <span class="baudio" id="CMP2_A" title="Sample A" data-src="assets/clips/sample_jnd/42S_male1.wav" >&nbsp;</span> </div>
 				</div>
 				<div class="col-sm-4"></div>
 				<div class="col-sm-4">
-					<div align="left"> <span class="baudio" id="CMP2_B" title="Sample B" data-src="assets/clips/sample_jnd/50S_Male1.wav" >&nbsp;</span> </div>
+					<div align="left"> <span class="baudio" id="CMP2_B" title="Sample B" data-src="assets/clips/sample_jnd/50S_male1.wav" >&nbsp;</span> </div>
 				</div>
 		</div>
 
@@ -618,11 +625,11 @@ function generate_rating_section(){
 
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
-					<div align="right"> <span class="baudio" id="CMP3_A" title="Sample A" data-src="assets/clips/sample_jnd/50S_Female2.wav" >&nbsp;</span> </div>
+					<div align="right"> <span class="baudio" id="CMP3_A" title="Sample A" data-src="assets/clips/sample_jnd/50S_female2.wav" >&nbsp;</span> </div>
 				</div>
 				<div class="col-sm-4"></div>
 				<div class="col-sm-4">
-					<div align="left"> <span class="baudio" id="CMP3_B" title="Sample B" data-src="assets/clips/sample_jnd/45S_Female2.wav" >&nbsp;</span> </div>
+					<div align="left"> <span class="baudio" id="CMP3_B" title="Sample B" data-src="assets/clips/sample_jnd/42S_female2.wav" >&nbsp;</span> </div>
 				</div>
 		</div>
 
@@ -643,11 +650,11 @@ function generate_rating_section(){
 
 		<div class="row" style="margin-top:10px;">
 				<div class="col-sm-4">
-					<div align="right"> <span class="baudio" id="CMP4_A" title="Sample A" data-src="assets/clips/sample_jnd/45S_Male2.wav" >&nbsp;</span> </div>
+					<div align="right"> <span class="baudio" id="CMP4_A" title="Sample A" data-src="assets/clips/sample_jnd/42S_male2.wav" >&nbsp;</span> </div>
 				</div>
 				<div class="col-sm-4"></div>
 				<div class="col-sm-4">
-					<div align="left"> <span class="baudio" id="CMP4_B" title="Sample B" data-src="assets/clips/sample_jnd/50S_Male2.wav" >&nbsp;</span> </div>
+					<div align="left"> <span class="baudio" id="CMP4_B" title="Sample B" data-src="assets/clips/sample_jnd/50S_male2.wav" >&nbsp;</span> </div>
 				</div>
 		</div>
 
@@ -743,7 +750,7 @@ function generate_rating_section(){
 	<p><h2>Well done! </h2> You performed the maximum number of HITs that you were allowed to.</p>
 
 	<div class="alert alert-danger" role="alert">
-		<img src="https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/attention.png" alt="attention">
+		<img src="https://p808.s3.amazonaws.com/assets/img/attention.png" alt="attention">
 			  <b>NOTE:</b> Performing more HITs
 		than what is explained in the description is forbidden and leads ro rejection of all of your submissions.
 			</div>

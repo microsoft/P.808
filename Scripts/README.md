@@ -178,3 +178,23 @@ python create_input_acr.py --cfg [CONFIG_FILE] --row_input [ROW_INPUT]
 Check `cfgs_and_inputs/create_input.cfg` as a sample for `[CONFIG_FILE]` and 
 `cfgs_and_inputs/row_input_librivox.csv` for `[ROW_INPUT]`.
 
+
+## acr_result_parser
+
+script to evaluate result of acr test. 
+Install required packages using following command:
+ 
+ ```
+pip install -r acr_result_parser_requirments.txt
+```
+
+How to use is?
+
+```
+python acr_result_parser.py --answers [ANSWERS_CSV]
+```
+`[ANSWERS_CSV]`: the answer.csv file you download from MTurk
+Correct answers to the math, environment test and trapping questions are given in the `config` object at top part of
+script.
+
+ 
