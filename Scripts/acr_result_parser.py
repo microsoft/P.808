@@ -12,6 +12,7 @@ import math
 import pandas as pd
 import argparse
 import os
+import numpy as np
 
 config= {
     'math': {
@@ -20,22 +21,53 @@ config= {
      'math3.wav': 6,
     },
     'question_names': [ 'q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10', 'q11', 'q12'],
+    'expected_votes_per_file': 10,
+    'trapping': {
+        'url_found_in': 'input.tp',
+        'ans_found_in': 'input.tp_ans',
+    },
+    'gold_question': {
+        'url_found_in': 'input.gold_clips',
+        #'ans_found_in': 'input.gold_clips_ans',
+        'variance': 1
+    },
+
     'acceptance_criteria': {
         'all_audio_played_equal': 1,
         'correct_math_bigger_equal': 1,
         'correct_cmp_bigger_equal': 2,
-        'correct_tps_bigger_equal': 1
+        'correct_tps_bigger_equal': 1,
+        'variance_bigger_equal': 0.1,
+        #'correct_gold_q_bigger_equal': 1
     }
 
 }
 
 
+def outliers_modified_z_score(votes):
+    """
+    return  outliers, cleans
+    :param votes:
+    :return:
+    """
+    threshold = 3.5
+
+    median_v = np.median(votes)
+    median_absolute_deviation_v = np.median([np.abs(v - median_v) for v in votes])
+    modified_z_scores = [0.6745 * (v - median_v) / median_absolute_deviation_v
+                         for v in votes]
+    print(modified_z_scores)
+    return np.where(np.abs(modified_z_scores) > threshold), np.where(np.abs(modified_z_scores) <= threshold)
+
+
+#TODO add gold clips
 def check_if_session_accepted(data):
 
     if data['all_audio_played'] == config['acceptance_criteria']['all_audio_played_equal'] and \
         data['correct_math'] >= config['acceptance_criteria']['correct_math_bigger_equal'] and \
         (data['correct_cmps'] is None or  data['correct_cmps']>= config['acceptance_criteria']['correct_cmp_bigger_equal'] )and \
-        data['correct_tps'] >= config['acceptance_criteria']['correct_tps_bigger_equal']:
+        data['correct_tps'] >= config['acceptance_criteria']['correct_tps_bigger_equal'] and \
+        data['variance_in_ratings'] >= config['acceptance_criteria']['variance_bigger_equal']:
         return True
     return False
 
@@ -52,9 +84,50 @@ def check_audio_played(row):
 
 
 def check_tps(row):
-    if int(row[f'answer.tp_check']) == 0:
-        return 1
-    return 0
+    correct_tps = 0
+
+    tp_url = row[config['trapping']['url_found_in']]
+    tp_correct_ans = int(float(row[config['trapping']['ans_found_in']]))
+    print(tp_correct_ans)
+    try:
+        for q_name in config['question_names']:
+            if tp_url in row[f'answer.{q_name}_url']:
+                # found a trapping question
+                if int(row[f'answer.{q_name}']) == tp_correct_ans:
+                    correct_tps = 1
+                    return correct_tps
+    except:
+        pass
+    return correct_tps
+
+
+def check_variance(row):
+    r=[]
+    for q_name in config['question_names']:
+        if row[config['gold_question']['url_found_in']] in row[f'answer.{q_name}_url']:
+            continue
+        if row[config['trapping']['url_found_in']] in row[f'answer.{q_name}_url']:
+            continue
+        r.append(int(row[f'answer.{q_name}']))
+    return statistics.variance(r)
+
+
+def check_gold_question(row):
+    correct_gq = 0
+    try:
+        gq_url = row[config['gold_question']['url_found_in']]
+        gq_correct_ans = int(float(row[config['gold_question']['ans_found_in']]))
+        gq_var= config['gold_question']['variance']
+        for q_name in config['question_names']:
+            if gq_url in row[f'answer.{q_name}_url']:
+                # found a gold standard question
+                if int(row[f'answer.{q_name}']) in range(gq_correct_ans-gq_var, gq_correct_ans+gq_var+1):
+                    correct_gq = 1
+                    return correct_gq
+    except:
+        return None
+    return  correct_gq
+
 
 def check_tps_old(row):
     found_tps=0
@@ -88,6 +161,8 @@ def check_math(input,output,audio_played):
     except:
         return False
     return False
+
+
 def check_a_cmp(file_a, file_b,ans, audio_a_played, audio_b_played):
     if (audio_a_played==0 or
             audio_b_played == 0):
@@ -105,6 +180,7 @@ def check_a_cmp(file_a, file_b,ans, audio_a_played, audio_b_played):
         answer_is_correct = True
    # print (f'({a},{b},{ans})--> {answer_is_correct} ')
     return answer_is_correct
+
 
 def data_cleaning(filename):
     with open(filename) as csvfile:
@@ -149,6 +225,10 @@ def data_cleaning(filename):
            # d['found_tps'] = found_tps
            # d['correct_tps'] = correct_tps
             d['correct_tps'] = check_tps(row)
+            # step5. check gold_standard
+            d['correct_gold_question'] = check_gold_question(row)
+            # step6. check variance in a session rating
+            d['variance_in_ratings'] =check_variance(row)
             if check_if_session_accepted(d):
                 accepted_sessions.append(row)
                 d['accepted'] = 1
@@ -207,7 +287,10 @@ def transform(sessions):
     for session in sessions:
         for question in config['question_names']:
             # is it a trapping question
-            if session['input.tp'] == session[f'answer.{question}_url']:
+            if session[config['trapping']['url_found_in']] == session[f'answer.{question}_url']:
+                continue
+            # is it a gold clips
+            if session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             file_name = session[f'answer.{question}_url'].rsplit('/', 1)[-1]
             if file_name not in data_per_file:
@@ -216,13 +299,13 @@ def transform(sessions):
             try:
                 votes.append(int(session[f'answer.{question}']))
             except:
-                votes.append(-1)
+                pass
     print(data_per_file)
 
     # convert the format: one row per file
     group_per_file = []
     for key in data_per_file.keys():
-        tmp={}
+        tmp = initiate_file_row({})
         tmp['file_name'] = key
         votes = data_per_file[key]
         vote_counter = 1
@@ -234,17 +317,21 @@ def transform(sessions):
         data_per_condition[condition].extend(votes)
         """
         for vote in votes:
-            tmp[f'vote{vote_counter}'] = vote
+            tmp[f'vote_{vote_counter}'] = vote
             vote_counter += 1
         count = vote_counter
 
-        while 12-vote_counter >= 0:
-            tmp[f'vote{vote_counter}'] = None
-            vote_counter += 1
-        tmp['n'] = count
+       # while config['expected_votes_per_file']-vote_counter >= 0:
+       #     tmp[f'vote_{vote_counter}'] = None
+       #     vote_counter += 1
+        tmp['n'] = count-1
         tmp['mean'] = statistics.mean(votes)
-        tmp['std'] = statistics.stdev(votes)
-        tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
+        if tmp['n'] > 1:
+            tmp['std'] = statistics.stdev(votes)
+            tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
+        else:
+            tmp['std'] = None
+            tmp['95%CI'] = None
         group_per_file.append(tmp)
     """
     # how to do that, the condition name is unknown!?
@@ -264,6 +351,18 @@ def transform(sessions):
     return group_per_file, group_per_condition
     """
     return group_per_file
+
+
+def initiate_file_row(d):
+    d['file_name'] = None
+    d['n'] = None
+    d['mean'] = None
+    d['std'] = None
+    d['95%CI'] = None
+    for i in range(1, config['expected_votes_per_file']+1):
+        d[f'vote_{i}'] = None
+    return d
+
 
 def data_import(filename):
     with open(filename) as csvfile:
