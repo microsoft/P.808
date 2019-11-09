@@ -40,6 +40,9 @@ usage
 python mturk_utils.py send_emails 
 ```
 script reads the configuration from the section `[send_emails]` in config file.
+Edit `subject`,`message`(subject and body of message to be sent) and `worker_ids` (comma separated list of workerIds, 
+whome the message will be send to). Add your MTurk_id in `requester_client_id` to include a link to your 
+currently running HITs in the message. 
 
 #### create_hit
 usage 
