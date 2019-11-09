@@ -52,7 +52,7 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 <script type="text/javascript">
 
 var config ={
-	cookieName:"itu_p808_test",
+	cookieName:"itu_p808_test_2",
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
@@ -69,7 +69,7 @@ var config ={
     knownQuestionAns: "${TP_ANS}",
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
-    allowedMaxHITsInProject:40,
+    allowedMaxHITsInProject:60,
 	allowedMaxContinuesSessionDurationInMinutes:45
 }
 var hitCounterIncreased = false;
@@ -79,19 +79,24 @@ $(function() {
     //console.log[
    // if (!configdebug)
     //    console.log = function() {};
+
+	generate_training_section();
+	generate_rating_section();
+	avoidAnsweringBeforeListeningThrough();
+
     // given cookie availability disable the training
     if (readCookie(config.cookieName+"_training")){
 		$('.trainingFieldset').prop("disabled", true);
 		$("#training").hide();
+		$("#training :input").removeAttr("required");
 	}
     // given cookie availability disable the setup
     if (readCookie(config.cookieName+"_setup")){
 		$('.setupFieldset').prop("disabled", true);
 		$("#setup").hide();
+		$("#setup :input").removeAttr("required");
 	}
-	generate_training_section();
-	generate_rating_section();
-	avoidAnsweringBeforeListeningThrough();
+
 
 	howManyHITsAnswered= Number(readCookie(config['cookieName']+"_counter"));
 	if (howManyHITsAnswered >= config['allowedMaxHITsInProject'])
@@ -138,7 +143,7 @@ function createCookie(name, value, minutes) {
     } else {
         expires = "";
     }
-    document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + expires + "; path=/";
+     document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + expires + "; path=/";
 }
 
 function updateCounterCookie(name, updateBy){
@@ -546,7 +551,7 @@ function generate_rating_section(){
   <div  class="panel-collapse collapse in" id="setup_panel">
 	  <div class="panel-body">
 
-	  <div style="text-align: center;margin:30px;"> <img src="https://p808.s3.amazonaws.com/assets/img/attention.png" alt="attention">  <b>Please wear your headphones now.</b></div>
+		  <div style="text-align: center;margin:30px;"> <img src="https://p808.s3.amazonaws.com/assets/img/attention.png" alt="attention">  <b>Please wear your headphones now. You must <u>wear both earbuds</u>. </b></div>
 
 		<fieldset class="setupFieldset" ><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
 

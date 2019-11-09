@@ -52,11 +52,11 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 <script type="text/javascript">
 
 var config ={
-	cookieName:"itu_p808_test",
+	cookieName:"itu_p808_test_tmp",
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
-    questionUrls: ["${Q0}","assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m1_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_FB_48k.wav","assets/clips/sample_speech/P501_C_english_f1_FB_48k.wav","assets/clips/sample_tp.wav","${gold_clips}"],
+    questionUrls: ["assets/clips/sample_speech/P501_C_english_m2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_m2_flat_08k.wav","assets/clips/sample_speech/P501_C_english_f2_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m1_flat_08k.wav","assets/clips/sample_speech/P501_C_english_m2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m1_IRS_08k.wav","assets/clips/sample_speech/P501_C_english_f2_SWB_48k.wav","assets/clips/sample_speech/P501_C_english_m2_FB_48k.wav","assets/clips/sample_speech/P501_C_english_f1_FB_48k.wav","assets/clips/sample_tp.wav","assets/clips/sample_speech/P501_C_english_m2_IRS_08k.wav"],
     trainingUrls: ["https://audiosamplesp808.blob.core.windows.net/librivox/book_00166_chp_0016_reader_06671_3.wav",
 		"https://audiosamplesp808.blob.core.windows.net/librivox/book_06204_chp_0005_reader_03422_2.wav",
 		"https://audiosamplesp808.blob.core.windows.net/librivox/book_07495_chp_0004_reader_01747_1.wav",
@@ -69,7 +69,7 @@ var config ={
     knownQuestionAns: "3",
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
-    allowedMaxHITsInProject:40,
+    allowedMaxHITsInProject:3,
 	allowedMaxContinuesSessionDurationInMinutes:45
 }
 var hitCounterIncreased = false;
@@ -138,7 +138,7 @@ function createCookie(name, value, minutes) {
     } else {
         expires = "";
     }
-    document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + expires + "; path=/";
+    document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + expires + "; path=/"+"; SameSite=Strict";
 }
 
 function updateCounterCookie(name, updateBy){
@@ -226,7 +226,7 @@ function playedAudioTraining(id){
 	$('input[name="'+id+'"]').off('change');
 	trainingQuestionNumber= id.substring(1);
 	eval("trainingStimulusPlayed["+trainingQuestionNumber+"-1]=1;");
-	console.log(trainingStimulusPlayed.reduce(getSum, 0))
+	console.log('how many training Q done? '+trainingStimulusPlayed.reduce(getSum, 0))
 	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
 		createCookie(config.cookieName+"_training","un_important",config['forceRetrainingInHours']*60);
 	}
@@ -546,7 +546,7 @@ function generate_rating_section(){
   <div  class="panel-collapse collapse in" id="setup_panel">
 	  <div class="panel-body">
 
-	  <div style="text-align: center;margin:30px;"> <img src="https://p808.s3.amazonaws.com/assets/img/attention.png" alt="attention">  <b>Please wear your headphones now.</b></div>
+		  <div style="text-align: center;margin:30px;"> <img src="https://p808.s3.amazonaws.com/assets/img/attention.png" alt="attention">  <b>Please wear your headphones now. You must <u>wear both earbuds</u>. </b></div>
 
 		<fieldset class="setupFieldset" ><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
 
