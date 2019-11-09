@@ -5,7 +5,8 @@ Here you find scripts that might be useful during the process of conducting an e
 Set of utility commands based on MTurk python package ([Boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/mturk.html#MTurk.Client.reject_assignment))
 
 To use the utilities first you need to provide your 'AWS Access Key and AWS Secret Key', [see here](https://requester.mturk.com/developer)
-Put them in the corresponding field of configuration file.
+Put them in the corresponding field of configuration file. `[CONFIG_FILE]` refers to the path to configuration file and
+needs to be provided to the scrip `--cfg [CONFIG_FILE]`.
 Note, the script looks into mturk.cfg if no other path is provided as argument.
 Install required packages using following command:
 
@@ -16,41 +17,53 @@ pip install -r mturk_utilis_requirements.txt
 #### assign_bonus
 usage
 ```
-python mturk_utils.py --send_bonus cfgs_and_inputs/bonus.csv 
+python mturk_utils.py --cfg [CONFIG_FILE] --send_bonus cfgs_and_inputs/bonus.csv 
 ```
-the bonus.csv should have following columns: workerId, assignmentId, bonusAmount, reason
+`[CONFIG_FILE]` path to the configuration file.
+The bonus.csv should have following columns: workerId, assignmentId, bonusAmount, reason.
+`[CONFIG_FILE]` path to the configuration file.
 
 #### approve
 usage
 ```
-python mturk_utils.py --approve cfgs_and_inputs/approve.csv 
+python mturk_utils.py --cfg [CONFIG_FILE] --approve cfgs_and_inputs/approve.csv 
 ```
-the approve.csv should have following columns: assignmentId
+`[CONFIG_FILE]` path to the configuration file.
+The approve.csv should have following columns: assignmentId
+
 
 #### reject
 usage
 ```
-python mturk_utils.py --reject cfgs_and_inputs/reject.csv 
+python mturk_utils.py --cfg [CONFIG_FILE] --reject cfgs_and_inputs/reject.csv 
 ```
-the reject.csv should have following columns: assignmentId,feedback
+
+`[CONFIG_FILE]` path to the configuration file.
+The reject.csv should have following columns: assignmentId,feedback
 
 #### send_emails
 usage
 ```
-python mturk_utils.py send_emails 
+python mturk_utils.py --cfg [CONFIG_FILE] send_emails 
 ```
-script reads the configuration from the section `[send_emails]` in config file.
-Edit `subject`,`message`(subject and body of message to be sent) and `worker_ids` (comma separated list of workerIds, 
-whome the message will be send to). Add your MTurk_id in `requester_client_id` to include a link to your 
+
+`[CONFIG_FILE]` path to the configuration file.
+Script reads the settings from the section `[send_emails]` in configuration file.
+From that section, edit `subject`,`message`(subject and body of message to be sent) and `worker_ids` 
+(comma separated list of workerIds whom the message will be send to). 
+Add your MTurk_id in `requester_client_id` to include a link to your 
 currently running HITs in the message. 
+
 
 #### create_hit
 usage 
 
 ```
-python mturk_utils.py --create_hit ../P808Template/create_acr_hit.cfg --create_hit_input ../P808Template/input.csv  
+python mturk_utils.py --cfg [CONFIG_FILE] --create_hit ../P808Template/create_acr_hit.cfg 
+--create_hit_input ../P808Template/input.csv  
 ```
 
+`[CONFIG_FILE]` path to the configuration file.
 Crate one or more HITs in MTurk. The AssignmentReviewPolicy is just applicable when HITs are created using API.
 This command create one HIT per a row in the input.csv file. See `--create_hit_input ../P808Template/input.csv` 
  for details. It generates a report as well to be used with 
@@ -62,9 +75,10 @@ in the GUI.
 usage 
 
 ```
-python mturk_utils.py --answers [REPORT_FILE]   
+python mturk_utils.py --cfg [CONFIG_FILE] --answers [REPORT_FILE]   
 ```
 
+`[CONFIG_FILE]` path to the configuration file.
 Check the status of HITs listed in the [REPORT_FILE] (i.e. outcome of '--create_hit' e.f. Batch_fdhdgede_123.csv)) 
 file, and download alla answers available for them. As HITs created using API are not visible in the GUI, this 
 command should be used to get the results.
@@ -73,10 +87,11 @@ command should be used to get the results.
 usage
 
 ```
-python mturk_utils.py --create_qualification_type cfgs_and_inputs/qualification_type.cfg
+python mturk_utils.py --cfg [CONFIG_FILE] --create_qualification_type cfgs_and_inputs/qualification_type.cfg
 
 ```
 
+`[CONFIG_FILE]` path to the configuration file.
 Create a new Qualification Type Without Test given the configuration. A name and description are needed.
 See `cfgs_and_inputs/qualification_type.cfg` for more details.
 
@@ -85,8 +100,9 @@ See `cfgs_and_inputs/qualification_type.cfg` for more details.
 
 usage
 ```
-python mturk_utils.py --assign_qualification_type cfgs_and_inputs/assign_qualification.csv
+python mturk_utils.py --cfg [CONFIG_FILE] --assign_qualification_type cfgs_and_inputs/assign_qualification.csv
 ```
+`[CONFIG_FILE]` path to the configuration file.
 for each row of `assign_qualification.csv` assign the given qualification and its value to the worker.
 The csv file should have following columns: `workerId`, `qualification_name` ,`value`
 
