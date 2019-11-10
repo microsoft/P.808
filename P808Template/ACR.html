@@ -83,18 +83,21 @@ $(function() {
 	generate_training_section();
 	generate_rating_section();
 	avoidAnsweringBeforeListeningThrough();
+	cookie_debug_status="";
 
     // given cookie availability disable the training
     if (readCookie(config.cookieName+"_training")){
 		$('.trainingFieldset').prop("disabled", true);
 		$("#training").hide();
 		$("#training :input").removeAttr("required");
+		cookie_debug_status=cookie_debug_status+"Train Exist*";
 	}
     // given cookie availability disable the setup
     if (readCookie(config.cookieName+"_setup")){
 		$('.setupFieldset').prop("disabled", true);
 		$("#setup").hide();
 		$("#setup :input").removeAttr("required");
+		cookie_debug_status=cookie_debug_status+"Setup Exist*";
 	}
 
 
@@ -102,9 +105,24 @@ $(function() {
 	if (howManyHITsAnswered >= config['allowedMaxHITsInProject'])
 		disableTheHIT();
 	hitCounterIncreased = false;
+	cookie_debug_status=cookie_debug_status+"Counter:"+howManyHITsAnswered+"*";
+	addBrowserInfo(cookie_debug_status);
+
 
 });
 
+function addBrowserInfo(debug){
+	info="U_A:"+navigator.userAgent+";"+
+		"CookieEnabled:"+navigator.cookieEnabled+";"+
+		"AppV:"+navigator.appVersion+";"+
+		"Platform:"+navigator.platform+";"+
+		"LN:"+navigator.language+";"+
+		"cookie_debug:"+debug+";";
+
+	$('#browser_info').val(info);
+	console.log(info);
+
+}
 //--------------- Utilities -----------------
 
 String.prototype.format = String.prototype.f = function() {
@@ -378,7 +396,7 @@ function avoidAnsweringBeforeListeningThrough(){
 	if the answer is correct, change the value of tp_check to 0.
 */
 function onValueChangeForTpQuestion(){
-	if ($( this ).val()  == config['knownQuestionAns'])
+	if ($( this ).val()  == parseInt(config['knownQuestionAns']))
 		$('#tp_check').val(0);
 	else
 		$('#tp_check').val(-1);
@@ -425,6 +443,52 @@ function userAnsweringToSetupQuestions(){
 
 </script>
 
+<script type="text/javascript">
+
+/*
+	functions responsible to headset check
+*/
+
+function isHeadsetOn(webrtc_raw){
+	keywords= ["headphone",  "headset","airpod", "usb audio device"]
+	for (var i = 0; i < keywords.length; i++) {
+		if (webrtc_raw.includes(keywords[i]))
+			return true;
+	}
+	return false;
+}
+const constraints = {
+  	audio: true,
+	video:false
+};
+
+var device_list= "";
+const startHeadsetCheck = async function() {
+	$('#status').html("waiting for allowance...")
+    await navigator.mediaDevices.getUserMedia(constraints);
+
+    navigator.mediaDevices.enumerateDevices()
+    .then(devices => {
+        device_list= "";
+        for (var i=0;i<devices.length;i++){
+        	if (devices[i].kind.startsWith('audio')){
+    			device_list = device_list+ devices[i].kind + ":" +devices[i].label.toLowerCase() +"+";
+    		}
+        }
+        headsetDetected=isHeadsetOn(device_list);
+        console.log("D List:"+device_list);
+        console.log("Headset used:"+headsetDetected);
+        $( "#webrtc_raw" ).val(device_list);
+        $( "#use_headset" ).val(headsetDetected);
+		$( "#status" ).html("Done. Please continue.");
+
+  });
+}
+
+function startMeasure(){
+ 	startHeadsetCheck();
+}
+</script>
 <script type="text/javascript">
 
 /*
@@ -533,7 +597,7 @@ function generate_rating_section(){
 				</ul>
 
 				<p>Bonuses will be assigned with in 7 days.</p>
-				<b>Please perform up to <u>57 HITs</u> from this group.</b>
+				<b>Please perform up to <u>60 HITs</u> from this group.</b>
 			</div>
 		</div>
 
@@ -682,6 +746,31 @@ function generate_rating_section(){
 </section>
 <!-- Setup  ends-->
 
+<!-- Device Check -->
+<section class="container" id="device_check_section">
+	<div class="panel panel-primary">
+		<div class="panel-heading">
+			<h3 class="panel-title">
+				<a data-target="#device_check" data-toggle="collapse" >Listening device check</a>
+			</h3>
+		</div>
+		<div  class="panel-collapse collapse in" id="device_check">
+			  <div class="panel-body" >
+			  <b>Introduction</b>
+				  <p>We need to check your listening device. It is an automated test using your Web-browser functionality. Please click on <b>Start</b>.
+					  After that, you see a popup message from your browser asking for allowance to use your microphone.
+					  Please click on <b>Allow</b>.
+				 <div class="center">
+						<button type="button" class="btn btn-primary center" onclick="startMeasure()">Start</button>
+						<div id="status"></div>
+			  	</div>
+			</div>
+		</div>
+
+	</div>
+</section>
+<!-- Device Check ends-->
+
 <!-- Training section, appears once a day-->
 <section class="container" id="training">
 		<div class="panel panel-primary">
@@ -719,6 +808,10 @@ function generate_rating_section(){
 <!-- Training section ends-->
 
 <input id="tp_check" name="tp_check" type="hidden" value="-1" />
+<input id="browser_info" name="browser_info" type="hidden" value="-1" maxlength="2000"/>
+<input id="webrtc_raw" name="webrtc_raw" type="hidden" value="-1" maxlength="2000"/>
+<input id="use_headset" name="use_headset" type="hidden" value="-1" />
+
 <!--- Rating task -->
 <section class="container" id="rating_section">
 		<div class="panel panel-primary">
