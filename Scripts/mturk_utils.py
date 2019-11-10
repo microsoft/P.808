@@ -30,13 +30,23 @@ def send_message(client, cfg):
     # in each call it is possible to send up to 100 messages
     worker_pack_size= 100
     chunked_worker_ids = [worker_ids[i:i + worker_pack_size] for i in range(0, len(worker_ids), worker_pack_size)]
+    count = 1;
+    success_messages=0;
+    failed_group=[]
     for woker_group in chunked_worker_ids:
         response = client.notify_workers(
                  Subject=cfg['subject'],
                  MessageText=cfg['message'],
                  WorkerIds=woker_group
          )
-        print(json.dumps(response))
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            print (f"Group {count}: sending message... Success" )
+            success_messages += len(woker_group)
+        else:
+            failed_group.extend(woker_group)
+            print(f"Group {count}: sending message... Failed")
+        count += 1
+    print (f"{success_messages} emails sent successfully")
 
 
 def assign_bonus(client, bonus_list_path):

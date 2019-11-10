@@ -64,8 +64,8 @@ def outliers_modified_z_score(votes):
 def check_if_session_accepted(data):
 
     if data['all_audio_played'] == config['acceptance_criteria']['all_audio_played_equal'] and \
-        data['correct_math'] >= config['acceptance_criteria']['correct_math_bigger_equal'] and \
-        (data['correct_cmps'] is None or  data['correct_cmps']>= config['acceptance_criteria']['correct_cmp_bigger_equal'] )and \
+        (data['correct_math'] is None or data['correct_math'] >= config['acceptance_criteria']['correct_math_bigger_equal']) and \
+        (data['correct_cmps'] is None or data['correct_cmps']>= config['acceptance_criteria']['correct_cmp_bigger_equal'] )and \
         data['correct_tps'] >= config['acceptance_criteria']['correct_tps_bigger_equal'] and \
         data['variance_in_ratings'] >= config['acceptance_criteria']['variance_bigger_equal']:
         return True
@@ -77,7 +77,6 @@ def check_audio_played(row):
         for q_name in config['question_names']:
             if int(row[f'answer.{q_name}']) > 0:
                 question_played += 1
-        print (question_played)
     except:
         return False
     return question_played == len(config['question_names'])
@@ -88,7 +87,6 @@ def check_tps(row):
 
     tp_url = row[config['trapping']['url_found_in']]
     tp_correct_ans = int(float(row[config['trapping']['ans_found_in']]))
-    print(tp_correct_ans)
     try:
         for q_name in config['question_names']:
             if tp_url in row[f'answer.{q_name}_url']:
@@ -167,7 +165,6 @@ def check_a_cmp(file_a, file_b,ans, audio_a_played, audio_b_played):
     if (audio_a_played==0 or
             audio_b_played == 0):
         return False
-    # https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/snr_2019/34S_P501_C_english_f2_FB_48k_2.wav	https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/snr_2019/40S_P501_C_english_f2_FB_48k_2.wav
     a = int((file_a.rsplit('/', 1)[-1])[:2])
     b = int((file_b.rsplit('/', 1)[-1])[:2])
     # one is 50 and one is 42, the one with bigger number (higher SNR) has to have a better quality
@@ -183,6 +180,7 @@ def check_a_cmp(file_a, file_b,ans, audio_a_played, audio_b_played):
 
 
 def data_cleaning(filename):
+    print('Start by Data Cleaning...')
     with open(filename) as csvfile:
 
         reader = csv.DictReader(csvfile)
@@ -199,11 +197,13 @@ def data_cleaning(filename):
         accepted_sessions =[]
         for row in reader:
             correct_cmp_ans = 0
+            setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
             d = {}
             # step1. check cmp
-            if row[f'input.cmp1_a'] is None:
+            if setup_was_hidden:
                 # the setup is not shown
-                d['correct_cmps']= None
+                d['correct_cmps'] = None
+                d['correct_math'] = None
             else:
                 for i in range(1,5):
                     if check_a_cmp(row[f'input.cmp{i}_a'],row[f'input.cmp{i}_b'],
@@ -217,13 +217,11 @@ def data_cleaning(filename):
             d['assignment'] = row['assignmentid']
 
             # step2. check math
-            d['correct_math']= 1 if check_math(row['input.math'], row['answer.math'], row['answer.audio_n_play_math1']) else 0
+            if not setup_was_hidden:
+                d['correct_math']= 1 if check_math(row['input.math'], row['answer.math'], row['answer.audio_n_play_math1']) else 0
             # step3. check if audio of all X questions are played at least once
             d['all_audio_played'] = 1 if check_audio_played (row) else 0
             # step 4. check tps
-           # found_tps, correct_tps = check_tps(row)
-           # d['found_tps'] = found_tps
-           # d['correct_tps'] = correct_tps
             d['correct_tps'] = check_tps(row)
             # step5. check gold_standard
             d['correct_gold_question'] = check_gold_question(row)
@@ -237,6 +235,7 @@ def data_cleaning(filename):
             worker_list.append(d)
         report_file = os.path.splitext(filename)[0] + '_data_cleaning_report.csv'
         write_dict_as_csv(worker_list,report_file)
+        print(f"Data cleaning report is created: {report_file}")
         #calc_bonuses(worker_list)
         return accepted_sessions
 
@@ -282,6 +281,7 @@ Assumption: file name starts with Cxx where xx is condition number.
 
 
 def transform(sessions):
+    print ("Start by transforming data")
     data_per_file = {}
     data_per_condition = {}
     for session in sessions:
@@ -300,7 +300,7 @@ def transform(sessions):
                 votes.append(int(session[f'answer.{question}']))
             except:
                 pass
-    print(data_per_file)
+    #print(data_per_file)
 
     # convert the format: one row per file
     group_per_file = []
