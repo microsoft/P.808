@@ -29,17 +29,26 @@ config= {
     'gold_question': {
         'url_found_in': 'input.gold_clips',
         #'ans_found_in': 'input.gold_clips_ans',
+        'correct_ans': 5,
         'variance': 1
     },
 
     'acceptance_criteria': {
         'all_audio_played_equal': 1,
         'correct_math_bigger_equal': 1,
-        'correct_cmp_bigger_equal': 2,
         'correct_tps_bigger_equal': 1,
         'variance_bigger_equal': 0.1,
         #'correct_gold_q_bigger_equal': 1
+    }, 'accept_and_use': {
+        # including acceptance_criteria
+        'gold_standard_bigger_equal': 1,
+        'correct_cmp_bigger_equal': 2,
+    },
+    'bonus':{
+        'when_HITs_more_than': 30,
+        'extra_pay_per_HIT': 0.25
     }
+
 
 }
 
@@ -60,16 +69,24 @@ def outliers_modified_z_score(votes):
     return np.where(np.abs(modified_z_scores) > threshold), np.where(np.abs(modified_z_scores) <= threshold)
 
 
-#TODO add gold clips
 def check_if_session_accepted(data):
 
     if data['all_audio_played'] == config['acceptance_criteria']['all_audio_played_equal'] and \
         (data['correct_math'] is None or data['correct_math'] >= config['acceptance_criteria']['correct_math_bigger_equal']) and \
-        (data['correct_cmps'] is None or data['correct_cmps']>= config['acceptance_criteria']['correct_cmp_bigger_equal'] )and \
         data['correct_tps'] >= config['acceptance_criteria']['correct_tps_bigger_equal'] and \
         data['variance_in_ratings'] >= config['acceptance_criteria']['variance_bigger_equal']:
         return True
     return False
+
+
+def check_if_session_should_be_used(data):
+    if data['accepted'] == 1 and \
+            data['correct_gold_question']>= config['accept_and_use']['gold_standard_bigger_equal'] and \
+            (data['correct_cmps'] is None or \
+             data['correct_cmps'] >= config['accept_and_use']['correct_cmp_bigger_equal']):
+        return True
+    return False
+
 
 def check_audio_played(row):
     question_played=0
@@ -114,7 +131,8 @@ def check_gold_question(row):
     correct_gq = 0
     try:
         gq_url = row[config['gold_question']['url_found_in']]
-        gq_correct_ans = int(float(row[config['gold_question']['ans_found_in']]))
+        #gq_correct_ans = int(float(row[config['gold_question']['ans_found_in']]))
+        gq_correct_ans = config['gold_question']['correct_ans']
         gq_var= config['gold_question']['variance']
         for q_name in config['question_names']:
             if gq_url in row[f'answer.{q_name}_url']:
@@ -194,7 +212,7 @@ def data_cleaning(filename):
         #---------------- math
         # Input.math, Answer.Math,Answer.audio_n_play_math1
         worker_list=[]
-        accepted_sessions =[]
+        accept_and_use_sessions =[]
         for row in reader:
             correct_cmp_ans = 0
             setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
@@ -228,39 +246,45 @@ def data_cleaning(filename):
             # step6. check variance in a session rating
             d['variance_in_ratings'] =check_variance(row)
             if check_if_session_accepted(d):
-                accepted_sessions.append(row)
                 d['accepted'] = 1
             else:
                 d['accepted'] = 0
+
+            if check_if_session_should_be_used(d):
+                d['accepted_and_use'] = 1
+                accept_and_use_sessions.append(row)
+            else:
+                d['accepted_and_use'] = 0
+
             worker_list.append(d)
         report_file = os.path.splitext(filename)[0] + '_data_cleaning_report.csv'
-        write_dict_as_csv(worker_list,report_file)
+        bonus_file = os.path.splitext(filename)[0] + '_bonus_report.csv'
+        write_dict_as_csv(worker_list, report_file)
         print(f"Data cleaning report is created: {report_file}")
-        #calc_bonuses(worker_list)
-        return accepted_sessions
+        calc_bonuses(worker_list, bonus_file)
+        return accept_and_use_sessions
 
 
-def calc_bonuses(worker_list):
-    print ('---')
+def calc_bonuses(worker_list,path):
     df = pd.DataFrame(worker_list)
     grouped= df.groupby(['worker_id'], as_index=False)['accepted'].sum()
-    # condition  more than 30 hits, I would be generus giv eones with more than >28
-    grouped =grouped[grouped.accepted>=28]
+    print (grouped)
+    # condition  more than 30 hits
+    grouped =grouped[grouped.accepted>= config['bonus']['when_HITs_more_than']]
+    grouped['bonusAmount']= grouped['accepted']*config['bonus']['extra_pay_per_HIT']
     print(grouped)
     # now find an assignment id
     df.drop_duplicates('worker_id',keep ='first', inplace = True )
-    print(df)
-    df.to_excel("tmp.xlsx")
-    df.drop(df.columns.difference(['worker_id','assignment']), 1, inplace=True)
-    print(df.head())
-
-    #print(pd.concat([grouped,df],  axis=1, join='inner',ignore_index=False))
-   # df.join(grouped.set_index('worker_id'), on='worker_id')
-    df.set_index('worker_id').join(grouped.set_index('worker_id'))
-
-    #full_df= grouped.join(df,on='worker_id')
-    #print(full_df)
-    grouped.to_excel("bonus_count2.xlsx")
+    w_ids = list(dict(grouped['worker_id']).values())
+    df = df[df.isin(w_ids).worker_id]
+    samll_df= df[['worker_id', 'assignment']].copy()
+    print(samll_df)
+    merged= pd.merge( grouped,samll_df, how='inner', left_on='worker_id', right_on='worker_id')
+    merged.rename(columns={'worker_id': 'workerId',
+                     'assignment': 'assignmentId'},
+            inplace=True)
+    merged['reason']= f'Well done! More than {config["bonus"]["when_HITs_more_than"]} high quality submission'
+    merged.to_csv(path)
 
 
 def write_dict_as_csv(dic_to_write, file_name):
@@ -281,7 +305,7 @@ Assumption: file name starts with Cxx where xx is condition number.
 
 
 def transform(sessions):
-    print ("Start by transforming data")
+    print ("Transforming data - group per clip")
     data_per_file = {}
     data_per_condition = {}
     for session in sessions:
