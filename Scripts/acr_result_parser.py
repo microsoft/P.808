@@ -80,7 +80,7 @@ def check_if_session_accepted(data):
 
 
 def check_if_session_should_be_used(data):
-    if data['accepted'] == 1 and \
+    if data['accept'] == 1 and \
             data['correct_gold_question']>= config['accept_and_use']['gold_standard_bigger_equal'] and \
             (data['correct_cmps'] is None or \
              data['correct_cmps'] >= config['accept_and_use']['correct_cmp_bigger_equal']):
@@ -92,7 +92,7 @@ def check_audio_played(row):
     question_played=0
     try:
         for q_name in config['question_names']:
-            if int(row[f'answer.{q_name}']) > 0:
+            if int(row[f'answer.audio_n_finish_{q_name}']) > 0:
                 question_played += 1
     except:
         return False
@@ -217,12 +217,22 @@ def data_cleaning(filename):
             correct_cmp_ans = 0
             setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
             d = {}
-            # step1. check cmp
+
+            d['worker_id'] = row['workerid']
+            d['assignment'] = row['assignmentid']
+            # step1. check if audio of all X questions are played at least once
+            d['all_audio_played'] = 1 if check_audio_played(row) else 0
+
+            # check if setup was shown
             if setup_was_hidden:
                 # the setup is not shown
                 d['correct_cmps'] = None
                 d['correct_math'] = None
             else:
+                # step2. check math
+                d['correct_math'] = 1 if check_math(row['input.math'], row['answer.math'],
+                                                    row['answer.audio_n_play_math1']) else 0
+                # step3. check pair comparision
                 for i in range(1,5):
                     if check_a_cmp(row[f'input.cmp{i}_a'],row[f'input.cmp{i}_b'],
                             row[f'answer.cmp{i}'],
@@ -230,62 +240,55 @@ def data_cleaning(filename):
                             row[f'answer.audio_n_play_cmp{i}_b']):
                         correct_cmp_ans += 1
                 d['correct_cmps'] = correct_cmp_ans
-
-            d['worker_id'] = row['workerid']
-            d['assignment'] = row['assignmentid']
-
-            # step2. check math
-            if not setup_was_hidden:
-                d['correct_math']= 1 if check_math(row['input.math'], row['answer.math'], row['answer.audio_n_play_math1']) else 0
-            # step3. check if audio of all X questions are played at least once
-            d['all_audio_played'] = 1 if check_audio_played (row) else 0
             # step 4. check tps
             d['correct_tps'] = check_tps(row)
             # step5. check gold_standard
             d['correct_gold_question'] = check_gold_question(row)
             # step6. check variance in a session rating
-            d['variance_in_ratings'] =check_variance(row)
+            d['variance_in_ratings'] = check_variance(row)
             if check_if_session_accepted(d):
-                d['accepted'] = 1
+                d['accept'] = 1
             else:
-                d['accepted'] = 0
+                d['accept'] = 0
 
             if check_if_session_should_be_used(d):
-                d['accepted_and_use'] = 1
+                d['accept_and_use'] = 1
                 accept_and_use_sessions.append(row)
             else:
-                d['accepted_and_use'] = 0
+                d['accept_and_use'] = 0
 
             worker_list.append(d)
         report_file = os.path.splitext(filename)[0] + '_data_cleaning_report.csv'
         bonus_file = os.path.splitext(filename)[0] + '_bonus_report.csv'
         write_dict_as_csv(worker_list, report_file)
-        print(f"Data cleaning report is created: {report_file}")
+        print(f"   Data cleaning report is saved in: {report_file}")
         calc_bonuses(worker_list, bonus_file)
         return accept_and_use_sessions
 
 
 def calc_bonuses(worker_list,path):
+    print('Calculate the bonuses...')
     df = pd.DataFrame(worker_list)
-    grouped= df.groupby(['worker_id'], as_index=False)['accepted'].sum()
-    print (grouped)
+    grouped = df.groupby(['worker_id'], as_index=False)['accept'].sum()
+
     # condition  more than 30 hits
-    grouped =grouped[grouped.accepted>= config['bonus']['when_HITs_more_than']]
-    grouped['bonusAmount']= grouped['accepted']*config['bonus']['extra_pay_per_HIT']
-    print(grouped)
+    grouped = grouped[grouped.accept >= config['bonus']['when_HITs_more_than']]
+    grouped['bonusAmount']= grouped['accept']*config['bonus']['extra_pay_per_HIT']
+
     # now find an assignment id
     df.drop_duplicates('worker_id',keep ='first', inplace = True )
     w_ids = list(dict(grouped['worker_id']).values())
     df = df[df.isin(w_ids).worker_id]
-    samll_df= df[['worker_id', 'assignment']].copy()
-    print(samll_df)
-    merged= pd.merge( grouped,samll_df, how='inner', left_on='worker_id', right_on='worker_id')
+    small_df = df[['worker_id', 'assignment']].copy()
+
+    merged= pd.merge( grouped, small_df, how='inner', left_on='worker_id', right_on='worker_id')
     merged.rename(columns={'worker_id': 'workerId',
                      'assignment': 'assignmentId'},
             inplace=True)
+
     merged['reason']= f'Well done! More than {config["bonus"]["when_HITs_more_than"]} high quality submission'
     merged.to_csv(path)
-
+    print(f'   Bonuses report is saved in: {path}')
 
 def write_dict_as_csv(dic_to_write, file_name):
     with open(file_name, 'w', newline='') as output_file:
@@ -299,7 +302,7 @@ def write_dict_as_csv(dic_to_write, file_name):
             writer.writerow(d)
 
 
-def transform(sessions):
+def transform(sessions, path):
     """
     Given the valid sessions from answer.csv, group votes per files, and per conditions.
     Assumption: file name starts with Cxx where xx is condition number.
@@ -307,7 +310,7 @@ def transform(sessions):
     :return:
     """
 
-    print ("Transforming data - group per clip")
+    print ("Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip")
     data_per_file = {}
     data_per_condition = {}
     for session in sessions:
@@ -376,6 +379,8 @@ def transform(sessions):
 
     return group_per_file, group_per_condition
     """
+    write_dict_as_csv(group_per_file, path)
+    print(f'   Votes per files are saved in: {path}')
     return group_per_file
 
 
@@ -434,10 +439,10 @@ if __name__ == '__main__':
 
     #votes_per_file, votes_per_condition = transform(accepted_sessions)
     if (len(accepted_sessions)> 1):
-        votes_per_file= transform(accepted_sessions)
+        votes_per_file_path = os.path.splitext(args.answers)[0] + '_votes_per_clip.csv'
+        votes_per_file= transform(accepted_sessions, votes_per_file_path)
 
-        votes_per_file_path = os.path.splitext(args.answers)[0] + '_votes_per_file.csv'
-        write_dict_as_csv(votes_per_file, votes_per_file_path)
+
         """
         write_dict_as_csv(votes_per_condition, 'votes_per_condition.csv')
     
