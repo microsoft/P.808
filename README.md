@@ -20,19 +20,19 @@ The datasets are provided under the original terms that Microsoft received such 
 The datasets used in this project are licensed as follows:
 
 * Following clips are created under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode) license:
-    *  P808Template/assets/clips/math/*
-    *  P808Template/assets/clips/sample_hearing_test/*
-    *  Scripts/trapping/messages/*
+    *  `P808Template/assets/clips/math/*`
+    *  `P808Template/assets/clips/sample_hearing_test/*`
+    *  `Scripts/trapping/messages/*`
 * Following clips are taken from [PTDB-TUG: Pitch Tracking Database from Graz University of Technology](https://www.spsc.tugraz.at/databases-and-tools/ptdb-tug-pitch-tracking-database-from-graz-university-of-technology.html); License: http://opendatacommons.org/licenses/odbl/1.0/ 
-    * Tests/Environment Test/script/clips/*
-    * P808Template/assets/clips/signal_level.wav
-* Following clips ate created by adding noise to above-mentioned clips; License [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode) ?
-    * Tests/Environment Test/script/clips_snr/*
-    * Tests/Environment Test/assets/jnd_noise/*
-    * P808Template/assets/clips/sample_jnd/*
-    * P808Template/assets/clips/sample_speech/*
-    * Scripts/trapping/source/*
-    * P808Template/assets/clips/sample_tp.wav
+    * `Tests/Environment Test/script/clips/*`
+    * `P808Template/assets/clips/signal_level.wav`
+* Following clips are created by adding noise to above-mentioned clips; License [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode) ?
+    * `Tests/Environment Test/script/clips_snr/*`
+    * `Tests/Environment Test/assets/jnd_noise/*`
+    * `P808Template/assets/clips/sample_jnd/*`
+    * `P808Template/assets/clips/sample_speech/*`
+    * `Scripts/trapping/source/*`
+    * `P808Template/assets/clips/sample_tp.wav`
 
 
 
