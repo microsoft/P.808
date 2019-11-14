@@ -298,13 +298,15 @@ def write_dict_as_csv(dic_to_write, file_name):
         for d in dic_to_write:
             writer.writerow(d)
 
-'''
-Given the valid sessions from answer.csv, group votes per files, and per conditions. 
-Assumption: file name starts with Cxx where xx is condition number.
-'''
-
 
 def transform(sessions):
+    """
+    Given the valid sessions from answer.csv, group votes per files, and per conditions.
+    Assumption: file name starts with Cxx where xx is condition number.
+    :param sessions:
+    :return:
+    """
+
     print ("Transforming data - group per clip")
     data_per_file = {}
     data_per_condition = {}

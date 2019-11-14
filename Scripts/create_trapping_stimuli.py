@@ -91,10 +91,10 @@ def create_trap_stimulus(source, message, output, cfg):
         source_duration = lr.get_duration(filename=source)
         msg_duration = lr.get_duration(filename=message)
         # if it negative, just use the default 3 seconds
-        prefix_duration = source_duration-msg_duration
+        prefix_duration = source_duration -msg_duration
         if prefix_duration <= 0:
             prefix_duration = 3
-        source, source_sr = lr.load(source, duration=prefix_duration)
+        source, source_sr = lr.load(source,duration=prefix_duration)
     else:
         source, source_sr = lr.load(source, duration=int(cfg["include_from_source_stimuli_in_second"]))
     msg, msg_sr = lr.load(message)

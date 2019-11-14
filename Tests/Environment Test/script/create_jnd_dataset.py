@@ -1,4 +1,8 @@
 """
+/*---------------------------------------------------------------------------------------------
+*  Copyright (c) Microsoft Corporation. All rights reserved.
+*  Licensed under the MIT License. See License.txt in the project root for license information.
+*--------------------------------------------------------------------------------------------*/
 @author: Babak Naderi
 """
 
@@ -14,11 +18,11 @@ Given a source folder, add white-noise in a range of different SNR levels to all
 
 if __name__=="__main__":
 
-    source_folder = "p501/en-US"
+    source_folder = "clips"
     source_files = [join(source_folder, f) for f in os.listdir(source_folder) if isfile(join(source_folder, f))]
     output_folder = source_folder+"_snr"
     snr_min = 30
-    snr_max = 51
+    snr_max = 50
 
     for f in source_files:
         clean, fs = audioread(f)

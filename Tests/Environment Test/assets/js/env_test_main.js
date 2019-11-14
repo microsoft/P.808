@@ -1,4 +1,9 @@
 
+/*---------------------------------------------------------------------------------------------
+*  Copyright (c) Microsoft Corporation. All rights reserved.
+*  Licensed under the MIT License. See License.txt in the project root for license information.
+*--------------------------------------------------------------------------------------------*/
+//@author: Babak Naderi
 
 // JND setup: Adaptive staircase: 3AFC, 2 down- 1 up: targets 70.7% levelA
 var config ={
