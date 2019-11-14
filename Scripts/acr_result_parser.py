@@ -44,10 +44,13 @@ config= {
         'gold_standard_bigger_equal': 1,
         'correct_cmp_bigger_equal': 2,
     },
-    'bonus':{
+    'bonus': {
         'when_HITs_more_than': 30,
         'extra_pay_per_HIT': 0.25
-    }
+    },
+    'rejection_feedback': "Answer to this assigmnet did not pass the quality control "
+                          "check. Make sure to use headset (wear both earbuds), perform the task in quiet environment,"
+                          " and use the entire scale range."
 
 
 }
@@ -260,16 +263,41 @@ def data_cleaning(filename):
             worker_list.append(d)
         report_file = os.path.splitext(filename)[0] + '_data_cleaning_report.csv'
         bonus_file = os.path.splitext(filename)[0] + '_bonus_report.csv'
+        approved_file = os.path.splitext(filename)[0] + '_accept.csv'
+        rejected_file = os.path.splitext(filename)[0] + '_rejection.csv'
+
         write_dict_as_csv(worker_list, report_file)
+        save_approved_ones(worker_list, approved_file)
+        save_rejected_ones(worker_list, rejected_file)
         print(f"   Data cleaning report is saved in: {report_file}")
         calc_bonuses(worker_list, bonus_file)
         return accept_and_use_sessions
+
+
+def save_approved_ones(data, path):
+    df = pd.DataFrame(data)
+    df = df[df.accept == 1]
+    small_df = df[['assignment']].copy()
+    small_df.rename(columns={'assignment': 'assignmentId'},
+            inplace=True)
+    small_df.to_csv(path, index=False)
+
+
+def save_rejected_ones(data, path):
+    df = pd.DataFrame(data)
+    df = df[df.accept == 0]
+    small_df = df[['assignment']].copy()
+    small_df.rename(columns={'assignment': 'assignmentId'},
+            inplace=True)
+    small_df= small_df.assign(feedback=config['rejection_feedback'])
+    small_df.to_csv(path, index=False)
 
 
 def calc_bonuses(worker_list,path):
     print('Calculate the bonuses...')
     df = pd.DataFrame(worker_list)
     grouped = df.groupby(['worker_id'], as_index=False)['accept'].sum()
+    grouped.to_csv('out.csv')
 
     # condition  more than 30 hits
     grouped = grouped[grouped.accept >= config['bonus']['when_HITs_more_than']]
@@ -284,10 +312,10 @@ def calc_bonuses(worker_list,path):
     merged= pd.merge( grouped, small_df, how='inner', left_on='worker_id', right_on='worker_id')
     merged.rename(columns={'worker_id': 'workerId',
                      'assignment': 'assignmentId'},
-            inplace=True)
+                     inplace=True)
 
-    merged['reason']= f'Well done! More than {config["bonus"]["when_HITs_more_than"]} high quality submission'
-    merged.to_csv(path)
+    merged['reason'] = f'Well done! More than {config["bonus"]["when_HITs_more_than"]} high quality submission'
+    merged.to_csv(path, index=False)
     print(f'   Bonuses report is saved in: {path}')
 
 def write_dict_as_csv(dic_to_write, file_name):
