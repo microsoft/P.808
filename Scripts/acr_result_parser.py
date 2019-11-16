@@ -13,6 +13,7 @@ import pandas as pd
 import argparse
 import os
 import numpy as np
+import sys
 
 config= {
     'math': {
@@ -50,9 +51,9 @@ config= {
     },
     'rejection_feedback': "Answer to this assigmnet did not pass the quality control "
                           "check. Make sure to use headset (wear both earbuds), perform the task in quiet environment,"
-                          " and use the entire scale range."
-
-
+                          " and use the entire scale range.",
+    #"book_04753_chp_0059_reader_10797_6.wav" mask "????????????????????????????????xxxxxx":book_04753_chp_0059_reader_10797
+    "condition_pattern": "????????????????????????????????xxxxxx"
 }
 
 
@@ -66,10 +67,16 @@ def outliers_modified_z_score(votes):
 
     median_v = np.median(votes)
     median_absolute_deviation_v = np.median([np.abs(v - median_v) for v in votes])
-    modified_z_scores = [0.6745 * (v - median_v) / median_absolute_deviation_v
+
+    if median_absolute_deviation_v == 0:
+        median_absolute_deviation_v = sys.float_info.min
+
+    modified_z_scores = [np.abs(0.6745 * (v - median_v) / median_absolute_deviation_v)
                          for v in votes]
-    print(modified_z_scores)
-    return np.where(np.abs(modified_z_scores) > threshold), np.where(np.abs(modified_z_scores) <= threshold)
+    x = np.array(modified_z_scores)
+    v = np.array(votes)
+    v = v[(x < threshold)]
+    return v
 
 
 def check_if_session_accepted(data):
@@ -318,6 +325,7 @@ def calc_bonuses(worker_list,path):
     merged.to_csv(path, index=False)
     print(f'   Bonuses report is saved in: {path}')
 
+
 def write_dict_as_csv(dic_to_write, file_name):
     with open(file_name, 'w', newline='') as output_file:
         if len(dic_to_write) > 0:
@@ -330,7 +338,24 @@ def write_dict_as_csv(dic_to_write, file_name):
             writer.writerow(d)
 
 
-def transform(sessions, path):
+file_to_condition_map = {}
+
+
+def filename_to_condition(fname):
+    if fname in file_to_condition_map:
+        return file_to_condition_map[fname]
+    condition_name=""
+    fchar= list(fname)
+    pchars= list(config['condition_pattern'])
+    # "book_04753_chp_0059_reader_10797_6.wav" mask "????????????????????????????????xxxxxx":book_04753_chp_0059_reader_10797
+    for i in range(0,len(pchars)):
+        if pchars[i]=='?':
+            condition_name+=fchar[i]
+    file_to_condition_map[fname]=condition_name
+    return condition_name
+
+
+def transform(sessions, path_per_file, path_per_condition):
     """
     Given the valid sessions from answer.csv, group votes per files, and per conditions.
     Assumption: file name starts with Cxx where xx is condition number.
@@ -357,7 +382,6 @@ def transform(sessions, path):
                 votes.append(int(session[f'answer.{question}']))
             except:
                 pass
-    #print(data_per_file)
 
     # convert the format: one row per file
     group_per_file = []
@@ -366,21 +390,18 @@ def transform(sessions, path):
         tmp['file_name'] = key
         votes = data_per_file[key]
         vote_counter = 1
-        """
+
         # extra step:: add votes to the per-condition dict
-        condition = key[0:3]
+        condition = filename_to_condition(key)
         if condition not in data_per_condition:
             data_per_condition[condition]=[]
         data_per_condition[condition].extend(votes)
-        """
+
         for vote in votes:
             tmp[f'vote_{vote_counter}'] = vote
             vote_counter += 1
         count = vote_counter
 
-       # while config['expected_votes_per_file']-vote_counter >= 0:
-       #     tmp[f'vote_{vote_counter}'] = None
-       #     vote_counter += 1
         tmp['n'] = count-1
         tmp['mean'] = statistics.mean(votes)
         if tmp['n'] > 1:
@@ -390,26 +411,29 @@ def transform(sessions, path):
             tmp['std'] = None
             tmp['95%CI'] = None
         group_per_file.append(tmp)
-    """
-    # how to do that, the condition name is unknown!?
+
+
     # convert the format: one row per condition
     group_per_condition = []
     for key in data_per_condition.keys():
         tmp = {}
         tmp['condition_name'] = key
         votes = data_per_condition[key]
-
+        
         tmp['n'] = len(votes)
         tmp['mean'] = statistics.mean(votes)
         tmp['std'] = statistics.stdev(votes)
         tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
         group_per_condition.append(tmp)
 
+    #return group_per_file, group_per_condition
+
+    write_dict_as_csv(group_per_file, path_per_file)
+    write_dict_as_csv(group_per_condition, path_per_condition)
+    print(f'   Votes per files are saved in: {path_per_file}')
+    print(f'   Votes per files are saved in: {path_per_condition}')
+
     return group_per_file, group_per_condition
-    """
-    write_dict_as_csv(group_per_file, path)
-    print(f'   Votes per files are saved in: {path}')
-    return group_per_file
 
 
 def initiate_file_row(d):
@@ -466,9 +490,11 @@ if __name__ == '__main__':
     accepted_sessions = data_cleaning(args.answers)
 
     #votes_per_file, votes_per_condition = transform(accepted_sessions)
+
     if (len(accepted_sessions)> 1):
         votes_per_file_path = os.path.splitext(args.answers)[0] + '_votes_per_clip.csv'
-        votes_per_file= transform(accepted_sessions, votes_per_file_path)
+        votes_per_cond_path = os.path.splitext(args.answers)[0] + '_votes_per_cond.csv'
+        votes_per_file, vote_per_condition = transform(accepted_sessions, votes_per_file_path, votes_per_cond_path)
 
 
         """
@@ -477,3 +503,6 @@ if __name__ == '__main__':
         votes_per_condition_psamd1 = data_import('psamd1.csv')
         write_dict_as_csv(votes_per_condition_psamd1, 'votes_per_condition_psamd1.csv')
         """
+    a = [57, 59, 60, 100, 59, 58, 57, 58, 300, 61, 62, 60, 62, 58, 57];
+    o= outliers_modified_z_score(a)
+    print(o)
