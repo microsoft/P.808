@@ -419,7 +419,7 @@ def transform(sessions, path_per_file, path_per_condition):
         tmp = {}
         tmp['condition_name'] = key
         votes = data_per_condition[key]
-        
+
         tmp['n'] = len(votes)
         tmp['mean'] = statistics.mean(votes)
         tmp['std'] = statistics.stdev(votes)
