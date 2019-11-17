@@ -51,6 +51,26 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 
 <script type="text/javascript">
 
+/*
+General configuration file:
+ - cookieName: change it for each study, it will be used to monitor if the user has taken training, setup sections, and
+ how many assignments they submitted to expose limits.
+ - forceRetrainingInHours: every X hours force the user to take part in training (recommendation: 1hour)
+ - showSetupEveryMinutes: show the setup section every X minutes (recommendation: 15 minutes)
+ - questionUrls: URLs to clips to be appeared in the Rating section. Either hard-coded or placeholders.
+ - trainingUrls: URLs to clips to be appeared in the Training section. Either hard-coded or placeholders.
+ - knownQuestionInTrainingUrl: Training may contain a question with known answer which worker will be forced to give the
+ correct answer to.
+ - knownQuestionInTrainingAns: the answer that should be selected by worker
+ - knownQuestionUrl: the rating section may contain a question with known answer. It will be used in combination of the
+ Assignment Review Policy.
+ - knownQuestionAns: the answer that we expect from worker
+ - randomizeTrainingQuestions: boolean whether the questions in the training section should be randomized on loading time.
+ - randomizeRatingQuestions: boolean whether the questions in the rating section should be randomized on loading time.
+ - allowedMaxHITsInProject: How many HITs each worker is allowed to answer in this project
+ - allowedMaxContinuesSessionDurationInMinutes: how log is the maximum continue session. A break of 10min will be forced
+
+*/
 var config ={
 	cookieName:"itu_p808_test_4",
     forceRetrainingInHours:1,
@@ -72,13 +92,17 @@ var config ={
     allowedMaxHITsInProject:60,
 	allowedMaxContinuesSessionDurationInMinutes:45
 }
+// if performing of this assignment is already counted
 var hitCounterIncreased = false;
 
+/*
+Initializing the page: generate and hide sections depending to the cookies value
+*/
 $(function() {
     // disable logs if not debug
-    //console.log[
-   // if (!configdebug)
-    //    console.log = function() {};
+    if (!JSON.parse(config['debug'])){
+        console.log = function() {};
+    }
 
 	generate_training_section();
 	generate_rating_section();
@@ -108,10 +132,13 @@ $(function() {
 	hitCounterIncreased = false;
 	cookie_debug_status=cookie_debug_status+"Counter:"+howManyHITsAnswered+"*";
 	addBrowserInfo(cookie_debug_status);
-
-
 });
 
+
+/*
+Store the following information in hidden input field which will be added to answerc.sv by AMT
+userAgent, cookieEnabled, appVersion, platform, language, status of 3 cookies.
+*/
 function addBrowserInfo(debug){
 	info="U_A:"+navigator.userAgent+";"+
 		"CookieEnabled:"+navigator.cookieEnabled+";"+
@@ -126,6 +153,9 @@ function addBrowserInfo(debug){
 }
 //--------------- Utilities -----------------
 
+/*
+	Utility function to format strings
+*/
 String.prototype.format = String.prototype.f = function() {
     var s = this,
         i = arguments.length;
@@ -135,6 +165,9 @@ String.prototype.format = String.prototype.f = function() {
     return s;
 };
 
+/*
+	Utility: convert seconds to MM:SS
+*/
 String.prototype.toMMSS = function () {
     var sec_num = parseInt(this, 10); // don't forget the second param
     var minutes   = Math.floor(sec_num / 60);
@@ -144,6 +177,10 @@ String.prototype.toMMSS = function () {
     return minutes+':'+seconds;
 }
 
+/*
+	Disable the HIS and show a proper message.
+	- used when the maximum number of HITs in project is reached
+*/
 function disableTheHIT(){
 	$("#training").hide();
 	$("#setup").hide();
@@ -153,6 +190,9 @@ function disableTheHIT(){
 	$("#max_allowed_HITs_reached").show();
 }
 
+/*
+	Add a cookies with corresponding values
+*/
 function createCookie(name, value, minutes) {
     var expires;
     if (minutes) {
@@ -165,8 +205,10 @@ function createCookie(name, value, minutes) {
      document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + expires + "; path=/";
 }
 
+/*
+	Update the cookie which counts the number of Assignments performed by user. Increase it by "updateBy" value.
+*/
 function updateCounterCookie(name, updateBy){
-
 	expiry_in_a_month= 30*24*60
 	c = readCookie(name);
 	if (c==null){
@@ -179,6 +221,9 @@ function updateCounterCookie(name, updateBy){
 	return Number(c)+updateBy;
 }
 
+/*
+	Return the value of cookie, or null
+*/
 function readCookie(name) {
     var nameEQ = encodeURIComponent(name) + "=";
     var cookies = document.cookie.split(';');
@@ -194,15 +239,16 @@ function readCookie(name) {
 
 
 /*
-	callback when "Next" in Rating section is clicked.
+	Callback when "Next" in Rating section is clicked.
 */
 function showNextQuestionInRatingSection(){
 	id=$("#nav-tab-ul li.active").index();
 	id=id+2;
 	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
 }
+
 /*
-	callback when "Previous" in Rating section is clicked.
+	Callback when "Previous" in Rating section is clicked.
 */
 function showPreviousQuestionInRatingSection(){
 	id=$("#nav-tab-ul li.active").index();
@@ -211,27 +257,24 @@ function showPreviousQuestionInRatingSection(){
 }
 
 /*
-	callback when "Next" in Training section is clicked.
+	Callback when "Next" in Training section is clicked.
 */
 function showNextQuestionInTrainingSection(){
 	var count = $("#trainingTabs li").length;
 	id=$("#trainingTabs li.active").index();
-	console.log ("{0} out of {1}".f( id, count))
 	if (id+1!=count){
 		id=id+2;
 		$('#trainingTabs li:nth-child('+id+') a').tab('show');
 	}else{
 		// last next is called
-		console.log("hello");
 		setTimeout(function (){
 			window.location.hash="navNextPre";
 		},  50);
-
 	}
 }
 
 /*
-	callback when "Previous" in Training section is clicked.
+	Callback when "Previous" in Training section is clicked.
 */
 function showPreviousQuestionInTrainingSection(){
 	id=$("#trainingTabs li.active").index();
@@ -261,16 +304,17 @@ function playedAudioTraining(id){
 	}
 }
 
+// help to calc the sum of elements in an array
 function getSum(total, num) {
   return total + num;
 }
 
 //---------------- baudio.js -----------------
+// All functions needed for custom audio playback
 var audioElements=[];
 function clickManager(event) {
 	ae=event.data.ae;
 	var id=event.data.id;
-	//console.log(id);
 	if (ae.paused) {
 		pauseAll();
 		playAudio(ae);
@@ -295,31 +339,27 @@ function pauseAudio(audio){
 	audio.pause();
 	var idT=audio.id;
 	var id=idT.substring(6,idT.length);
-	console.log(id);
 	$("#baudio_s_"+id).removeClass("glyphicon-pause");
 	$("#baudio_"+id).removeClass("btn-primary");
 	$("#baudio_s_"+id).addClass("glyphicon-play");
 }
 
 function pauseAll(){
-	console.log("++++ pauseAll +++"+audioElements.length);
 	for (i = 0; i < audioElements.length; i++) {
 		if (!audioElements[i].paused){
 			pauseAudio(audioElements[i]);
 		}
 	}
-	console.log("---pauseAll finished---");
 }
 
 function canPlay(event){
 	var ae=this;
 	var idText =this.id;
 	var id=idText.substring(6,idText.length);
-	console.log(id);
 	$("#baudio_l_d_"+id).text(" / " + (ae.duration).toString().toMMSS());
 	$("#baudio_"+id).removeClass("disabled");
-
 }
+
 function timeUpdate(){
 	var ae=this;
 	var idText =this.id;
@@ -341,6 +381,7 @@ function isended(){
 	}
 }
 
+// loading all baudio elements in the page
 $(function() {
     $( ".baudio" ).each(function(){
 		titleTextTemplate='<tr><td>{1}</td></tr>';
@@ -371,13 +412,16 @@ $(function() {
 	});
 });
 
+/*
+	Called when the scale item is clicked
+*/
 function alertForbiddenChange(){
 	alert('You should listen until the end.');
 	$(this).prop('checked', false);
 }
 
 /*
-Users should not be able to vot before listening the audio clips until the end.
+	Users should not be able to vot before listening the audio clips until the end.
 */
 function avoidAnsweringBeforeListeningThrough(){
 	var i;
@@ -389,7 +433,6 @@ function avoidAnsweringBeforeListeningThrough(){
 	for (i = 0; i < config['questionUrls'].length; i++) {
 		$('input[name="q{0}"]'.f(i+1)).on('change', alertForbiddenChange);
 	}
-
 }
 
 /*
@@ -414,9 +457,10 @@ function onValueChangeForTpQuestionInTraining(){
 	}
 
 }
+
 /*
-Called when the audio in rating section by the given id is completely played.
-Now user can rate the quality.
+	Called when the audio in rating section by the given id is completely played.
+	Now user can rate the quality.
 */
 function playedAudioQ(id){
 	// check if it was the trapping question
@@ -435,7 +479,8 @@ function playedAudioQ(id){
 }
 
 /*
-Called when user answers to one question from setup (i.e. q2. math question). Here the cookie will be added/updated
+	Called when user answers to one question from setup
+	(i.e. q2. math question). Here the cookie will be added/updated
 */
 function userAnsweringToSetupQuestions(){
 	createCookie(config.cookieName+"_setup","un_important",config['showSetupEveryMinutes']);
@@ -449,7 +494,6 @@ function userAnsweringToSetupQuestions(){
 /*
 	functions responsible to headset check
 */
-
 function isHeadsetOn(webrtc_raw){
 	keywords= ["headphone",  "headset","airpod", "usb audio device"]
 	for (var i = 0; i < keywords.length; i++) {
@@ -458,42 +502,43 @@ function isHeadsetOn(webrtc_raw){
 	}
 	return false;
 }
+
 const constraints = {
   	audio: true,
 	video:false
 };
 
-var device_list= "";
+/*
+	Async function to check the list of audio devices when the user allowed
+*/
 const startHeadsetCheck = async function() {
 	$('#status').html("waiting for allowance...")
     await navigator.mediaDevices.getUserMedia(constraints);
 
     navigator.mediaDevices.enumerateDevices()
     .then(devices => {
-        device_list= "";
+        var device_list= "";
         for (var i=0;i<devices.length;i++){
         	if (devices[i].kind.startsWith('audio')){
     			device_list = device_list+ devices[i].kind + ":" +devices[i].label.toLowerCase() +"+";
     		}
         }
         headsetDetected=isHeadsetOn(device_list);
-        console.log("D List:"+device_list);
-        console.log("Headset used:"+headsetDetected);
         $( "#webrtc_raw" ).val(device_list);
         $( "#use_headset" ).val(headsetDetected);
 		$( "#status" ).html("Done. Please continue.");
-
   });
 }
 
-function startMeasure(){
- 	startHeadsetCheck();
-}
+//function startMeasure(){
+// 	startHeadsetCheck();
+//}
 </script>
+
 <script type="text/javascript">
 
 /*
-shuffle function for randomization of items -->
+	shuffle function for randomization of items -->
 */
 function shuffle(a) {
 	var j, x, i;
@@ -506,7 +551,9 @@ function shuffle(a) {
 	return a;
 }
 
-
+/*
+	Generate the training section
+*/
 function generate_training_section(){
 	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link " data-toggle="tab"  href="#T{0}-panel" id="T{0}-tab " role="tab" aria-controls="T{0}" {2}>Q. {0}</a></li>';
 	acr_tab ='<div class="tab-pane fade {2}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p><p align="center"> <span class="baudio" id="t{0}" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p><fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the speech</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="4">Good</label></div></td><td class="c">4</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="3">Fair</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="2">Poor</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	   </tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
@@ -533,6 +580,9 @@ function generate_training_section(){
 	trainingStimulusPlayed = new Array(urls.length).fill(0);
 }
 
+/*
+	Generate rating section
+*/
 function generate_rating_section(){
 	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#Q{0}-panel" id="Q{0}-tab" role="tab" aria-controls="Q{0}" {2}>Q. {0}</a></li>';
 	acr_tab ='<div class="tab-pane fade {2}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"> <p></p> <div class="row"> <div class="col-sm-3"></div> <div class="col-sm-6"> <p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p> <p align="center"> <span class="baudio" id="q{0}" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> <fieldset id="fieldset_q{0}" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >Quality of the speech</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="4">Good</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="3">Fair</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="2">Poor</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> <p></p> </div> <div class="col-sm-3"></div> </div> <p></p> </div>';
@@ -558,8 +608,8 @@ function generate_rating_section(){
 	$('.question_number').html(urls.length);
 
 }
-
 </script>
+
 <!-- Instructions -->
 <section class="container" id="Survey">
 	<div class="panel panel-primary">
@@ -762,7 +812,7 @@ function generate_rating_section(){
 					  After that, you might see a popup message from your browser asking for allowance to use your microphone.
 					  Please click on <b>Allow</b> (on some of smartphones there will be no message).
 				 <div class="center">
-						<button type="button" class="btn btn-primary center" onclick="startMeasure()">Start</button>
+						<button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
 						<div id="status"></div>
 			  	</div>
 			</div>
