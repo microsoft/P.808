@@ -52,7 +52,7 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 <script type="text/javascript">
 
 var config ={
-	cookieName:"itu_p808_test_2",
+	cookieName:"itu_p808_test_4",
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
@@ -90,6 +90,7 @@ $(function() {
 		$('.trainingFieldset').prop("disabled", true);
 		$("#training").hide();
 		$("#training :input").removeAttr("required");
+		$('#instruction').collapse()
 		cookie_debug_status=cookie_debug_status+"Train Exist*";
 	}
     // given cookie availability disable the setup
@@ -758,8 +759,8 @@ function generate_rating_section(){
 			  <div class="panel-body" >
 			  <b>Introduction</b>
 				  <p>We need to check your listening device. It is an automated test using your Web-browser functionality. Please click on <b>Start</b>.
-					  After that, you see a popup message from your browser asking for allowance to use your microphone.
-					  Please click on <b>Allow</b>.
+					  After that, you might see a popup message from your browser asking for allowance to use your microphone.
+					  Please click on <b>Allow</b> (on some of smartphones there will be no message).
 				 <div class="center">
 						<button type="button" class="btn btn-primary center" onclick="startMeasure()">Start</button>
 						<div id="status"></div>
