@@ -296,6 +296,8 @@ def data_cleaning(filename):
 
             d['worker_id'] = row['workerid']
             d['assignment'] = row['assignmentid']
+            d['status'] = row['assignmentstatus']
+
             # step1. check if audio of all X questions are played at least once
             d['all_audio_played'] = 1 if check_audio_played(row) else 0
 
@@ -342,6 +344,7 @@ def data_cleaning(filename):
         write_dict_as_csv(worker_list, report_file)
         save_approved_ones(worker_list, approved_file)
         save_rejected_ones(worker_list, rejected_file)
+        print(f"   {len(accept_and_use_sessions)} answers are good to be used further")
         print(f"   Data cleaning report is saved in: {report_file}")
         calc_bonuses(worker_list, bonus_file)
         return accept_and_use_sessions
@@ -356,6 +359,12 @@ def save_approved_ones(data, path):
     """
     df = pd.DataFrame(data)
     df = df[df.accept == 1]
+    c_accepted = df.shape[0]
+    df = df[df.status == 'Submitted']
+    if df.shape[0] == c_accepted:
+        print(f'    {c_accepted} answers are accepted')
+    else:
+        print(f'    overall {c_accepted} answers are accepted, from them {df.shape[0]} were in submitted status')
     small_df = df[['assignment']].copy()
     small_df.rename(columns={'assignment': 'assignmentId'}, inplace=True)
     small_df.to_csv(path, index=False)
@@ -370,9 +379,15 @@ def save_rejected_ones(data, path):
     """
     df = pd.DataFrame(data)
     df = df[df.accept == 0]
+    c_rejected = df.shape[0]
+    df = df[df.status == 'Submitted']
+    if df.shape[0] == c_rejected:
+        print(f'    {c_rejected} answers are rejected')
+    else:
+        print(f'    overall {c_rejected} answers are rejected, from them {df.shape[0]} were in submitted status')
     small_df = df[['assignment']].copy()
     small_df.rename(columns={'assignment': 'assignmentId'}, inplace=True)
-    small_df= small_df.assign(feedback=config['rejection_feedback'])
+    small_df = small_df.assign(feedback=config['rejection_feedback'])
     small_df.to_csv(path, index=False)
 
 
