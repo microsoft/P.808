@@ -97,26 +97,27 @@ def approve_reject_assignments(client, assignment_path, approve):
         reader = csv.DictReader(assignment_list)
         line_count = 0
         for row in reader:
+
             if line_count == 0:
                 assert 'assignmentId' in row,  f"No column found with assignmentId in [{assignment_path}]"
                 if not approve:
                     assert 'feedback' in row, f"No column found with feedback in [{assignment_path}]"
+            if approve:
+                # approving
+                response = client.approve_assignment(
+                    AssignmentId=row['assignmentId']
+                )
+                print(f'\t Approving assignment {row["assignmentId"]}:')
+                print(response)
             else:
-                if approve:
-                    # approving
-                    response = client.approve_assignment(
-                        AssignmentId=row['assignmentId']
-                    )
-                    print(f'\t Approving assignment ${row["assignmentId"]}:')
-                    print(response)
-                else:
-                    # rejecting
-                    response = client.reject_assignment(
-                        AssignmentId=row['assignmentId'],
-                        RequesterFeedback=row['feedback']
-                    )
-                    print(f'\t Rejecting assignment ${row["assignmentId"]}:')
-                    print(response)
+                # rejecting
+                response = client.reject_assignment(
+                    AssignmentId=row['assignmentId'],
+                    RequesterFeedback=row['feedback']
+                )
+                print(f'\t Rejecting assignment ${row["assignmentId"]}:')
+                print(response)
+
             line_count += 1
         print(f'Processed {line_count} lines.')
 

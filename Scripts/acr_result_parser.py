@@ -16,6 +16,7 @@ import numpy as np
 import sys
 from scipy import stats
 
+
 config = {
     "math": {
      "math1.wav": 3,
@@ -38,11 +39,11 @@ config = {
         "all_audio_played_equal": 1,
         "correct_math_bigger_equal": 1,
         "correct_tps_bigger_equal": 1,
-        "variance_bigger_equal": 0.1,
         #"correct_gold_q_bigger_equal": 1
     },
     "accept_and_use": {
         # including acceptance_criteria
+        "variance_bigger_equal": 0.1,
         "gold_standard_bigger_equal": 1,
         "correct_cmp_bigger_equal": 2,
     },
@@ -86,12 +87,15 @@ def outliers_z_score(votes):
     :param votes:
     :return:
     """
+    if len(votes) == 0:
+        return votes
+
     threshold = 3.29
     z = np.abs(stats.zscore(votes))
 
     x = np.array(z)
     v = np.array(votes)
-    v = v[(x < threshold)]
+    v = v[x < threshold]
     return v
 
 
@@ -101,12 +105,23 @@ def check_if_session_accepted(data):
     :param data:
     :return:
     """
-    if data['all_audio_played'] == config['acceptance_criteria']['all_audio_played_equal'] and \
-        (data['correct_math'] is None or data['correct_math'] >= config['acceptance_criteria']['correct_math_bigger_equal']) and \
-        data['correct_tps'] >= config['acceptance_criteria']['correct_tps_bigger_equal'] and \
-        data['variance_in_ratings'] >= config['acceptance_criteria']['variance_bigger_equal']:
-        return True
-    return False
+    msg = "Make sure you follow the instruction:"
+    accept = True
+    if data['all_audio_played'] != config['acceptance_criteria']['all_audio_played_equal']:
+        accept = False
+        msg += "All clips should be played until the end;"
+    if data['correct_math'] is not None and data['correct_math'] < config['acceptance_criteria']['correct_math_bigger_equal']:
+        accept = False
+        msg += "Wear both earbuds;"
+    if data['correct_tps'] < config['acceptance_criteria']['correct_tps_bigger_equal']:
+        accept = False
+        msg += "Trapping question(s) answered wrongly;"
+
+    if not accept:
+        data['Reject'] = msg
+    else:
+        data['Reject'] =''
+    return accept
 
 
 def check_if_session_should_be_used(data):
@@ -116,9 +131,9 @@ def check_if_session_should_be_used(data):
     :return:
     """
     if data['accept'] == 1 and \
-            data['correct_gold_question']>= config['accept_and_use']['gold_standard_bigger_equal'] and \
-            (data['correct_cmps'] is None or \
-             data['correct_cmps'] >= config['accept_and_use']['correct_cmp_bigger_equal']):
+            data['variance_in_ratings'] >= config['accept_and_use']['variance_bigger_equal'] and \
+            data['correct_gold_question'] >= config['accept_and_use']['gold_standard_bigger_equal'] and \
+            (data['correct_cmps'] is None or data['correct_cmps'] >= config['accept_and_use']['correct_cmp_bigger_equal']):
         return True
     return False
 
@@ -295,6 +310,7 @@ def data_cleaning(filename):
             d = dict()
 
             d['worker_id'] = row['workerid']
+            d['HITId'] = row['hitid']
             d['assignment'] = row['assignmentid']
             d['status'] = row['assignmentstatus']
 
@@ -324,10 +340,13 @@ def data_cleaning(filename):
             d['correct_gold_question'] = check_gold_question(row)
             # step6. check variance in a session rating
             d['variance_in_ratings'] = check_variance(row)
+
             if check_if_session_accepted(d):
                 d['accept'] = 1
+                d['Approve'] = 'x'
             else:
                 d['accept'] = 0
+                d['Approve'] = ''
 
             if check_if_session_should_be_used(d):
                 d['accept_and_use'] = 1
@@ -340,14 +359,30 @@ def data_cleaning(filename):
         bonus_file = os.path.splitext(filename)[0] + '_bonus_report.csv'
         approved_file = os.path.splitext(filename)[0] + '_accept.csv'
         rejected_file = os.path.splitext(filename)[0] + '_rejection.csv'
+        accept_reject_gui_file = os.path.splitext(filename)[0] + '_accept_reject_gui.csv'
 
         write_dict_as_csv(worker_list, report_file)
         save_approved_ones(worker_list, approved_file)
         save_rejected_ones(worker_list, rejected_file)
+        save_approve_rejected_ones_for_gui(worker_list, accept_reject_gui_file)
         print(f"   {len(accept_and_use_sessions)} answers are good to be used further")
         print(f"   Data cleaning report is saved in: {report_file}")
         calc_bonuses(worker_list, bonus_file)
         return accept_and_use_sessions
+
+
+def save_approve_rejected_ones_for_gui(data, path):
+    """
+    save approved/rejected in file t be used in GUI
+    :param data:
+    :param path:
+    :return:
+    """
+    df = pd.DataFrame(data)
+    df = df[df.status == 'Submitted']
+    small_df = df[['assignment', 'HITId', 'Approve', 'Reject']].copy()
+    small_df.rename(columns={'assignment': 'assignmentId'}, inplace=True)
+    small_df.to_csv(path, index=False)
 
 
 def save_approved_ones(data, path):
@@ -527,12 +562,21 @@ def transform(sessions, path_per_file, path_per_condition):
         tmp['condition_name'] = key
         votes = data_per_condition[key]
         # apply z-score outlier detection
+
         votes = outliers_z_score(votes)
 
         tmp['n'] = len(votes)
-        tmp['mean'] = statistics.mean(votes)
-        tmp['std'] = statistics.stdev(votes)
-        tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
+        if tmp['n'] > 0:
+            tmp['mean'] = statistics.mean(votes)
+        else:
+            tmp['mean'] = None
+        if tmp['n'] > 1:
+            tmp['std'] = statistics.stdev(votes)
+            tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
+        else:
+            tmp['std'] = None
+            tmp['95%CI'] = None
+
         group_per_condition.append(tmp)
 
     # return group_per_file, group_per_condition
@@ -569,6 +613,8 @@ if __name__ == '__main__':
 
     assert (args.answers is not None), f"--answers  are required]"
     assert os.path.exists(args.answers), f"No input file found in [{args.answers}]"
+
+    np.seterr(divide='ignore', invalid='ignore')
 
     accepted_sessions = data_cleaning(args.answers)
 
