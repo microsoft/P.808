@@ -187,7 +187,10 @@ def check_variance(row):
             continue
         if row[config['trapping']['url_found_in']] in row[f'answer.{q_name}_url']:
             continue
-        r.append(int(row[f'answer.{q_name}']))
+        try:
+            r.append(int(row[f'answer.{q_name}']))
+        except:
+            pass
     return statistics.variance(r)
 
 
