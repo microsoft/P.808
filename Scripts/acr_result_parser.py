@@ -14,8 +14,8 @@ import argparse
 import os
 import numpy as np
 import sys
+import re
 from scipy import stats
-
 
 config = {
     "math": {
@@ -91,8 +91,8 @@ def outliers_z_score(votes):
         return votes
 
     threshold = 3.29
-    z = np.abs(stats.zscore(votes))
 
+    z = np.abs(stats.zscore(votes))
     x = np.array(z)
     v = np.array(votes)
     v = v[x < threshold]
@@ -562,8 +562,7 @@ def transform(sessions, path_per_file, path_per_condition):
         tmp['condition_name'] = key
         votes = data_per_condition[key]
         # apply z-score outlier detection
-
-        votes = outliers_z_score(votes)
+        #votes = outliers_z_score(votes)
 
         tmp['n'] = len(votes)
         if tmp['n'] > 0:
@@ -603,6 +602,16 @@ def initiate_file_row(d):
     return d
 
 
+def stats(input_file):
+    df = pd.read_csv(input_file)
+    average_time_in_sec= df["WorkTimeInSeconds"].mean()
+    peyment_text = df['Reward'].values[0]
+    paymnet= re.findall("\d+\.\d+", peyment_text)
+
+    avg_pay= 3600*float(paymnet[0])/average_time_in_sec
+    print(f"Stats: Average work time {average_time_in_sec:.2f} sec, payment ${avg_pay:.2f} per hour")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Utility script to evaluate answers to the acr batch')
     # Configuration: read it from mturk.cfg
@@ -617,7 +626,7 @@ if __name__ == '__main__':
     np.seterr(divide='ignore', invalid='ignore')
 
     accepted_sessions = data_cleaning(args.answers)
-
+    stats(args.answers)
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
     if len(accepted_sessions) > 1:
         votes_per_file_path = os.path.splitext(args.answers)[0] + '_votes_per_clip.csv'
