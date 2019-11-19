@@ -28,10 +28,10 @@ def send_message(client, cfg):
 
     worker_ids = cfg['worker_ids'].replace(' ','').split(',')
     # in each call it is possible to send up to 100 messages
-    worker_pack_size= 100
+    worker_pack_size = 100
     chunked_worker_ids = [worker_ids[i:i + worker_pack_size] for i in range(0, len(worker_ids), worker_pack_size)]
     count = 1;
-    success_messages=0;
+    success_messages = 0;
     failed_group=[]
     for woker_group in chunked_worker_ids:
         response = client.notify_workers(
@@ -57,27 +57,33 @@ def assign_bonus(client, bonus_list_path):
     :param bonus_list_path: path to the csv file with following columns:workerId, assignmentId, bonusAmount, reason
     :return:
     """
-    print('send bonus')
+    print('send bonus...')
     with open(bonus_list_path, mode='r') as bonus_list:
         reader = csv.DictReader(bonus_list)
         line_count = 0
+        success = 0
+        failed = 0
         for row in reader:
             if line_count == 0:
                 assert 'workerId' in row,  f"No column found with workerId in [{bonus_list_path}]"
                 assert 'assignmentId' in row,  f"No column found with assignmentId in [{bonus_list_path}]"
                 assert 'bonusAmount' in row, f"No column found with bonusAmount in [{bonus_list_path}]"
                 assert 'reason' in row,  f"No column found with reason in [{bonus_list_path}]"
+
+            response = client.send_bonus(
+                WorkerId=row['workerId'],
+                BonusAmount=row['bonusAmount'],
+                AssignmentId=row['assignmentId'],
+                Reason=row['reason']
+            )
+            if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                #print(f'\tsend ${row["bonusAmount"]} to {row["workerId"]}({row["assignmentId"]}): SUCCESS ')
+                success += 1
             else:
-                response = client.send_bonus(
-                    WorkerId=row['workerId'],
-                    BonusAmount=row['bonusAmount'],
-                    AssignmentId=row['assignmentId'],
-                    Reason=row['reason']
-                )
-                print(f'\tsend ${row["bonusAmount"]} to {row["workerId"]}({row["assignmentId"]}):')
-                print(response)
+                print(f'\tsend ${row["bonusAmount"]} to {row["workerId"]}({row["assignmentId"]}): FAILED ')
+                failed += 1
             line_count += 1
-        print(f'Processed {line_count} lines.')
+        print(f' Sent {line_count} bonuses: {success} succeed, {failed} faild.')
 
 
 def approve_reject_assignments(client, assignment_path, approve):
@@ -96,8 +102,9 @@ def approve_reject_assignments(client, assignment_path, approve):
     with open(assignment_path, mode='r') as assignment_list:
         reader = csv.DictReader(assignment_list)
         line_count = 0
+        success=0
+        failed=0
         for row in reader:
-
             if line_count == 0:
                 assert 'assignmentId' in row,  f"No column found with assignmentId in [{assignment_path}]"
                 if not approve:
@@ -107,19 +114,26 @@ def approve_reject_assignments(client, assignment_path, approve):
                 response = client.approve_assignment(
                     AssignmentId=row['assignmentId']
                 )
-                print(f'\t Approving assignment {row["assignmentId"]}:')
-                print(response)
+                if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                    success += 1
+                else:
+                    print(f'\tFailed:  "Approving assignment" {row["assignmentId"]}:')
+                    failed += 1
+
             else:
                 # rejecting
                 response = client.reject_assignment(
                     AssignmentId=row['assignmentId'],
                     RequesterFeedback=row['feedback']
                 )
-                print(f'\t Rejecting assignment ${row["assignmentId"]}:')
-                print(response)
+                if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                    success += 1
+                else:
+                    print(f'\tFailed:  "Rejecting assignment" {row["assignmentId"]}:')
+                    failed += 1
 
             line_count += 1
-        print(f'Processed {line_count} lines.')
+        print(f'Processed {line_count} assignments - sent {success} calls was successful and {failed} calls failed.')
 
 
 def get_assignment_review_policy(cfg):
