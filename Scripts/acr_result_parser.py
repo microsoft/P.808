@@ -16,6 +16,7 @@ import numpy as np
 import sys
 import re
 from scipy import stats
+import time
 
 config = {
     "math": {
@@ -606,13 +607,14 @@ def initiate_file_row(d):
 
 
 def stats(input_file):
-    df = pd.read_csv(input_file)
-    average_time_in_sec= df["WorkTimeInSeconds"].mean()
+    df = pd.read_csv(input_file,low_memory=False)
+    median_time_in_sec= df["WorkTimeInSeconds"].median()
     peyment_text = df['Reward'].values[0]
-    paymnet= re.findall("\d+\.\d+", peyment_text)
+    paymnet = re.findall("\d+\.\d+", peyment_text)
 
-    avg_pay= 3600*float(paymnet[0])/average_time_in_sec
-    print(f"Stats: Average work time {average_time_in_sec:.2f} sec, payment ${avg_pay:.2f} per hour")
+    avg_pay= 3600*float(paymnet[0])/median_time_in_sec
+    formated_time= time.strftime("%M:%S", time.gmtime(median_time_in_sec))
+    print(f"Stats: work duration (median) {formated_time} (MM:SS), payment per hour: ${avg_pay:.2f}")
 
 
 if __name__ == '__main__':
