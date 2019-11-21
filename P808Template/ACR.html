@@ -413,8 +413,15 @@ $(function() {
 		audioElement.addEventListener("timeupdate",timeUpdate.bind(audioElement),false);
 		audioElement.addEventListener("ended",isended.bind(audioElement),false);
 	});
-});
 
+	$("source").on("error", function (e) {
+        console.log("Error at audio tag level!"+e.target.src);
+        problematic_urls=problematic_urls+"<li>"+e.target.src+"</li>";
+        $("#error_details").html(problematic_urls);
+        $("#error_loading_files").show();
+    });
+});
+var problematic_urls="";
 /*
 	Called when the scale item is clicked
 */
@@ -658,6 +665,11 @@ function generate_rating_section(){
 
 	</div>
 </section>
+
+<div class="alert alert-danger" role="alert" id="error_loading_files" hidden>
+	<b>Error::</b> One or more audio clips cannot be loaded. Please return this HIT and try another one.
+	<span id="error_details"></span>
+</div>
 
 <!-- Setup -->
 <section class="container" id="setup">
