@@ -134,10 +134,12 @@ if __name__ == '__main__':
                         help="explains the test")
     args = parser.parse_args()
 
-    row_input = join(dirname(__file__), args.row_input)
+    #row_input = join(dirname(__file__), args.row_input)
+    row_input = args.row_input
     assert os.path.exists(row_input), f"No file in {row_input}]"
 
-    cfg_path = join(dirname(__file__), args.cfg)
+    #cfg_path = join(dirname(__file__), args.cfg)
+    cfg_path = args.cfg
     assert os.path.exists(cfg_path), f"No file in {cfg_path}]"
 
 

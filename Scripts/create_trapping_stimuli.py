@@ -24,16 +24,16 @@ message_to_values={
 }
 
 
-def create_trap_db(cfg):
+def create_trap_db(cfg, cfg_dir_name):
     """
     Creates the trapping dataset
     :param cfg: configuration file
     :return:
     """
     # create directory names
-    source_folder = join(dirname(__file__), cfg['input_directory'], 'source')
-    msg_folder = join(dirname(__file__), cfg['input_directory'], 'messages')
-    output_folder = join(dirname(__file__), cfg['input_directory'], 'output')
+    source_folder = join(dirname(cfg_dir_name), cfg['input_directory'], 'source')
+    msg_folder = join(dirname(cfg_dir_name), cfg['input_directory'], 'messages')
+    output_folder = join(dirname(cfg_dir_name), cfg['input_directory'], 'output')
 
     # check directories exist
     assert os.path.exists(source_folder), f"No 'source' directory found, expected in {source_folder}]"
@@ -110,15 +110,17 @@ if __name__ == '__main__':
                         help="Check trapping.cfg for all the details")
     args = parser.parse_args()
 
-    cfgpath = join(dirname(__file__), args.cfg)
+    #cfgpath = join(dirname(__file__), args.cfg)
+    cfgpath = args.cfg
     assert os.path.exists(cfgpath), f"No configuration file in {cfgpath}]"
     cfg = CP.ConfigParser()
     cfg._interpolation = CP.ExtendedInterpolation()
     cfg.read(cfgpath)
+    cfg_dir_name = dirname(cfgpath)
 
     tp_cfg = cfg._sections['trappings']
 
     print('Start creating files')
-    n_created_files= create_trap_db(tp_cfg)
+    n_created_files= create_trap_db(tp_cfg, cfg_dir_name)
     print(f'{n_created_files} files created.')
 

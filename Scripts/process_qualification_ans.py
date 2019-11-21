@@ -199,7 +199,8 @@ if __name__ == '__main__':
                         help="Check answers of the qualification job"
                              "(input: Batch_xxx_results.csv)")
     args = parser.parse_args()
-    answers_path = os.path.join(os.path.dirname(__file__), args.check)
+    #answers_path = os.path.join(os.path.dirname(__file__), args.check)
+    answers_path =  args.check
     assert os.path.exists(answers_path), f"No input file found in [{answers_path}]"
 
     evaluate_asnwers(answers_path)

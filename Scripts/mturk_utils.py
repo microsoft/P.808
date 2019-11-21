@@ -457,36 +457,43 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Utility script to handle a MTurk study.')
     # Configuration: read it from mturk.cfg
     parser.add_argument("--cfg", default="mturk.cfg",
-                        help="Read mturk.cfg for all the details")
+                        help="Read mturk.cfg for all the details (path relative to current working directory)")
     parser.add_argument("send_emails", nargs='?', help="send emails (configuration is needed)")
     parser.add_argument("--send_bonus", type=str, help="give bonus to a group of worker. Path to a csv file "
-                                                       "(columns: workerId, assignmentId, bonusAmount, reason  )")
+                                                       "(columns: workerId, assignmentId, bonusAmount, reason). "
+                                                       "Path relative to current working directory")
 
     parser.add_argument("--approve", type=str,
                         help="Approve all assignments found in the input csv file. Path to a csv file "
-                             "(columns: assignmentId)")
+                             "(columns: assignmentId). Path relative to current working directory")
     parser.add_argument("--reject", type=str,
                         help="Reject all assignments found in the input csv file. Path to a csv file "
-                             "(columns: assignmentId,feedback)")
+                             "(columns: assignmentId,feedback). Path relative to current working directory")
 
     parser.add_argument("--create_hit", type=str,
-                        help="Create one or more  HITs.Con figuration file for creating HIT: ../P808Template")
+                        help="Create one or more  HITs. Configuration file for creating HIT. "
+                             "Path relative to current working directory")
     parser.add_argument("--create_hit_input", type=str,
-                        help="Input.csv containing dynamic contents of HIT (columns: all Layout Parameters)")
+                        help="Input.csv containing dynamic contents of HIT (columns: all Layout Parameters). "
+                             "Path relative to current working directory")
 
     parser.add_argument("--answers", type=str,
-                        help="Download answers for given report file (columns: HITId, HITTypeId,HITGroupId")
+                        help="Download answers for given report file (columns: HITId, HITTypeId,HITGroupId. "
+                             "Path relative to current working directory")
 
     parser.add_argument("--create_qualification_type", type=str,
-                        help="Create qualification type without test given the cfg file. see qualification.cfg")
+                        help="Create qualification type without test given the cfg file. see qualification.cfg. "
+                             "Path relative to current working directory")
 
     parser.add_argument("--assign_qualification_type", type=str,
                         help="Assign qualification type wto workers. "
-                            "Input csv file (columns: workerId, qualification_name, value)")
+                            "Input csv file (columns: workerId, qualification_name, value). "
+                             "Path relative to current working directory")
 
     args = parser.parse_args()
 
-    cfgpath = os.path.join(os.path.dirname(__file__), args.cfg)
+    #cfgpath = os.path.join(os.path.dirname(__file__), args.cfg)
+    cfgpath = args.cfg
     assert os.path.exists(cfgpath), f"No configuration file as [{cfgpath}]"
     cfg = CP.ConfigParser()
     cfg.read(cfgpath)
@@ -506,23 +513,30 @@ if __name__ == '__main__':
     if args.send_emails is not None:
         send_message(client, cfg['send_email'])
     if args.send_bonus is not None:
-        bonus_list_path = os.path.join(os.path.dirname(__file__), args.send_bonus)
+        #bonus_list_path = os.path.join(os.path.dirname(__file__), args.send_bonus)
+        bonus_list_path = args.send_bonus
         assert os.path.exists(bonus_list_path), f"No input file found in [{bonus_list_path}]"
         assign_bonus(client, bonus_list_path)
+
     if args.approve is not None:
-        assignments_list_path = os.path.join(os.path.dirname(__file__), args.approve)
+        #assignments_list_path = os.path.join(os.path.dirname(__file__), args.approve)
+        assignments_list_path = args.approve
         assert os.path.exists(assignments_list_path), f"No input file found in [{assignments_list_path}]"
         approve_reject_assignments(client, assignments_list_path, approve=True)
+
     if args.reject is not None:
-        assignments_list_path = os.path.join(os.path.dirname(__file__), args.reject)
+        #assignments_list_path = os.path.join(os.path.dirname(__file__), args.reject)
+        assignments_list_path = args.reject
         assert os.path.exists(assignments_list_path), f"No input file found in [{assignments_list_path}]"
         approve_reject_assignments(client, assignments_list_path, approve=False)
 
     if args.create_hit is not None:
-        create_hit_cfg = os.path.join(os.path.dirname(__file__), args.create_hit)
+        #create_hit_cfg = os.path.join(os.path.dirname(__file__), args.create_hit)
+        create_hit_cfg = args.create_hit
         assert os.path.exists(create_hit_cfg), f"No configuration file for create_hit found in [{create_hit_cfg}]"
 
-        input_csv = os.path.join(os.path.dirname(__file__), args.create_hit_input)
+        #input_csv = os.path.join(os.path.dirname(__file__), args.create_hit_input)
+        input_csv = args.create_hit_input
         # can be just one HIT
         #assert os.path.exists(input_csv), f"No input file found in [{input_csv}]"
 
@@ -532,12 +546,14 @@ if __name__ == '__main__':
         create_hit(client, ch_cfg, input_csv)
 
     if args.answers is not None:
-        report_file = os.path.join(os.path.dirname(__file__), args.answers)
+        #report_file = os.path.join(os.path.dirname(__file__), args.answers)
+        report_file = args.answers
         assert os.path.exists(report_file), f"No configuration file for create_hit found in [{report_file}]"
         get_answer_csv(client, report_file)
 
     if args.create_qualification_type is not None:
-        qualification_cfg_path = os.path.join(os.path.dirname(__file__), args.create_qualification_type)
+        #qualification_cfg_path = os.path.join(os.path.dirname(__file__), args.create_qualification_type)
+        qualification_cfg_path = args.create_qualification_type
         assert os.path.exists(qualification_cfg_path), f"No configuration file as [{qualification_cfg_path}]"
         cfg_qualification = CP.ConfigParser()
         cfg_qualification.read(qualification_cfg_path)
@@ -545,6 +561,7 @@ if __name__ == '__main__':
         #update_qualification_type_with_test(client, cfg_qualification)
 
     if args.assign_qualification_type is not None:
-        input_path = os.path.join(os.path.dirname(__file__), args.assign_qualification_type)
+        #input_path = os.path.join(os.path.dirname(__file__), args.assign_qualification_type)
+        input_path = args.assign_qualification_type
         assert os.path.exists(input_path), f"No configuration file as [{input_path}]"
         assign_qualification_to_workers(client,input_path)

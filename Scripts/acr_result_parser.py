@@ -621,17 +621,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Utility script to evaluate answers to the acr batch')
     # Configuration: read it from mturk.cfg
     parser.add_argument("--answers",
-                        help="Answers csv file")
+                        help="Answers csv file, path relative to current directory")
 
     args = parser.parse_args()
 
     assert (args.answers is not None), f"--answers  are required]"
-    assert os.path.exists(args.answers), f"No input file found in [{args.answers}]"
+    #answer_path = os.path.join(os.path.dirname(__file__), args.answers)
+
+    answer_path = args.answers
+
+    assert os.path.exists(answer_path), f"No input file found in [{answer_path}]"
 
     np.seterr(divide='ignore', invalid='ignore')
 
-    accepted_sessions = data_cleaning(args.answers)
-    stats(args.answers)
+    accepted_sessions = data_cleaning(answer_path)
+    stats(answer_path)
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
     if len(accepted_sessions) > 1:
         votes_per_file_path = os.path.splitext(args.answers)[0] + '_votes_per_clip.csv'
