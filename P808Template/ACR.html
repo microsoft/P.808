@@ -132,6 +132,9 @@ $(function() {
 	hitCounterIncreased = false;
 	cookie_debug_status=cookie_debug_status+"Counter:"+howManyHITsAnswered+"*";
 	addBrowserInfo(cookie_debug_status);
+
+	// update the instruction
+	$('.max_allowed_hits').html(config['allowedMaxHITsInProject']);
 });
 
 
@@ -648,7 +651,7 @@ function generate_rating_section(){
 				</ul>
 
 				<p>Bonuses will be assigned with in 7 days.</p>
-				<b>Please perform up to <u>60 HITs</u> from this group.</b>
+				  <b>Please perform up to <u class="max_allowed_hits"></u> from this group. If you do more than that, the <u>rest will be rejected.</u></b>
 			</div>
 		</div>
 

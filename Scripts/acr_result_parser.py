@@ -40,6 +40,8 @@ config = {
         "all_audio_played_equal": 1,
         "correct_math_bigger_equal": 1,
         "correct_tps_bigger_equal": 1,
+        # NOTE: this value should be synchronied by the corresponding value in the ACR.html
+        "allowedMaxHITsInProject": 60,
         #"correct_gold_q_bigger_equal": 1
     },
     "accept_and_use": {
@@ -307,7 +309,6 @@ def data_cleaning(filename):
         # ---------------- math
         # Input.math, Answer.Math,Answer.audio_n_play_math1
         worker_list = []
-        accept_and_use_sessions = []
         for row in reader:
             correct_cmp_ans = 0
             setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
@@ -354,7 +355,7 @@ def data_cleaning(filename):
 
             if check_if_session_should_be_used(d):
                 d['accept_and_use'] = 1
-                accept_and_use_sessions.append(row)
+
             else:
                 d['accept_and_use'] = 0
 
@@ -365,6 +366,11 @@ def data_cleaning(filename):
         rejected_file = os.path.splitext(filename)[0] + '_rejection.csv'
         accept_reject_gui_file = os.path.splitext(filename)[0] + '_accept_reject_gui.csv'
 
+        # reject hits when the user performed more than the limit
+        worker_list = evaluate_maximum_hits(worker_list)
+
+        accept_and_use_sessions = [d for d in worker_list if d['accept_and_use'] == 1]
+
         write_dict_as_csv(worker_list, report_file)
         save_approved_ones(worker_list, approved_file)
         save_rejected_ones(worker_list, rejected_file)
@@ -374,6 +380,28 @@ def data_cleaning(filename):
         calc_bonuses(worker_list, bonus_file)
         return accept_and_use_sessions
 
+
+def evaluate_maximum_hits(data):
+    df = pd.DataFrame(data)
+    small_df = df[['worker_id']].copy()
+    grouped = small_df.groupby(['worker_id']).size().reset_index(name='counts')
+    grouped = grouped[grouped.counts > config['acceptance_criteria']['allowedMaxHITsInProject']]
+    #grouped.to_csv('out.csv')
+    print(f"{len(grouped.index)} workers answerd more than the allowedMaxHITsInProject(>{config['acceptance_criteria']['allowedMaxHITsInProject']})")
+    cheater_workers_list = list(grouped['worker_id'])
+
+    cheater_workers_work_count = dict.fromkeys(cheater_workers_list, 0)
+    result=[]
+    for d in data:
+        if d['worker_id'] in cheater_workers_work_count:
+            if (cheater_workers_work_count[ d['worker_id']]>= config['acceptance_criteria']['allowedMaxHITsInProject']):
+                d['accept'] = 0
+                d['Reject'] += f"More than allowed limit of {config['acceptance_criteria']['allowedMaxHITsInProject']}"
+                d['accept_and_use'] = 0
+            else:
+                cheater_workers_work_count[d['worker_id']] +=1
+        result.append(d)
+    return result
 
 def save_approve_rejected_ones_for_gui(data, path):
     """
@@ -440,7 +468,7 @@ def calc_bonuses(worker_list, path):
     print('Calculate the bonuses...')
     df = pd.DataFrame(worker_list)
     grouped = df.groupby(['worker_id'], as_index=False)['accept'].sum()
-    grouped.to_csv('out.csv')
+
 
     # condition  more than 30 hits
     grouped = grouped[grouped.accept >= config['bonus']['when_HITs_more_than']]
@@ -624,20 +652,19 @@ if __name__ == '__main__':
                         help="Answers csv file, path relative to current directory")
 
     args = parser.parse_args()
-
     assert (args.answers is not None), f"--answers  are required]"
     #answer_path = os.path.join(os.path.dirname(__file__), args.answers)
 
     answer_path = args.answers
-
     assert os.path.exists(answer_path), f"No input file found in [{answer_path}]"
-
     np.seterr(divide='ignore', invalid='ignore')
 
     accepted_sessions = data_cleaning(answer_path)
+    """
     stats(answer_path)
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
     if len(accepted_sessions) > 1:
         votes_per_file_path = os.path.splitext(args.answers)[0] + '_votes_per_clip.csv'
         votes_per_cond_path = os.path.splitext(args.answers)[0] + '_votes_per_cond.csv'
         votes_per_file, vote_per_condition = transform(accepted_sessions, votes_per_file_path, votes_per_cond_path)
+    """
