@@ -31,9 +31,9 @@ def create_trap_db(cfg, cfg_dir_name):
     :return:
     """
     # create directory names
-    source_folder = join(dirname(cfg_dir_name), cfg['input_directory'], 'source')
-    msg_folder = join(dirname(cfg_dir_name), cfg['input_directory'], 'messages')
-    output_folder = join(dirname(cfg_dir_name), cfg['input_directory'], 'output')
+    source_folder = join(cfg_dir_name, cfg['input_directory'], 'source')
+    msg_folder = join(cfg_dir_name, cfg['input_directory'], 'messages')
+    output_folder = join(cfg_dir_name, cfg['input_directory'], 'output')
 
     # check directories exist
     assert os.path.exists(source_folder), f"No 'source' directory found, expected in {source_folder}]"
