@@ -52,7 +52,7 @@ config = {
         "correct_cmp_bigger_equal": 2,
     },
     "bonus": {
-        "when_HITs_more_than": 30,
+        "when_HITs_more_than": 5,
         "extra_pay_per_HIT": 0.25
     },
     "rejection_feedback": "Answer to this assigmnet did not pass the quality control "
@@ -460,23 +460,26 @@ def save_rejected_ones(data, path):
     small_df.to_csv(path, index=False)
 
 
-def filter_answer_by_status_and_workers(answer_df, woker_id_in, status_in):
+def filter_answer_by_status_and_workers(answer_df, all_time_worker_id_in, new_woker_id_in, status_in):
     """
     return answered who are
     :param status_in:
     :return:
     """
-    answer_df = answer_df[answer_df['worker_id'].isin(woker_id_in)]
+
     frames = []
     if 'all' in status_in:
+        #new_woker_id_in.extend(old_worker_id_in)
+        answer_df = answer_df[answer_df['worker_id'].isin(all_time_worker_id_in)]
         return answer_df
     if 'submitted' in status_in:
         d1 = answer_df[answer_df['status'] == "Submitted"]
+        d1 = d1[d1['worker_id'].isin(all_time_worker_id_in)]
         frames.append(d1)
-    if 'approved' in status_in:
-        d1 = answer_df[answer_df['status'] == "Approved"]
-        frames.append(d1)
-    return pd.concat(frames)
+        d2 = answer_df[answer_df['status'] != "Submitted"]
+        d2 = d2[d2['worker_id'].isin(new_woker_id_in)]
+        frames.append(d2)
+        return pd.concat(frames)
 
 
 def calc_bonuses(answer_list, conf, path):
@@ -489,16 +492,26 @@ def calc_bonuses(answer_list, conf, path):
     """
     print('Calculate the bonuses...')
     df = pd.DataFrame(answer_list)
+
+    old_answers = df[df['status'] != "Submitted"]
     grouped = df.groupby(['worker_id'], as_index=False)['accept'].sum()
+    old_answers_groupped = old_answers.groupby(['worker_id'], as_index=False)['accept'].sum()
 
     # condition more than 30 hits
     grouped = grouped[grouped.accept >= config['bonus']['when_HITs_more_than']]
+    old_answers_groupped = old_answers_groupped[old_answers_groupped.accept>= config['bonus']['when_HITs_more_than']]
+
+    old_eligables= list(old_answers_groupped['worker_id'])
+    eligables_all= list(grouped['worker_id'])
+    new_eligables=list (set(eligables_all)-set(old_eligables))
+
     # the bonus should be given to the tasks that are either automatically accepted or submited. The one with status
     # accepted should have been already payed.
-    filtered_answers = filter_answer_by_status_and_workers(df, list(grouped['worker_id']), conf)
+    filtered_answers = filter_answer_by_status_and_workers(df, eligables_all, new_eligables , conf)
 
     grouped = filtered_answers.groupby(['worker_id'], as_index=False)['accept_and_use'].sum()
     grouped['bonusAmount'] = grouped['accept_and_use']*config['bonus']['extra_pay_per_HIT']
+
     # now find an assignment id
     df.drop_duplicates('worker_id', keep='first', inplace = True )
     w_ids = list(dict(grouped['worker_id']).values())
@@ -682,7 +695,7 @@ if __name__ == '__main__':
                                                                    "used to check eligibility of worker, but those with"
                                                                    " the selected status here will be used to calculate"
                                                                    " the amount of bonus. A comma separated list"
-                                                                   ":all|submitted|approved."
+                                                                   ":all|submitted"
                                                                    "Default: submitted",
                         default="submitted")
 
@@ -693,7 +706,7 @@ if __name__ == '__main__':
     #answer_path = os.path.join(os.path.dirname(__file__), args.answers)
     answer_path = args.answers
     assert os.path.exists(answer_path), f"No input file found in [{answer_path}]"
-    list_of_possible_status = ['all', 'submitted', 'auto_approved', 'approved']
+    list_of_possible_status = ['all', 'submitted']
 
     list_of_req = args.bonus.lower().split(',')
     for req in list_of_req:
