@@ -310,6 +310,7 @@ def data_cleaning(filename, bonus_calc_conf):
         # ---------------- math
         # Input.math, Answer.Math,Answer.audio_n_play_math1
         worker_list = []
+        use_sessions = []
         for row in reader:
             correct_cmp_ans = 0
             setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
@@ -356,7 +357,7 @@ def data_cleaning(filename, bonus_calc_conf):
 
             if check_if_session_should_be_used(d):
                 d['accept_and_use'] = 1
-
+                use_sessions.append(row)
             else:
                 d['accept_and_use'] = 0
 
@@ -379,7 +380,7 @@ def data_cleaning(filename, bonus_calc_conf):
         print(f"   {len(accept_and_use_sessions)} answers are good to be used further")
         print(f"   Data cleaning report is saved in: {report_file}")
         calc_bonuses(worker_list, bonus_calc_conf, bonus_file)
-        return accept_and_use_sessions
+        return use_sessions
 
 
 def evaluate_maximum_hits(data):
