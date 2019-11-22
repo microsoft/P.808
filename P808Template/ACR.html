@@ -53,6 +53,7 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 
 /*
 General configuration file:
+ - qualificationCookieName: name of cookie that shows the status of qualification section.
  - cookieName: change it for each study, it will be used to monitor if the user has taken training, setup sections, and
  how many assignments they submitted to expose limits.
  - forceRetrainingInHours: every X hours force the user to take part in training (recommendation: 1hour)
@@ -72,6 +73,7 @@ General configuration file:
 
 */
 var config ={
+	qualificationCookieName:"ACR_LISTNER",
 	cookieName:"itu_p808_test_4",
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
@@ -92,6 +94,7 @@ var config ={
     allowedMaxHITsInProject:60,
 	allowedMaxContinuesSessionDurationInMinutes:45
 }
+
 // if performing of this assignment is already counted
 var hitCounterIncreased = false;
 
@@ -108,7 +111,13 @@ $(function() {
 	generate_rating_section();
 	avoidAnsweringBeforeListeningThrough();
 	cookie_debug_status="";
-
+	// given cookie availability disable the qualification
+    if (readCookie(config.qualificationCookieName)){
+		$('.qualificationFieldset').prop("disabled", true);
+		$("#qualification").hide();
+		$("#qualification :input").removeAttr("required");
+		cookie_debug_status=cookie_debug_status+"ACR_LISTENER Exist*";
+	}
     // given cookie availability disable the training
     if (readCookie(config.cookieName+"_training")){
 		$('.trainingFieldset').prop("disabled", true);
@@ -132,11 +141,83 @@ $(function() {
 	hitCounterIncreased = false;
 	cookie_debug_status=cookie_debug_status+"Counter:"+howManyHITsAnswered+"*";
 	addBrowserInfo(cookie_debug_status);
+	loadTextPlaceHolders();
 
-	// update the instruction
-	$('.max_allowed_hits').html(config['allowedMaxHITsInProject']);
+	// for qualification section
+	initializeQualification();
 });
 
+/*
+	Initialize the qualification section
+*/
+var qualification_ans= new Set();
+function initializeQualification(){
+	randomizeHearingtestItems();
+    makeCheckboxBeRequired();
+    forceNoSpaceInInput();
+    $("#qualification :input").on('change', isQualificationDone);
+}
+
+function isQualificationDone(){
+	qualification_ans.add(this.name);
+	console.log("check if the qualification is done"+this.name+","+qualification_ans.size);
+	if (qualification_ans.size==13)
+		validateQualificationAnswer();
+}
+
+function validateQualificationAnswer(){
+
+}
+
+/*
+	randomize clips in the hearing test
+*/
+function randomizeHearingtestItems(){
+    var cards = $(".rnd");
+	for(var i = 0; i < cards.length; i++){
+		var target = Math.floor(Math.random() * cards.length -1) + 1;
+		var target2 = Math.floor(Math.random() * cards.length -1) +1;
+		cards.eq(target).before(cards.eq(target2));
+    }
+}
+/*
+	Make a checkbox group to be required
+*/
+function makeCheckboxBeRequired(){
+    var requiredCheckboxes = $('.4_lds :checkbox[required]');
+    requiredCheckboxes.change(function(){
+        if(requiredCheckboxes.is(':checked')) {
+            requiredCheckboxes.removeAttr('required');
+        } else {
+            requiredCheckboxes.attr('required', 'required');
+        }
+    });
+}
+/*
+	Avoid space in text field
+*/
+function forceNoSpaceInInput(){
+    $(".nospace").on({
+          keydown: function(e) {
+            if (e.which === 32)
+              return false;
+          },
+          change: function() {
+            this.value = this.value.replace(/\s/g, "");
+          }
+        });
+}
+
+/*
+Change placeholders inside text with values from config file.
+*/
+function loadTextPlaceHolders(){
+	// update the instruction
+	$('.max_allowed_hits').html(config['allowedMaxHITsInProject']);
+	$('.setup_time').html(config['showSetupEveryMinutes']);
+	$('.training_time').html(config['forceRetrainingInHours']);
+
+}
 
 /*
 Store the following information in hidden input field which will be added to answerc.sv by AMT
@@ -185,6 +266,7 @@ String.prototype.toMMSS = function () {
 	- used when the maximum number of HITs in project is reached
 */
 function disableTheHIT(){
+	$("#qualification").hide();
 	$("#training").hide();
 	$("#setup").hide();
 	$("#rating_section").hide();
@@ -637,8 +719,9 @@ function generate_rating_section(){
 
 				  <p>Welcome and congratulation! You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just every one hour) sections::</p>
 				<ul>
-					<li><b>Setup:</b> Configure your system and validate it by answering to 6 questions</li>
-					<li><b>Training (every one hour):</b> <b class="question_number_training"></b> questions, same as "Ratings" but appears just once a day</li>
+					<li><b>Qualification (just once):</b> Check if you are eligible to perform this HITs</li>
+					<li><b>Setup (every <b class="setup_time"></b> minutes):</b> Configure your system and validate it by answering to 6 questions</li>
+					<li><b>Training (every <b class="training_time"></b> hour):</b> <b class="question_number_training"></b> questions, same as "Ratings" but appears just once a day</li>
 					<li><b>Rating:</b> Listen to <b class="question_number"></b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
 				</ul>
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
@@ -651,7 +734,7 @@ function generate_rating_section(){
 
 				<p><b>Payment:</b></p>
 				<p>The result of this experiment is <b>very important for us and other scientist</b> working in this area. We have methods that analyse the consistency of your answers. We will use these methods to rank the submitted assignments according to quality.</p>
-				<p>For this experiment, we will pay a base reward of <b>$0.50/HIT</b> for every accepted HIT. We have made available a set of 57 different HITs. You will receive a bonus of:</p>
+				<p>For this experiment, we will pay a base reward of <b>$0.50/HIT</b> for every accepted HIT. We have made available a set of <u class="max_allowed_hits"></u> different HITs. You will receive a bonus of:</p>
 
 				<ul>
 				  <li>$0.10/HIT (for a total of <b>$0.60/HIT</b>) if you submit <b>more than 30 HITs</b> or</li>
@@ -666,17 +749,191 @@ function generate_rating_section(){
 	</div>
 </section>
 
+<section class="container">
 <div class="alert alert-danger" role="alert" id="error_loading_files" hidden>
 	<b>Error::</b> One or more audio clips cannot be loaded. Please return this HIT and try another one.
 	<span id="error_details"></span>
 </div>
+</section>
+
+<!-- Qualification -->
+<section class="container" id="qualification">
+
+<div class="row col-xs-12 col-md-12">
+<div class="panel panel-info">
+  <div class="panel-heading">
+    <h3 class="panel-title">
+		<a data-toggle="collapse" href="#collapse1">Qualification - Just once</a>
+	</h3>
+  </div>
+  <div id="collapse1" class="panel-collapse collapse in">
+	  <div class="panel-body">
+
+		<fieldset class="qualificationFieldset"><label>1.&nbsp;What is your gender?</label>
+				<div class="radio">
+				  <label><input type="radio" name="1_gender" value="M" required="">Male</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="1_gender" value="F">Female</label>
+				</div>
+				<div class="radio disabled">
+				  <label><input type="radio" name="1_gender" value="O">Other</label>
+				</div>
+		</fieldset>
+		<fieldset class="qualificationFieldset"><label>2.&nbsp;In what year were you born? </label>
+				<div class="form-group">
+				  <input type="text" class="form-control" name="2_birth_year" required="">
+				</div>
+		</fieldset>
+
+		<fieldset class="qualificationFieldset"><label>3.&nbsp;What is your mother tongue? </label>
+				<div class="form-group">
+				  <input type="text" class="form-control" name="3_mother_tongue" required="">
+				</div>
+		</fieldset>
+
+
+		<fieldset class="qualificationFieldset"><label>4.&nbsp; What type of listening devices do you have and able to use now (select all)?</label>
+
+			<div class="table-responsive 4_lds">
+			  <table class="table" border="0" cellpadding="0" cellspacing="0" >
+				<tbody>
+					<tr>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/inear.png" alt="in-ear headphones" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/overear.png" alt="Over-the-ear headphones" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/louadspeaker.png" alt="louadspeaker" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/inbuild.png" alt="inbuild speakers" width="100px"> </td>
+					</tr>
+					<tr>
+						<td><div class="checkbox"><label><input type="checkbox" value="in-ear" name="4_ld" required>In-ear headphones</label></div></td>
+						<td><div class="checkbox"><label><input type="checkbox" value="over-ear" name="4_ld" required>Over-the-ear headphones</label></div></td>
+						<td><div class="checkbox"><label><input type="checkbox" value="ex-ls" name="4_ld" required>External loudspeaker</label></div></td>
+						<td><div class="checkbox"><label><input type="checkbox" value="ib-ls" name="4_ld" required>In-build loudspeaker</label></div></td>
+					</tr>
+
+				</tbody>
+			  </table>
+			</div>
+
+		</fieldset>
+
+		<fieldset class="qualificationFieldset">
+				 <div class="form-group">
+				  <label for="sel1">5.&nbsp;When was the last time you participated in <span title="Giving your opinion about a product or media, for example what is the over all quality of this video. "><u>a subjective test</u></span>?</label>
+				  <select class="form-control" id="sel1" name="5_last_subjective" required="">
+					<option value="">Please select</option>
+					<option value="0d">Today</option>
+					<option value="3d">In last 3 days</option>
+					<option value="7d">In last week</option>
+					<option value="30d">In last month</option>
+					<option value="nn">Never participated</option>
+				  </select>
+				</div>
+		</fieldset>
+
+		<fieldset class="qualificationFieldset">
+				 <div class="form-group">
+				  <label for="sel1">6.	When was the last time you participated in an <span title="Giving your opinion about an audio sample"><u>audio listening test</u></span>?</label>
+				  <select class="form-control" id="sel1" name="6_audio_test" required="">
+					<option value="">Please select</option>
+					<option value="0d">Today</option>
+					<option value="3d">In last 3 days</option>
+					<option value="7d">In last week</option>
+					<option value="30d">In last month</option>
+					<option value="nn">Never participated</option>
+				  </select>
+				</div>
+		</fieldset>
+
+		<fieldset class="qualificationFieldset"><label>7.&nbsp;Have you ever been directly involved in work connected with assessment of the performance of telephone systems, or related work such as speech coding?</label>
+				<div class="radio">
+				  <label><input type="radio" name="7_working_area" value="Y" required="">Yes</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="7_working_area" value="N">No</label>
+				</div>
+		</fieldset>
+
+		<fieldset class="qualificationFieldset"><label>8.&nbsp; I belive, ...</label>
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="normal" required="">I have a normal hearing ability.</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="mid">I have difficulties keeping up with conversations, especially in noisy surroundings (mid hearing loss).</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="moderate">I have difficulty keeping up with conversations when I am not using a hearing aid (moderate hearing loss).</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="severe">I rely on lip-reading even when I am using hearing aids (severe or profound hearing loss). </label>
+				</div>
+		</fieldset>
+
+
+		<div style="text-align: center;margin:30px;"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention"> </img> <b>Please wear your headphones now.</b></div>
+
+	   <fieldset class="qualificationFieldset"><label>9.&nbsp;Please adjust the level of your computer to a comfortable level so that you hear the following audio sample very well.</label>
+
+			<p align="center"> <span class="baudio" id="volume" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/signal_level.wav" >&nbsp;</span> </p>
+
+			<div class="alert alert-warning" role="alert">
+			  <b>NOTE:</b> After that, you are not allowed to change the volume anymore. Otherwise your response will be rejected.
+			</div>
+
+		</fieldset>
+
+		<fieldset class="qualificationFieldset"><label>10.&nbsp;In each of the following tests, you hear combination of three digits (for example 1 5 3), spoken with noise in the background. Simply enter the three numbers that you have understood on the answer box below each audio file. </label>
+
+
+			<div class="row" style="margin: 30px;">
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="n1" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s0.wav" >&nbsp;</span>
+					</div>
+					<input type="text" name="num1" required="" class="nospace">
+				</div>
+
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="n2" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s1.wav" >&nbsp;</span>
+					</div>
+					<input type="text" name="num2" required="" class="nospace">
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row"style="text-align:center;">
+						<span class="baudio" id="n3" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s2.wav" >&nbsp;</span>
+					</div>
+					<input type="text" name="num3" required="" class="nospace">
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row"style="text-align:center;">
+						<span class="baudio" id="n4" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s3.wav" >&nbsp;</span>
+					</div>
+					<input type="text" name="num4" required="" class="nospace">
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="n5" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s4.wav" >&nbsp;</span>
+					</div>
+					<input type="text" name="num5" required="" class="nospace">
+				</div>
+			</div>
+
+		</fieldset>
+	  </div>
+  </div>
+</div>
+
+</div>
+</section>
+
 
 <!-- Setup -->
 <section class="container" id="setup">
 <div class="panel panel-info">
   <div class="panel-heading">
     <h3 class="panel-title">
-		<a data-target="#setup_panel" data-toggle="collapse" >Setup</a>
+		<a data-target="#setup_panel" data-toggle="collapse" >Setup (every <b class="setup_time"></b> minutes)</a>
 	</h3>
   </div>
   <div  class="panel-collapse collapse in" id="setup_panel">
@@ -686,7 +943,7 @@ function generate_rating_section(){
 
 		<fieldset class="setupFieldset" ><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
 
-			<p align="center"> <span class="baudio" id="volume" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/signal_level.wav" >&nbsp;</span> </p>
+			<p align="center"> <span class="baudio" id="volume2" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/signal_level.wav" >&nbsp;</span> </p>
 
 			<div class="alert alert-danger" role="alert">
 			  <b>NOTE:</b> Missing this step can strongly affect quality of your answer.
@@ -826,7 +1083,7 @@ function generate_rating_section(){
 			  <b>Introduction</b>
 				  <p>We need to check your listening device. It is an automated test using your Web-browser functionality. Please click on <b>Start</b>.
 					  After that, you might see a popup message from your browser asking for allowance to use your microphone.
-					  Please click on <b>Allow</b> (on some of smartphones there will be no message).
+					  Please click on <b>Allow</b> (on some of smartphones there will be no message). <u>We do not process or record any audio with your microphone</u>.
 				 <div class="center">
 						<button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
 						<div id="status"></div>
@@ -843,7 +1100,7 @@ function generate_rating_section(){
 		<div class="panel panel-primary">
 			<div class="panel-heading">
 				<h3 class="panel-title">
-					<a data-target="#trainingS" data-toggle="collapse" >Training (appears once in an hour)</a>
+					<a data-target="#trainingS" data-toggle="collapse" >Training (every <b class="training_time"></b> hour(s))</a>
 				</h3>
 			</div>
 			<div  class="panel-collapse collapse in" id="trainingS">
