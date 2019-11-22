@@ -17,6 +17,7 @@ import sys
 import re
 from scipy import stats
 import time
+from enum import Enum,IntEnum
 
 config = {
     "math": {
@@ -51,7 +52,7 @@ config = {
         "correct_cmp_bigger_equal": 2,
     },
     "bonus": {
-        "when_HITs_more_than": 30,
+        "when_HITs_more_than": 5,
         "extra_pay_per_HIT": 0.25
     },
     "rejection_feedback": "Answer to this assigmnet did not pass the quality control "
@@ -288,7 +289,7 @@ def check_a_cmp(file_a, file_b,ans, audio_a_played, audio_b_played):
     return answer_is_correct
 
 
-def data_cleaning(filename):
+def data_cleaning(filename, bonus_calc_conf):
     """
     Data screening process
     :param filename:
@@ -377,7 +378,7 @@ def data_cleaning(filename):
         save_approve_rejected_ones_for_gui(worker_list, accept_reject_gui_file)
         print(f"   {len(accept_and_use_sessions)} answers are good to be used further")
         print(f"   Data cleaning report is saved in: {report_file}")
-        calc_bonuses(worker_list, bonus_file)
+        calc_bonuses(worker_list, bonus_calc_conf, bonus_file)
         return accept_and_use_sessions
 
 
@@ -402,6 +403,7 @@ def evaluate_maximum_hits(data):
                 cheater_workers_work_count[d['worker_id']] +=1
         result.append(d)
     return result
+
 
 def save_approve_rejected_ones_for_gui(data, path):
     """
@@ -458,22 +460,45 @@ def save_rejected_ones(data, path):
     small_df.to_csv(path, index=False)
 
 
-def calc_bonuses(worker_list, path):
+def filter_answer_by_status_and_workers(answer_df, woker_id_in, status_in):
+    """
+    return answered who are
+    :param status_in:
+    :return:
+    """
+    answer_df = answer_df[answer_df['worker_id'].isin(woker_id_in)]
+    frames = []
+    if 'all' in status_in:
+        return answer_df
+    if 'submitted' in status_in:
+        d1 = answer_df[answer_df['status'] == "Submitted"]
+        frames.append(d1)
+    if 'approved' in status_in:
+        d1 = answer_df[answer_df['status'] == "Approved"]
+        frames.append(d1)
+    return pd.concat(frames)
+
+
+def calc_bonuses(answer_list, conf, path):
     """
     Calculate the bonuses given the configurations
-    :param worker_list:
+    :param answer_list:
+    :param conf:
     :param path:
     :return:
     """
     print('Calculate the bonuses...')
-    df = pd.DataFrame(worker_list)
+    df = pd.DataFrame(answer_list)
     grouped = df.groupby(['worker_id'], as_index=False)['accept'].sum()
 
-
-    # condition  more than 30 hits
+    # condition more than 30 hits
     grouped = grouped[grouped.accept >= config['bonus']['when_HITs_more_than']]
-    grouped['bonusAmount'] = grouped['accept']*config['bonus']['extra_pay_per_HIT']
+    # the bonus should be given to the tasks that are either automatically accepted or submited. The one with status
+    # accepted should have been already payed.
+    filtered_answers = filter_answer_by_status_and_workers(df, list(grouped['worker_id']), conf)
 
+    grouped = filtered_answers.groupby(['worker_id'], as_index=False)['accept_and_use'].sum()
+    grouped['bonusAmount'] = grouped['accept_and_use']*config['bonus']['extra_pay_per_HIT']
     # now find an assignment id
     df.drop_duplicates('worker_id', keep='first', inplace = True )
     w_ids = list(dict(grouped['worker_id']).values())
@@ -651,20 +676,37 @@ if __name__ == '__main__':
     parser.add_argument("--answers",
                         help="Answers csv file, path relative to current directory")
 
+    parser.add_argument('--bonus',  help="specify status of answers which should "
+                                                                             "be counted "
+                                                                   "in bonus amount calculation. All answers will be "
+                                                                   "used to check eligibility of worker, but those with"
+                                                                   " the selected status here will be used to calculate"
+                                                                   " the amount of bonus. A comma separated list"
+                                                                   ":all|submitted|approved."
+                                                                   "Default: submitted",
+                        default="submitted")
+
+    #parser.add_argument('text', nargs='*')
+
     args = parser.parse_args()
     assert (args.answers is not None), f"--answers  are required]"
     #answer_path = os.path.join(os.path.dirname(__file__), args.answers)
-
     answer_path = args.answers
     assert os.path.exists(answer_path), f"No input file found in [{answer_path}]"
+    list_of_possible_status = ['all', 'submitted', 'auto_approved', 'approved']
+
+    list_of_req = args.bonus.lower().split(',')
+    for req in list_of_req:
+        assert req.strip() in list_of_possible_status, f"unknown status {req} used in --bonus"
+
     np.seterr(divide='ignore', invalid='ignore')
 
-    accepted_sessions = data_cleaning(answer_path)
-    """
+    accepted_sessions = data_cleaning(answer_path, list_of_req)
+
     stats(answer_path)
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
     if len(accepted_sessions) > 1:
         votes_per_file_path = os.path.splitext(args.answers)[0] + '_votes_per_clip.csv'
         votes_per_cond_path = os.path.splitext(args.answers)[0] + '_votes_per_cond.csv'
         votes_per_file, vote_per_condition = transform(accepted_sessions, votes_per_file_path, votes_per_cond_path)
-    """
+    
