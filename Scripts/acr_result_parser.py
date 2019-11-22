@@ -52,7 +52,7 @@ config = {
         "correct_cmp_bigger_equal": 2,
     },
     "bonus": {
-        "when_HITs_more_than": 5,
+        "when_HITs_more_than": 30,
         "extra_pay_per_HIT": 0.25
     },
     "rejection_feedback": "Answer to this assigmnet did not pass the quality control "
@@ -709,4 +709,3 @@ if __name__ == '__main__':
         votes_per_file_path = os.path.splitext(args.answers)[0] + '_votes_per_clip.csv'
         votes_per_cond_path = os.path.splitext(args.answers)[0] + '_votes_per_cond.csv'
         votes_per_file, vote_per_condition = transform(accepted_sessions, votes_per_file_path, votes_per_cond_path)
-    
