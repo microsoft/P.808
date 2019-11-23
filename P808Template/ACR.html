@@ -74,6 +74,8 @@ General configuration file:
 */
 var config ={
 	qualificationCookieName:"ACR_LISTNER",
+	//for one year, unit is minutes
+	qualificationValidFor:525600,
 	cookieName:"itu_p808_test_4",
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
@@ -92,7 +94,18 @@ var config ={
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
     allowedMaxHITsInProject:60,
-	allowedMaxContinuesSessionDurationInMinutes:45
+	allowedMaxContinuesSessionDurationInMinutes:45,
+	qualification:{
+		mother_tongue: ["english","en"],
+		ld_in: ["in-ear", "over-ear"],
+		working_area: "N",
+		hearing: "normal",
+ 		num1: "289",
+        num2: "246",
+        num3: "626",
+        num4: "802",
+        num5: "913"
+	}
 }
 
 // if performing of this assignment is already counted
@@ -112,14 +125,14 @@ $(function() {
 	avoidAnsweringBeforeListeningThrough();
 	cookie_debug_status="";
 	// given cookie availability disable the qualification
-    if (readCookie(config.qualificationCookieName)){
+    if (readCookie(config['qualificationCookieName'])){
 		$('.qualificationFieldset').prop("disabled", true);
 		$("#qualification").hide();
 		$("#qualification :input").removeAttr("required");
 		cookie_debug_status=cookie_debug_status+"ACR_LISTENER Exist*";
 	}
     // given cookie availability disable the training
-    if (readCookie(config.cookieName+"_training")){
+    if (readCookie(config['cookieName']+"_training")){
 		$('.trainingFieldset').prop("disabled", true);
 		$("#training").hide();
 		$("#training :input").removeAttr("required");
@@ -127,7 +140,7 @@ $(function() {
 		cookie_debug_status=cookie_debug_status+"Train Exist*";
 	}
     // given cookie availability disable the setup
-    if (readCookie(config.cookieName+"_setup")){
+    if (readCookie(config['cookieName']+"_setup")){
 		$('.setupFieldset').prop("disabled", true);
 		$("#setup").hide();
 		$("#setup :input").removeAttr("required");
@@ -157,16 +170,47 @@ function initializeQualification(){
     forceNoSpaceInInput();
     $("#qualification :input").on('change', isQualificationDone);
 }
-
+/*
+	check if the qualification all answered
+*/
 function isQualificationDone(){
 	qualification_ans.add(this.name);
 	console.log("check if the qualification is done"+this.name+","+qualification_ans.size);
+	validateQualificationAnswer();
 	if (qualification_ans.size==13)
 		validateQualificationAnswer();
 }
 
+/*
+	check the qualification passed
+*/
 function validateQualificationAnswer(){
+	m_tongue = $("input[name='3_mother_tongue']").val().toLowerCase().trim();
+	m_tongue_check= config.qualification.mother_tongue.includes(m_tongue)
 
+	// check listening devices
+	var listening_device = [];
+	$.each($("input[name='4_ld']:checked"), function(){
+		listening_device.push($(this).val());
+	});
+	device_check=false;
+	for (var i = 0; i < listening_device.length; i++) {
+		device_check = device_check || config.qualification.ld_in.includes(listening_device[i]);
+	}
+	working_area_checked= $("input[name='7_working_area']:checked").val() =="N"
+	hearing_self_report_check=$("input[name='8_hearing']:checked").val() == "normal"
+	num1_checked= $("input[name='num1']").val().trim()==config.qualification.num1
+	num2_checked= $("input[name='num2']").val().trim()==config.qualification.num2
+	num3_checked= $("input[name='num3']").val().trim()==config.qualification.num3
+	num4_checked= $("input[name='num4']").val().trim()==config.qualification.num4
+	num5_checked= $("input[name='num5']").val().trim()==config.qualification.num5
+
+	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check &&
+		num1_checked && num2_checked && num3_checked && num4_checked && num5_checked;
+	console.log(passed);
+	// add a qualification for 1 year
+	if (passed)
+		createCookie(config.qualificationCookieName,"passed",config.qualificationValidFor);
 }
 
 /*
@@ -380,7 +424,7 @@ function playedAudioTraining(id){
 	eval("trainingStimulusPlayed["+trainingQuestionNumber+"-1]=1;");
 	console.log(trainingStimulusPlayed.reduce(getSum, 0))
 	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
-		createCookie(config.cookieName+"_training","un_important",config['forceRetrainingInHours']*60);
+		createCookie(config['cookieName']+"_training","un_important",config['forceRetrainingInHours']*60);
 	}
 	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionInTrainingUrl']){
 		element = $('input[name="'+id+'"]');
@@ -575,7 +619,7 @@ function playedAudioQ(id){
 	(i.e. q2. math question). Here the cookie will be added/updated
 */
 function userAnsweringToSetupQuestions(){
-	createCookie(config.cookieName+"_setup","un_important",config['showSetupEveryMinutes']);
+	createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
 	$('input[name="math"]').off('change');
 }
 
@@ -751,7 +795,7 @@ function generate_rating_section(){
 
 <section class="container">
 <div class="alert alert-danger" role="alert" id="error_loading_files" hidden>
-	<b>Error::</b> One or more audio clips cannot be loaded. Please return this HIT and try another one.
+	<b>Error::</b> One or more audio clips cannot be loaded. <b>Please return this HIT and try another one.</b>
 	<span id="error_details"></span>
 </div>
 </section>
