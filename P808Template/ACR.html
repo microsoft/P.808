@@ -53,9 +53,10 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 
 /*
 General configuration file:
- - qualificationCookieName: name of cookie that shows the status of qualification section.
- - cookieName: change it for each study, it will be used to monitor if the user has taken training, setup sections, and
+  - cookieName: change it for each study, it will be used to monitor if the user has taken training, setup sections, and
  how many assignments they submitted to expose limits.
+ - qualificationCookieName: name of cookie that shows the status of qualification section.
+ - qualificationValidFor: how long the qualification cookie stay in minutes (525600 : 6 months)
  - forceRetrainingInHours: every X hours force the user to take part in training (recommendation: 1hour)
  - showSetupEveryMinutes: show the setup section every X minutes (recommendation: 15 minutes)
  - questionUrls: URLs to clips to be appeared in the Rating section. Either hard-coded or placeholders.
@@ -73,27 +74,28 @@ General configuration file:
 
 */
 var config ={
+	cookieName:"itu_p808_sup23_exp3",
 	qualificationCookieName:"ACR_LISTNER",
-	//for one year, unit is minutes
 	qualificationValidFor:525600,
-	cookieName:"itu_p808_test_4",
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
     questionUrls: ["${Q0}","${Q1}","${Q2}","${Q3}","${Q4}","${Q5}","${Q6}","${Q7}","${Q8}","${Q9}","${TP}","${gold_clips}"],
-    trainingUrls: ["https://audiosamplesp808.blob.core.windows.net/librivox/book_00166_chp_0016_reader_06671_3.wav",
-		"https://audiosamplesp808.blob.core.windows.net/librivox/book_06204_chp_0005_reader_03422_2.wav",
-		"https://audiosamplesp808.blob.core.windows.net/librivox/book_07495_chp_0004_reader_01747_1.wav",
-		"https://audiosamplesp808.blob.core.windows.net/librivox/book_07790_chp_0007_reader_11722_6.wav",
-		"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F6F11_excellent_short.wav"],
+    trainingUrls: [
+    "https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M5232.wav",
+	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F7D25.wav",
+	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M0202.wav",
+	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M4721.wav",
+	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F9347.wav",
+    "https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M1E30_excellent_short.wav"],
 
-    knownQuestionInTrainingUrl:"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F6F11_excellent_short.wav",
+    knownQuestionInTrainingUrl:"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M1E30_excellent_short.wav",
     knownQuestionInTrainingAns: "5",
     knownQuestionUrl:"${TP}",
     knownQuestionAns: "${TP_ANS}",
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
-    allowedMaxHITsInProject:60,
+    allowedMaxHITsInProject:2,
 	allowedMaxContinuesSessionDurationInMinutes:45,
 	qualification:{
 		mother_tongue: ["english","en"],
@@ -111,6 +113,7 @@ var config ={
 // if performing of this assignment is already counted
 var hitCounterIncreased = false;
 
+const Hide_HIT_REASON = Object.freeze({"MAX_ACHIVED":1, "QUALIFICATON":2})
 /*
 Initializing the page: generate and hide sections depending to the cookies value
 */
@@ -125,7 +128,10 @@ $(function() {
 	avoidAnsweringBeforeListeningThrough();
 	cookie_debug_status="";
 	// given cookie availability disable the qualification
-    if (readCookie(config['qualificationCookieName'])){
+	qual_passed= readCookie(config['qualificationCookieName']);
+	console.log(qual_passed);
+
+    if (qual_passed!==null && qual_passed=="true"){
 		$('.qualificationFieldset').prop("disabled", true);
 		$("#qualification").hide();
 		$("#qualification :input").removeAttr("required");
@@ -149,8 +155,13 @@ $(function() {
 
 
 	howManyHITsAnswered= Number(readCookie(config['cookieName']+"_counter"));
-	if (howManyHITsAnswered >= config['allowedMaxHITsInProject'])
-		disableTheHIT();
+	if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
+		disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
+	}
+	if ((qual_passed!==null) && (qual_passed=="false")){
+		disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+	}
+
 	hitCounterIncreased = false;
 	cookie_debug_status=cookie_debug_status+"Counter:"+howManyHITsAnswered+"*";
 	addBrowserInfo(cookie_debug_status);
@@ -209,8 +220,7 @@ function validateQualificationAnswer(){
 		num1_checked && num2_checked && num3_checked && num4_checked && num5_checked;
 	console.log(passed);
 	// add a qualification for 1 year
-	if (passed)
-		createCookie(config.qualificationCookieName,"passed",config.qualificationValidFor);
+	createCookie(config.qualificationCookieName,passed,config.qualificationValidFor);
 }
 
 /*
@@ -309,14 +319,19 @@ String.prototype.toMMSS = function () {
 	Disable the HIS and show a proper message.
 	- used when the maximum number of HITs in project is reached
 */
-function disableTheHIT(){
+function disableTheHIT(c){
 	$("#qualification").hide();
 	$("#training").hide();
 	$("#setup").hide();
 	$("#rating_section").hide();
 	$("#Survey").hide();
 	$("#thanks").hide();
-	$("#max_allowed_HITs_reached").show();
+	$("#device_check_section").hide();
+
+	if (c == Hide_HIT_REASON.MAX_ACHIVED)
+		$("#max_allowed_HITs_reached").show();
+	if (c == Hide_HIT_REASON.QUALIFICATON)
+		$("#qualification_rejected").show();
 }
 
 /*
@@ -1219,6 +1234,17 @@ function generate_rating_section(){
 		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
 			  <b>NOTE:</b> Performing more HITs
 		than what is explained in the description is forbidden and leads ro rejection of all of your submissions.
+			</div>
+
+</section>
+
+<section class="container" id="qualification_rejected" hidden>
+	<p>There is no assignments that match to your profile now. Please try it again in two-weeks time.
+	We thank you for your participation.</p>
+
+	<div class="alert alert-danger" role="alert">
+		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
+			  <b>NOTE:</b> Any try to perform assignments and neglecting this message is forbidden and leads ro rejection of all of your submissions.
 			</div>
 
 </section>
