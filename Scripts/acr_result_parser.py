@@ -16,9 +16,11 @@ import numpy as np
 import sys
 import re
 from scipy import stats
+from scipy.stats import spearmanr
 import time
+import configparser as CP
 
-
+"""
 config = {
     "math": {
      "math1.wav": 3,
@@ -26,7 +28,7 @@ config = {
      "math3.wav": 6,
     },
     "question_names": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12"],
-    "expected_votes_per_file": 10,
+    "expected_votes_per_file": 80,
     "trapping": {
         "url_found_in": "input.tp",
         "ans_found_in": "input.tp_ans",
@@ -58,13 +60,17 @@ config = {
         "quality_bonus": 0.15,
 
     },
-    "rejection_feedback": "Answer to this assigmnet did not pass the quality control "
+    "rejection_feedback": "Answer to this assignment did not pass the quality control "
                           "check. Make sure to use headset (wear both earbuds), perform the task in quiet environment,"
                           " and use the entire scale range.",
     # "book_04753_chp_0059_reader_10797_6.wav" mask with
     # "????????????????????????????????xxxxxx":book_04753_chp_0059_reader_10797
-    "condition_pattern": "????????????????????????????????xxxxxx"
+    # "xxxxxx??xxxx" :oe3m3b09.wav
+    "condition_pattern": "xxxxxx??xxxx"
 }
+
+"""
+max_found_per_file = -1
 
 
 def outliers_modified_z_score(votes):
@@ -115,14 +121,14 @@ def check_if_session_accepted(data):
     """
     msg = "Make sure you follow the instruction:"
     accept = True
-    if data['all_audio_played'] != config['acceptance_criteria']['all_audio_played_equal']:
+    if data['all_audio_played'] != int(config['acceptance_criteria']['all_audio_played_equal']):
         accept = False
         msg += "All clips should be played until the end;"
     if data['correct_math'] is not None and data['correct_math'] < \
-            config['acceptance_criteria']['correct_math_bigger_equal']:
+            int(config['acceptance_criteria']['correct_math_bigger_equal']):
         accept = False
         msg += "Gold or trapping question are answered wrongly;"
-    if data['correct_tps'] < config['acceptance_criteria']['correct_tps_bigger_equal']:
+    if data['correct_tps'] < int(config['acceptance_criteria']['correct_tps_bigger_equal']):
         accept = False
         msg += "Gold or trapping question are answered wrongly;"
 
@@ -140,10 +146,10 @@ def check_if_session_should_be_used(data):
     :return:
     """
     if data['accept'] == 1 and \
-            data['variance_in_ratings'] >= config['accept_and_use']['variance_bigger_equal'] and \
-            data['correct_gold_question'] >= config['accept_and_use']['gold_standard_bigger_equal'] and \
+            data['variance_in_ratings'] >= float(config['accept_and_use']['variance_bigger_equal']) and \
+            data['correct_gold_question'] >= int(config['accept_and_use']['gold_standard_bigger_equal']) and \
             (data['correct_cmps'] is None or data['correct_cmps'] >=
-             config['accept_and_use']['correct_cmp_bigger_equal']):
+             int(config['accept_and_use']['correct_cmp_bigger_equal'])):
         return True
     return False
 
@@ -156,12 +162,12 @@ def check_audio_played(row):
     """
     question_played = 0
     try:
-        for q_name in config['question_names']:
+        for q_name in question_names:
             if int(row[f'answer.audio_n_finish_{q_name}']) > 0:
                 question_played += 1
     except:
         return False
-    return question_played == len(config['question_names'])
+    return question_played == len(question_names)
 
 
 def check_tps(row):
@@ -174,7 +180,7 @@ def check_tps(row):
     tp_url = row[config['trapping']['url_found_in']]
     tp_correct_ans = int(float(row[config['trapping']['ans_found_in']]))
     try:
-        for q_name in config['question_names']:
+        for q_name in question_names:
             if tp_url in row[f'answer.{q_name}_url']:
                 # found a trapping question
                 if int(row[f'answer.{q_name}']) == tp_correct_ans:
@@ -192,16 +198,22 @@ def check_variance(row):
     :return:
     """
     r = []
-    for q_name in config['question_names']:
+    for q_name in question_names:
         if row[config['gold_question']['url_found_in']] in row[f'answer.{q_name}_url']:
             continue
         if row[config['trapping']['url_found_in']] in row[f'answer.{q_name}_url']:
             continue
         try:
             r.append(int(row[f'answer.{q_name}']))
+
         except:
             pass
-    return statistics.variance(r)
+    try:
+        v = statistics.variance(r)
+        return v
+    except:
+        pass
+    return -1
 
 
 def check_gold_question(row):
@@ -214,9 +226,9 @@ def check_gold_question(row):
     try:
         gq_url = row[config['gold_question']['url_found_in']]
         # gq_correct_ans = int(float(row[config['gold_question']['ans_found_in']]))
-        gq_correct_ans = config['gold_question']['correct_ans']
-        gq_var = config['gold_question']['variance']
-        for q_name in config['question_names']:
+        gq_correct_ans = int(config['gold_question']['correct_ans'])
+        gq_var = int(config['gold_question']['variance'])
+        for q_name in question_names:
             if gq_url in row[f'answer.{q_name}_url']:
                 # found a gold standard question
                 if int(row[f'answer.{q_name}']) in range(gq_correct_ans-gq_var, gq_correct_ans+gq_var+1):
@@ -225,28 +237,6 @@ def check_gold_question(row):
     except:
         return None
     return correct_gq
-
-
-def check_tps_old(row):
-
-    found_tps=0
-    correct_tps = 0
-    tp_urls_contain = list(config['trappings']['correct_answers'])
-
-    try:
-        for q_name in config['question_names']:
-            if config['trappings']['tp_url_contains'] in row[f'input.{q_name}']:
-                # found a trapping question
-                found_tps += 1
-                for tp_name in  tp_urls_contain:
-                    if tp_name in row[f'input.{q_name}']:
-                        # found which to is used
-                        if int(row[f'answer.{q_name}']) == config['trappings']['correct_answers'][tp_name]:
-                            correct_tps += 1
-                        break
-    except:
-        pass
-    return found_tps, correct_tps
 
 
 def check_math(input, output, audio_played):
@@ -262,7 +252,7 @@ def check_math(input, output, audio_played):
     keys = list(config['math'].keys())
     try:
         for key in keys:
-            if key in input and config['math'][key] == int(output):
+            if key in input and int(config['math'][key]) == int(output):
                 return True
     except:
         return False
@@ -295,15 +285,14 @@ def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played):
     return answer_is_correct
 
 
-def data_cleaning(filename, bonus_calc_conf):
+def data_cleaning(filename):
    """
    Data screening process
-   :param filename: 
-   :param bonus_calc_conf: 
+   :param filename:
    :return: 
    """
    print('Start by Data Cleaning...')
-   with open(filename) as csvfile:
+   with open(filename, encoding="utf8") as csvfile:
 
     reader = csv.DictReader(csvfile)
     # lowercase the fieldnames
@@ -369,7 +358,7 @@ def data_cleaning(filename, bonus_calc_conf):
 
         worker_list.append(d)
     report_file = os.path.splitext(filename)[0] + '_data_cleaning_report.csv'
-    bonus_file = os.path.splitext(filename)[0] + '_bonus_report.csv'
+
     approved_file = os.path.splitext(filename)[0] + '_accept.csv'
     rejected_file = os.path.splitext(filename)[0] + '_rejection.csv'
     accept_reject_gui_file = os.path.splitext(filename)[0] + '_accept_reject_gui.csv'
@@ -385,17 +374,16 @@ def data_cleaning(filename, bonus_calc_conf):
     save_approve_rejected_ones_for_gui(worker_list, accept_reject_gui_file)
     print(f"   {len(accept_and_use_sessions)} answers are good to be used further")
     print(f"   Data cleaning report is saved in: {report_file}")
-    calc_bonuses(worker_list, bonus_calc_conf, bonus_file)
-    return use_sessions
+    return worker_list, use_sessions
 
 
 def evaluate_maximum_hits(data):
     df = pd.DataFrame(data)
     small_df = df[['worker_id']].copy()
     grouped = small_df.groupby(['worker_id']).size().reset_index(name='counts')
-    grouped = grouped[grouped.counts > config['acceptance_criteria']['allowedMaxHITsInProject']]
+    grouped = grouped[grouped.counts > int(config['acceptance_criteria']['allowedMaxHITsInProject'])]
     # grouped.to_csv('out.csv')
-    print(f"{len(grouped.index)} workers answerd more than the allowedMaxHITsInProject"
+    print(f"{len(grouped.index)} workers answered more than the allowedMaxHITsInProject"
           f"(>{config['acceptance_criteria']['allowedMaxHITsInProject']})")
     cheater_workers_list = list(grouped['worker_id'])
 
@@ -403,7 +391,7 @@ def evaluate_maximum_hits(data):
     result = []
     for d in data:
         if d['worker_id'] in cheater_workers_work_count:
-            if cheater_workers_work_count[d['worker_id']] >= config['acceptance_criteria']['allowedMaxHITsInProject']:
+            if cheater_workers_work_count[d['worker_id']] >= int(config['acceptance_criteria']['allowedMaxHITsInProject']):
                 d['accept'] = 0
                 d['Reject'] += f"More than allowed limit of {config['acceptance_criteria']['allowedMaxHITsInProject']}"
                 d['accept_and_use'] = 0
@@ -464,7 +452,7 @@ def save_rejected_ones(data, path):
         print(f'    overall {c_rejected} answers are rejected, from them {df.shape[0]} were in submitted status')
     small_df = df[['assignment']].copy()
     small_df.rename(columns={'assignment': 'assignmentId'}, inplace=True)
-    small_df = small_df.assign(feedback=config['rejection_feedback'])
+    small_df = small_df.assign(feedback=config['acceptance_criteria']['rejection_feedback'])
     small_df.to_csv(path, index=False)
 
 
@@ -493,15 +481,15 @@ def filter_answer_by_status_and_workers(answer_df, all_time_worker_id_in, new_wo
         return pd.concat(frames)
 
 
-def calc_bonuses(answer_list, conf, path):
+def calc_quantity_bonuses(answer_list, conf, path):
     """
-    Calculate the bonuses given the configurations
+    Calculate the quantity bonuses given the configurations
     :param answer_list:
     :param conf:
     :param path:
     :return:
     """
-    print('Calculate the bonuses...')
+    print('Calculate the quantity bonuses...')
     df = pd.DataFrame(answer_list)
 
     old_answers = df[df['status'] != "Submitted"]
@@ -509,8 +497,8 @@ def calc_bonuses(answer_list, conf, path):
     old_answers_grouped = old_answers.groupby(['worker_id'], as_index=False)['accept'].sum()
 
     # condition more than 30 hits
-    grouped = grouped[grouped.accept >= config['bonus']['quantity_hits_more_than']]
-    old_answers_grouped = old_answers_grouped[old_answers_grouped.accept >= config['bonus']['quantity_hits_more_than']]
+    grouped = grouped[grouped.accept >= int(config['bonus']['quantity_hits_more_than'])]
+    old_answers_grouped = old_answers_grouped[old_answers_grouped.accept >= int(config['bonus']['quantity_hits_more_than'])]
 
     old_eligible = list(old_answers_grouped['worker_id'])
     eligible_all = list(grouped['worker_id'])
@@ -519,9 +507,9 @@ def calc_bonuses(answer_list, conf, path):
     # the bonus should be given to the tasks that are either automatically accepted or submited. The one with status
     # accepted should have been already payed.
     filtered_answers = filter_answer_by_status_and_workers(df, eligible_all, new_eligible, conf)
-
-    grouped = filtered_answers.groupby(['worker_id'], as_index=False)['accept_and_use'].sum()
-    grouped['bonusAmount'] = grouped['accept_and_use']*config['bonus']['quantity_bonus']
+    # could be also accept_and_use
+    grouped = filtered_answers.groupby(['worker_id'], as_index=False)['accept'].sum()
+    grouped['bonusAmount'] = grouped['accept']*float(config['bonus']['quantity_bonus'])
 
     # now find an assignment id
     df.drop_duplicates('worker_id', keep='first', inplace=True)
@@ -531,24 +519,70 @@ def calc_bonuses(answer_list, conf, path):
     merged = pd.merge(grouped, small_df, how='inner', left_on='worker_id', right_on='worker_id')
     merged.rename(columns={'worker_id': 'workerId', 'assignment': 'assignmentId'}, inplace=True)
 
-    merged['reason'] = f'Well done! More than {config["bonus"]["quantity_hits_more_than"]} high quality submission'
+    merged['reason'] = f'Well done! More than {config["bonus"]["quantity_hits_more_than"]} accepted submissions.'
     merged.to_csv(path, index=False)
-    print(f'   Bonuses report is saved in: {path}')
+    print(f'   Quantity bonuses report is saved in: {path}')
+    return merged
 
 
-def write_dict_as_csv(dic_to_write, file_name):
+def calc_quality_bonuses(quantity_bonus_result, answer_list, condition_level_mos, conf, path, n_uniqe_workers):
+    """
+    Calculate the bonuses given the configurations
+    :param answer_list:
+    :param conf:
+    :param path:
+    :return:
+    """
+    print('Calculate the quality bonuses...')
+    eligible_list = []
+    df = pd.DataFrame(answer_list)
+    tmp = pd.DataFrame(condition_level_mos)
+    c_df = tmp[['condition_name', 'MOS']].copy()
+    c_df.rename(columns={'MOS': 'MOS_condiction'}, inplace=True)
+    candidates = quantity_bonus_result['workerId'].tolist()
+
+    max_workers = int(len(candidates) * int(conf['bonus']['quality_top_percentage']) / 100)
+    for worker in candidates:
+            # select answers
+            worker_answers = df[df['workerid'] == worker]
+            votes_p_file, votes_per_condition = transform(worker_answers.to_dict('records'), True)
+            aggregated_data = pd.DataFrame(votes_per_condition)
+
+            if len(aggregated_data) > 0:
+                merged = pd.merge(aggregated_data, c_df, how='inner', left_on='condition_name', right_on='condition_name')
+                r = calc_correlation(merged["MOS_condiction"].tolist(), merged["MOS"].tolist())
+            else:
+                r = 0
+            entry = {'workerId': worker, 'r': r}
+            eligible_list.append(entry)
+
+    eligible_df = pd.DataFrame(eligible_list)
+    eligible_df = eligible_df[eligible_df['r'] >= float(conf['bonus']['quality_min_pcc'])]
+    eligible_df = eligible_df.sort_values(by=['r'], ascending=False)
+
+    merged = pd.merge(eligible_df, quantity_bonus_result, how='inner', left_on='workerId', right_on='workerId')
+    smaller_df = merged[['workerId', 'r', 'accept', 'assignmentId']].copy()
+    smaller_df['bonusAmount'] = smaller_df['accept'] * float(config['bonus']['quality_bonus'])
+    smaller_df['reason'] = 'Well done! You belong to top 20%.'
+    smaller_df.head(max_workers).to_csv(path, index=False)
+    print(f'   Quality bonuses report is saved in: {path}')
+
+
+def write_dict_as_csv(dic_to_write, file_name, *args, **kwargs):
     """
     write the dict object in a file
     :param dic_to_write:
     :param file_name:
     :return:
     """
+    headers = kwargs.get('headers', None)
     with open(file_name, 'w', newline='') as output_file:
-        if len(dic_to_write) > 0:
-            fieldnames = list(dic_to_write[0].keys())
-        else:
-            fieldnames = []
-        writer = csv.DictWriter(output_file, fieldnames=fieldnames)
+        if headers is None:
+            if len(dic_to_write) > 0:
+                headers = list(dic_to_write[0].keys())
+            else:
+                headers = []
+        writer = csv.DictWriter(output_file, fieldnames=headers)
         writer.writeheader()
         for d in dic_to_write:
             writer.writerow(d)
@@ -567,7 +601,8 @@ def filename_to_condition(f_name):
         return file_to_condition_map[f_name]
     condition_name = ""
     f_char = list(f_name)
-    p_chars = list(config['condition_pattern'])
+    p_chars = list(config['general']['condition_pattern'])
+    #print (f"+{p_chars}+")
     # "book_04753_chp_0059_reader_10797_6.wav"
     #  --> "????????????????????????????????xxxxxx":book_04753_chp_0059_reader_10797
     for i in range(0, len(p_chars)):
@@ -577,20 +612,18 @@ def filename_to_condition(f_name):
     return condition_name
 
 
-def transform(sessions, path_per_file, path_per_condition):
+def transform(sessions, agrregate_on_condition):
     """
     Given the valid sessions from answer.csv, group votes per files, and per conditions.
-    Assumption: file name starts with Cxx where xx is condition number.
+    Assumption: file name conatins the condition name/number, which can be extracted using "condition_patten" .
     :param sessions:
-    :param path_per_file:
-    :param path_per_condition:
     :return:
     """
-    print("Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip")
     data_per_file = {}
+    global max_found_per_file
     data_per_condition = {}
     for session in sessions:
-        for question in config['question_names']:
+        for question in question_names:
             # is it a trapping question
             if session[config['trapping']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
@@ -609,16 +642,18 @@ def transform(sessions, path_per_file, path_per_condition):
     # convert the format: one row per file
     group_per_file = []
     for key in data_per_file.keys():
-        tmp = initiate_file_row({})
+        #tmp = initiate_file_row({})
+        tmp = {}
         tmp['file_name'] = key
         votes = data_per_file[key]
         vote_counter = 1
 
         # extra step:: add votes to the per-condition dict
-        condition = filename_to_condition(key)
-        if condition not in data_per_condition:
-            data_per_condition[condition]=[]
-        data_per_condition[condition].extend(votes)
+        if agrregate_on_condition:
+            condition = filename_to_condition(key)
+            if condition not in data_per_condition:
+                data_per_condition[condition]=[]
+            data_per_condition[condition].extend(votes)
 
         for vote in votes:
             tmp[f'vote_{vote_counter}'] = vote
@@ -626,49 +661,47 @@ def transform(sessions, path_per_file, path_per_condition):
         count = vote_counter
 
         tmp['n'] = count-1
-        tmp['mean'] = statistics.mean(votes)
+        tmp['MOS'] = statistics.mean(votes)
         if tmp['n'] > 1:
             tmp['std'] = statistics.stdev(votes)
             tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
         else:
             tmp['std'] = None
             tmp['95%CI'] = None
+        if tmp['n'] > max_found_per_file:
+            max_found_per_file = tmp['n']
         group_per_file.append(tmp)
 
     # convert the format: one row per condition
     group_per_condition = []
-    for key in data_per_condition.keys():
-        tmp = dict()
-        tmp['condition_name'] = key
-        votes = data_per_condition[key]
-        # apply z-score outlier detection
-        # votes = outliers_z_score(votes)
+    if agrregate_on_condition:
+        for key in data_per_condition.keys():
+            tmp = dict()
+            tmp['condition_name'] = key
+            votes = data_per_condition[key]
+            # apply z-score outlier detection
+            # votes = outliers_z_score(votes)
 
-        tmp['n'] = len(votes)
-        if tmp['n'] > 0:
-            tmp['mean'] = statistics.mean(votes)
-        else:
-            tmp['mean'] = None
-        if tmp['n'] > 1:
-            tmp['std'] = statistics.stdev(votes)
-            tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
-        else:
-            tmp['std'] = None
-            tmp['95%CI'] = None
+            tmp['n'] = len(votes)
+            if tmp['n'] > 0:
+                tmp['MOS'] = statistics.mean(votes)
+            else:
+                tmp['mean'] = None
+            if tmp['n'] > 1:
+                tmp['std'] = statistics.stdev(votes)
+                tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
+            else:
+                tmp['std'] = None
+                tmp['95%CI'] = None
 
-        group_per_condition.append(tmp)
+            group_per_condition.append(tmp)
 
-    # return group_per_file, group_per_condition
-    write_dict_as_csv(group_per_file, path_per_file)
-    write_dict_as_csv(group_per_condition, path_per_condition)
-    print(f'   Votes per files are saved in: {path_per_file}')
-    print(f'   Votes per files are saved in: {path_per_condition}')
     return group_per_file, group_per_condition
 
 
 def initiate_file_row(d):
     """
-    add difault values in the dict
+    add default values in the dict
     :param d:
     :return:
     """
@@ -677,9 +710,26 @@ def initiate_file_row(d):
     d['mean'] = None
     d['std'] = None
     d['95%CI'] = None
-    for i in range(1, config['expected_votes_per_file']+1):
+    for i in range(1, int(config['general']['expected_votes_per_file']) + 1):
         d[f'vote_{i}'] = None
     return d
+
+
+def create_headers_for_per_file_report():
+    """
+    add default values in the dict
+    :param d:
+    :return:
+    """
+    header = ['file_name', 'n', 'MOS','std', '95%CI' ]
+    max_votes = max_found_per_file
+    if max_votes == -1:
+        max_votes = int(config['general']['expected_votes_per_file'])
+    print (max_votes)
+    for i in range(1, max_votes+1):
+        header.append(f'vote_{i}')
+
+    return header
 
 
 def stats(input_file):
@@ -693,38 +743,84 @@ def stats(input_file):
     print(f"Stats: work duration (median) {formatted_time} (MM:SS), payment per hour: ${avg_pay:.2f}")
 
 
+def calc_correlation(cs, lab):
+    rho, pval = spearmanr(cs, lab)
+    return rho
+
+def number_of_uniqe_workers(answers):
+    df = pd.DataFrame(answers)
+    df.drop_duplicates('worker_id', keep='first', inplace=True)
+    return len(df)
+
+question_names = []
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Utility script to evaluate answers to the acr batch')
     # Configuration: read it from mturk.cfg
+    parser.add_argument("--cfg",
+                        help="Contains the configurations see acr_result_parser.cfg as an example")
     parser.add_argument("--answers",
                         help="Answers csv file, path relative to current directory")
 
-    parser.add_argument('--bonus',  help="specify status of answers which should be counted in bonus amount "
-                                         "calculation. All answers will be used to check eligibility of worker, "
-                                         "but those with the selected status here will be used to calculate the amount "
-                                         "of bonus. A comma separated list: all|submitted. Default: submitted",
+    parser.add_argument('--quantity_bonus', help="specify status of answers which should be counted when calculating "
+                                                " the amount of quantity bonus. All answers will be used to check "
+                                                "eligibility of worker, but those with the selected status here will "
+                                                "be used to calculate the amount of bonus. A comma separated list:"
+                                                " all|submitted. Default: submitted",
                         default="submitted")
 
-    # parser.add_argument('text', nargs='*')
-
+    parser.add_argument('--quality_bonus', help="Quality bonus will be calculated. Just use it with your final download"
+                                                " of answers and when the project is completed", action="store_true")
     args = parser.parse_args()
+    cfg_path = args.cfg
+    assert os.path.exists(cfg_path), f"No configuration file at [{cfg_path}]"
+    config = CP.ConfigParser()
+    config.read(cfg_path)
+
     assert (args.answers is not None), f"--answers  are required]"
     # answer_path = os.path.join(os.path.dirname(__file__), args.answers)
     answer_path = args.answers
     assert os.path.exists(answer_path), f"No input file found in [{answer_path}]"
     list_of_possible_status = ['all', 'submitted']
 
-    list_of_req = args.bonus.lower().split(',')
+    list_of_req = args.quantity_bonus.lower().split(',')
     for req in list_of_req:
-        assert req.strip() in list_of_possible_status, f"unknown status {req} used in --bonus"
+        assert req.strip() in list_of_possible_status, f"unknown status {req} used in --quantity_bonus"
 
     np.seterr(divide='ignore', invalid='ignore')
 
-    accepted_sessions = data_cleaning(answer_path, list_of_req)
+    question_names = [f"q{i}" for i in range(1, int(config['general']['number_of_questions_in_rating'])+1)]
+    full_data, accepted_sessions = data_cleaning(answer_path)
 
+    bonus_file = os.path.splitext(answer_path)[0] + '_bonus_report.csv'
+    quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
+
+    n_workers = number_of_uniqe_workers(full_data)
+    print(f"{n_workers} workers participated in this batch.")
     stats(answer_path)
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
     if len(accepted_sessions) > 1:
+        print("Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip")
+        votes_per_file, vote_per_condition = transform(accepted_sessions,
+                                                       config.has_option('general', 'condition_pattern'))
         votes_per_file_path = os.path.splitext(args.answers)[0] + '_votes_per_clip.csv'
         votes_per_cond_path = os.path.splitext(args.answers)[0] + '_votes_per_cond.csv'
-        votes_per_file, vote_per_condition = transform(accepted_sessions, votes_per_file_path, votes_per_cond_path)
+
+        headers = create_headers_for_per_file_report()
+        write_dict_as_csv(votes_per_file, votes_per_file_path, headers=headers)
+        write_dict_as_csv(vote_per_condition, votes_per_cond_path)
+        print(f'   Votes per files are saved in: {votes_per_file_path}')
+        print(f'   Votes per files are saved in: {votes_per_cond_path}')
+
+        if args.quality_bonus is not None:
+            quality_bonus_path = os.path.splitext(args.answers)[0] + '_quality_bonus.csv'
+            calc_quality_bonuses(quantity_bonus_df, accepted_sessions, vote_per_condition, config, quality_bonus_path, n_workers)
+
+'''
+
+if __name__ == '__main__':
+    df = pd.read_csv('d:/tmp/sup23exp3.csv', low_memory=False)
+    cs = df["mean"].tolist()
+    lab = df["LAB"].tolist()
+    calc_correlation(cs,lab)
+'''
