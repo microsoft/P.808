@@ -210,14 +210,15 @@ pip install -r acr_result_parser_requirments.txt
 How to use is?
 
 ```
-python acr_result_parser.py --answers [ANSWERS_CSV] --cfg [CONFIG_FILE] --quality_bonus --quantity_bonus [submitted|all]
+python acr_result_parser.py --answers [ANSWERS_CSV] --cfg [CONFIG_FILE] --quantity_bonus [submitted|all]  --quality_bonus
 ```
-`[ANSWERS_CSV]`: the answer.csv file you download from MTurk
-`[CONFIG_FILE]`: configuration files which will be used to get criteria for acceptance/rejection, and bonus assignments.
-`[quantity_bonus]`: Calculate the bonus report based on te quantity of work (how many accepted answers are submitted by
-particular worker). "Submitted" just consider answers in status of submitted for calculating the amount of bonus. 
-`[quality_bonus]`: call it when you have the final result to give quality bonus to top 20% of people who got the 
-quantity bonus.
+
+* `[ANSWERS_CSV]`: the `Batch_XYZ_batch_results.csv` file you download from MTurk
+* `[CONFIG_FILE]`: configuration file which contain criteria for acceptance/rejection, bonus assignments, correct answers, and etc (project specific).
+* `--quantity_bonus [submitted|all]`: Calculate the bonus report based on te quantity of work (how many accepted answers are submitted by
+particular worker). "Submitted" just consider answers with status of submitted for calculating the amount of bonus. 
+* `--quality_bonus`: call it when you have the final result of your project. It calculates the quality bonus (top 20% of people who got the 
+quantity bonus).
 
 Correct answers to the math, environment test and trapping questions are given in the `config` file. 
 
