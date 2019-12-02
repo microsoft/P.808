@@ -489,7 +489,8 @@ def calc_quantity_bonuses(answer_list, conf, path):
     :param path:
     :return:
     """
-    print('Calculate the quantity bonuses...')
+    if path is not None:
+        print('Calculate the quantity bonuses...')
     df = pd.DataFrame(answer_list)
 
     old_answers = df[df['status'] != "Submitted"]
@@ -520,8 +521,9 @@ def calc_quantity_bonuses(answer_list, conf, path):
     merged.rename(columns={'worker_id': 'workerId', 'assignment': 'assignmentId'}, inplace=True)
 
     merged['reason'] = f'Well done! More than {config["bonus"]["quantity_hits_more_than"]} accepted submissions.'
-    merged.to_csv(path, index=False)
-    print(f'   Quantity bonuses report is saved in: {path}')
+    if path is not None:
+        merged.to_csv(path, index=False)
+        print(f'   Quantity bonuses report is saved in: {path}')
     return merged
 
 
@@ -725,7 +727,6 @@ def create_headers_for_per_file_report():
     max_votes = max_found_per_file
     if max_votes == -1:
         max_votes = int(config['general']['expected_votes_per_file'])
-    print (max_votes)
     for i in range(1, max_votes+1):
         header.append(f'vote_{i}')
 
@@ -792,9 +793,6 @@ if __name__ == '__main__':
     question_names = [f"q{i}" for i in range(1, int(config['general']['number_of_questions_in_rating'])+1)]
     full_data, accepted_sessions = data_cleaning(answer_path)
 
-    bonus_file = os.path.splitext(answer_path)[0] + '_bonus_report.csv'
-    quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
-
     n_workers = number_of_uniqe_workers(full_data)
     print(f"{n_workers} workers participated in this batch.")
     stats(answer_path)
@@ -812,15 +810,11 @@ if __name__ == '__main__':
         print(f'   Votes per files are saved in: {votes_per_file_path}')
         print(f'   Votes per files are saved in: {votes_per_cond_path}')
 
-        if args.quality_bonus is not None:
-            quality_bonus_path = os.path.splitext(args.answers)[0] + '_quality_bonus.csv'
+        bonus_file = os.path.splitext(answer_path)[0] + '_quantity_bonus_report.csv'
+        quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
+
+        if args.quality_bonus:
+            quality_bonus_path = os.path.splitext(args.answers)[0] + '_quality_bonus_report.csv'
+            if 'all' not in list_of_req:
+                quantity_bonus_df = calc_quantity_bonuses(full_data, ['all'], None)
             calc_quality_bonuses(quantity_bonus_df, accepted_sessions, vote_per_condition, config, quality_bonus_path, n_workers)
-
-'''
-
-if __name__ == '__main__':
-    df = pd.read_csv('d:/tmp/sup23exp3.csv', low_memory=False)
-    cs = df["mean"].tolist()
-    lab = df["LAB"].tolist()
-    calc_correlation(cs,lab)
-'''
