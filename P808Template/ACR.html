@@ -122,7 +122,7 @@ $(function() {
     if (!JSON.parse(config['debug'])){
         console.log = function() {};
     }
-
+	loadTextPlaceHolders();
 	generate_training_section();
 	generate_rating_section();
 	avoidAnsweringBeforeListeningThrough();
@@ -153,10 +153,13 @@ $(function() {
 		cookie_debug_status=cookie_debug_status+"Setup Exist*";
 	}
 
-
-	howManyHITsAnswered= Number(readCookie(config['cookieName']+"_counter"));
-	if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
-		disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
+	hit_num = readCookie(config['cookieName']+"_counter");
+	howManyHITsAnswered =0;
+	if (hit_num != null ){
+		howManyHITsAnswered= Number(hit_num);
+		if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
+			disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
+		}
 	}
 	if ((qual_passed!==null) && (qual_passed=="false")){
 		disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
@@ -165,7 +168,7 @@ $(function() {
 	hitCounterIncreased = false;
 	cookie_debug_status=cookie_debug_status+"Counter:"+howManyHITsAnswered+"*";
 	addBrowserInfo(cookie_debug_status);
-	loadTextPlaceHolders();
+
 
 	// for qualification section
 	initializeQualification();
@@ -779,9 +782,9 @@ function generate_rating_section(){
 				  <p>Welcome and congratulation! You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just every one hour) sections::</p>
 				<ul>
 					<li><b>Qualification (just once):</b> Check if you are eligible to perform this HITs</li>
-					<li><b>Setup (every <b class="setup_time"></b> minutes):</b> Configure your system and validate it by answering to 6 questions</li>
-					<li><b>Training (every <b class="training_time"></b> hour):</b> <b class="question_number_training"></b> questions, same as "Ratings" but appears just once a day</li>
-					<li><b>Rating:</b> Listen to <b class="question_number"></b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
+					<li><b>Setup (every <b class="setup_time"> 0</b> minutes):</b> Configure your system and validate it by answering to 6 questions</li>
+					<li><b>Training (every <b class="training_time"> 0 </b> hour):</b> <b class="question_number_training"> 0 </b> questions, same as "Ratings" but appears just once a day</li>
+					<li><b>Rating:</b> Listen to <b class="question_number"> 0 </b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
 				</ul>
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
 				<p><b>Rules:</b></p>
@@ -793,7 +796,7 @@ function generate_rating_section(){
 
 				<p><b>Payment:</b></p>
 				<p>The result of this experiment is <b>very important for us and other scientist</b> working in this area. We have methods that analyse the consistency of your answers. We will use these methods to rank the submitted assignments according to quality.</p>
-				<p>For this experiment, we will pay a base reward of <b>$0.50/HIT</b> for every accepted HIT. We have made available a set of <u class="max_allowed_hits"></u> different HITs. You will receive a bonus of:</p>
+				<p>For this experiment, we will pay a base reward of <b>$0.50/HIT</b> for every accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You will receive a bonus of:</p>
 
 				<ul>
 				  <li>$0.10/HIT (for a total of <b>$0.60/HIT</b>) if you submit <b>more than 30 HITs</b> or</li>
@@ -801,7 +804,7 @@ function generate_rating_section(){
 				</ul>
 
 				<p>Bonuses will be assigned with in 7 days.</p>
-				  <b>Please perform up to <u class="max_allowed_hits"></u> from this group. If you do more than that, the <u>rest will be rejected.</u></b>
+				  <b>Please perform up to <b class="max_allowed_hits"> 0 </b> from this group. If you do more than that, the <u>rest will be rejected.</u></b>
 			</div>
 		</div>
 
@@ -811,7 +814,7 @@ function generate_rating_section(){
 <section class="container">
 <div class="alert alert-danger" role="alert" id="error_loading_files" hidden>
 	<b>Error::</b> One or more audio clips cannot be loaded. <b>Please return this HIT and try another one.</b>
-	<span id="error_details"></span>
+	<span id="error_details"> </span>
 </div>
 </section>
 
@@ -992,7 +995,7 @@ function generate_rating_section(){
 <div class="panel panel-info">
   <div class="panel-heading">
     <h3 class="panel-title">
-		<a data-target="#setup_panel" data-toggle="collapse" >Setup (every <b class="setup_time"></b> minutes)</a>
+		<a data-target="#setup_panel" data-toggle="collapse" >Setup (every <b class="setup_time"> a </b> minutes)</a>
 	</h3>
   </div>
   <div  class="panel-collapse collapse in" id="setup_panel">
@@ -1145,7 +1148,7 @@ function generate_rating_section(){
 					  Please click on <b>Allow</b> (on some of smartphones there will be no message). <u>We do not process or record any audio with your microphone</u>.
 				 <div class="center">
 						<button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
-						<div id="status"></div>
+						<div id="status"> </div>
 			  	</div>
 			</div>
 		</div>
@@ -1159,12 +1162,12 @@ function generate_rating_section(){
 		<div class="panel panel-primary">
 			<div class="panel-heading">
 				<h3 class="panel-title">
-					<a data-target="#trainingS" data-toggle="collapse" >Training (every <b class="training_time"></b> hour(s))</a>
+					<a data-target="#trainingS" data-toggle="collapse" >Training (every <b class="training_time"> 0 </b> hour(s))</a>
 				</h3>
 			</div>
 			<div  class="panel-collapse collapse in" id="trainingS">
 				<div class="panel-body">
-				<p> Please answer the following <b class="question_number_training"></b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				<p> Please answer the following <b class="question_number_training"> 0 </b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
 				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
 
  				<!-- will be generated -->
@@ -1175,7 +1178,7 @@ function generate_rating_section(){
 
 
 				</div>
-			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number_training"></b> questions.</div>
+			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number_training"> 0 </b> questions.</div>
 			<nav aria-label="..." id="navNextPreT">
 			  <ul class="pager">
 				<li class="previous" onclick="showPreviousQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
@@ -1202,14 +1205,14 @@ function generate_rating_section(){
 				<h3 class="panel-title">Ratings</h3>
 			</div>
 			<div class="panel-body">
-				<p> Please answer the following <b class="question_number"></b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				<p> Please answer the following <b class="question_number"> 0 </b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
 				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
 				<!-- will be generated -->
 				<div class="tab-content" id="nav-tabContent-rating">	</div>
-				<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number"></b> questions, then submit your response.</div>
+				<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number">0</b> questions, then submit your response.</div>
 				<nav aria-label="..." id="navNextPre">
 				  <ul class="pager">
 					<li class="previous" id="prev-rating" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button" ><span aria-hidden="true">&larr;</span>Previous</a></li>
