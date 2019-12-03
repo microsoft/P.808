@@ -389,9 +389,16 @@ function readCookie(name) {
 	Callback when "Next" in Rating section is clicked.
 */
 function showNextQuestionInRatingSection(){
+	var count = $("#nav-tab-ul li").length;
 	id=$("#nav-tab-ul li.active").index();
+	console.log(id +","+count);
+	if (id+2==count){
+		console.log("it is last one");
+		$('#next-rating').addClass('disabled');
+	}
 	id=id+2;
 	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
+
 }
 
 /*
@@ -401,6 +408,9 @@ function showPreviousQuestionInRatingSection(){
 	id=$("#nav-tab-ul li.active").index();
 	id=id;
 	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
+	var count = $("#nav-tab-ul li").length;
+	if (id+1<=count)
+		$('#next-rating').removeClass('disabled');
 }
 
 /*
@@ -804,7 +814,7 @@ function generate_rating_section(){
 				</ul>
 
 				<p>Bonuses will be assigned with in 7 days.</p>
-				  <b>Please perform up to <b class="max_allowed_hits"> 0 </b> from this group. If you do more than that, the <u>rest will be rejected.</u></b>
+				  <b>Please perform up to <b class="max_allowed_hits"> 0 </b> HITs from this group. If you do more than that, the <u>rest will be rejected.</u></b>
 			</div>
 		</div>
 
@@ -1216,7 +1226,7 @@ function generate_rating_section(){
 				<nav aria-label="..." id="navNextPre">
 				  <ul class="pager">
 					<li class="previous" id="prev-rating" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button" ><span aria-hidden="true">&larr;</span>Previous</a></li>
-					<li class="next" onclick="showNextQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+					<li class="next" id= "next-rating" onclick="showNextQuestionInRatingSection();" ><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 				  </ul>
 				</nav>
 
