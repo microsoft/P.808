@@ -145,13 +145,15 @@ def get_assignment_review_policy(cfg):
     assignment_review_policy = None
     if cfg['general'].getboolean('use_assignment_review_policy'):
         arp = cfg['assignment_review_policy']
+        items = arp['arp_question_name'].split(',')
+        map= []
+        for item in items:
+            map.append({'Key': item, 'Values':[f"{arp['arp_correct_answer']}"]})
         assignment_review_policy = {
          'PolicyName': 'ScoreMyKnownAnswers/2011-09-01',
          'Parameters': [
             {'Key': "AnswerKey",
-             'MapEntries': [
-                 {'Key': f"{arp['arp_question_name']}", 'Values': [f"{arp['arp_correct_answer']}"]}
-             ]},
+             'MapEntries': map},
             {'Key': "RejectIfKnownAnswerScoreIsLessThan",
              'Values': [f"{arp['arp_RejectIfKnownAnswerScoreIsLessThan']}"]
              }, {
@@ -162,6 +164,7 @@ def get_assignment_review_policy(cfg):
                 'Values': [f"{arp['arp_ExtendIfKnownAnswerScoreIsLessThan']}"]
              }
         ]}
+        print (json.dumps(assignment_review_policy))
     return assignment_review_policy
 
 
@@ -253,7 +256,8 @@ def create_hit(client, cfg, path_to_input_csv):
             response = client.create_hit_with_hit_type(
                 HITTypeId=hit_type_id,
                 MaxAssignments=int(cfg['create_hit'].get('number_of_respondents', 10)),
-                LifetimeInSeconds=int(cfg['create_hit'].get('task_expires_in_days', 7)) * 24 * 60 * 60,
+                LifetimeInSeconds=int(cfg['create_hit'].get('task_expires_in_days', 7)) * 24 * 60 * 60 +
+                                  random.randint(1, 59),
                 AssignmentReviewPolicy=assignment_review_policy,
                 HITLayoutId=cfg['general']['hit_layout_id'],
                 RequesterAnnotation= batch_output_file_name

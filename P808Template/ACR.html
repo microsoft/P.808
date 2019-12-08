@@ -93,6 +93,8 @@ var config ={
     knownQuestionInTrainingAns: "5",
     knownQuestionUrl:"${TP}",
     knownQuestionAns: "${TP_ANS}",
+    goldClipURL:"${gold_clips}",
+    goldClipAns:"${gold_clips_ans}",
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
     allowedMaxHITsInProject:60,
@@ -112,67 +114,91 @@ var config ={
 
 // if performing of this assignment is already counted
 var hitCounterIncreased = false;
+// record the errors happened in the page
+var generalErrorLog= "";
 
 const Hide_HIT_REASON = Object.freeze({"MAX_ACHIVED":1, "QUALIFICATON":2})
 /*
 Initializing the page: generate and hide sections depending to the cookies value
 */
 $(function() {
-    // disable logs if not debug
-    if (!JSON.parse(config['debug'])){
-        console.log = function() {};
-    }
-	loadTextPlaceHolders();
-	generate_training_section();
-	generate_rating_section();
-	avoidAnsweringBeforeListeningThrough();
-	cookie_debug_status="";
-	// given cookie availability disable the qualification
-	qual_passed= readCookie(config['qualificationCookieName']);
-	console.log(qual_passed);
-
-    if (qual_passed!==null && qual_passed=="true"){
-		$('.qualificationFieldset').prop("disabled", true);
-		$("#qualification").hide();
-		$("#qualification :input").removeAttr("required");
-		cookie_debug_status=cookie_debug_status+"ACR_LISTENER Exist*";
-	}
-    // given cookie availability disable the training
-    if (readCookie(config['cookieName']+"_training")){
-		$('.trainingFieldset').prop("disabled", true);
-		$("#training").hide();
-		$("#training :input").removeAttr("required");
-		$('#instruction').collapse()
-		cookie_debug_status=cookie_debug_status+"Train Exist*";
-	}
-    // given cookie availability disable the setup
-    if (readCookie(config['cookieName']+"_setup")){
-		$('.setupFieldset').prop("disabled", true);
-		$("#setup").hide();
-		$("#setup :input").removeAttr("required");
-		cookie_debug_status=cookie_debug_status+"Setup Exist*";
-	}
-
-	hit_num = readCookie(config['cookieName']+"_counter");
-	howManyHITsAnswered =0;
-	if (hit_num != null ){
-		howManyHITsAnswered= Number(hit_num);
-		if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
-			disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
+	try{
+		// disable logs if not debug
+		if (!JSON.parse(config['debug'])){
+			console.log = function() {};
 		}
+		loadTextPlaceHolders();
+		generate_training_section();
+		generate_rating_section();
+		avoidAnsweringBeforeListeningThrough();
+		cookie_debug_status="";
+		// given cookie availability disable the qualification
+		qual_passed= readCookie(config['qualificationCookieName']);
+		console.log(qual_passed);
+
+		if (qual_passed!==null && qual_passed=="true"){
+			$('.qualificationFieldset').prop("disabled", true);
+			$("#qualification").hide();
+			$("#qualification :input").removeAttr("required");
+			cookie_debug_status=cookie_debug_status+"ACR_LISTENER Exist*";
+		}
+		// given cookie availability disable the training
+		if (readCookie(config['cookieName']+"_training")){
+			$('.trainingFieldset').prop("disabled", true);
+			$("#training").hide();
+			$("#training :input").removeAttr("required");
+			$('#instruction').collapse()
+			cookie_debug_status=cookie_debug_status+"Train Exist*";
+		}
+		// given cookie availability disable the setup
+		if (readCookie(config['cookieName']+"_setup")){
+			$('.setupFieldset').prop("disabled", true);
+			$("#setup").hide();
+			$("#setup :input").removeAttr("required");
+			cookie_debug_status=cookie_debug_status+"Setup Exist*";
+		}
+
+		hit_num = readCookie(config['cookieName']+"_counter");
+		howManyHITsAnswered =0;
+		if (hit_num != null ){
+			howManyHITsAnswered= Number(hit_num);
+			if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
+				disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
+			}
+		}
+		if ((qual_passed!==null) && (qual_passed=="false")){
+			disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+		}
+
+		hitCounterIncreased = false;
+		cookie_debug_status=cookie_debug_status+"Counter:"+howManyHITsAnswered+"*";
+		addBrowserInfo(cookie_debug_status);
+
+
+		// for qualification section
+		initializeQualification();
+	}catch(err){
+		console.error(err);
+		recordError(err.name,err.message);
+
 	}
-	if ((qual_passed!==null) && (qual_passed=="false")){
-		disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
-	}
-
-	hitCounterIncreased = false;
-	cookie_debug_status=cookie_debug_status+"Counter:"+howManyHITsAnswered+"*";
-	addBrowserInfo(cookie_debug_status);
-
-
-	// for qualification section
-	initializeQualification();
 });
+
+/**
+ central method to record errors
+**/
+function recordError(name, message){
+	generalErrorLog =generalErrorLog + " Error "+name+": "+message+";%0D%0A"
+	$('#errors').val(generalErrorLog);
+	$("#errorEmail").attr("href","mailto:ic3ai@outlook.com?subject=Error on HIT Load&body="+generalErrorLog);
+	$("#errorSection").show();
+}
+
+function helpIdentifyNotAnswered(){
+	$(':input[required]:visible').each(function( index ) {
+  		console.log( index + ": " + $( this ).attr('name'));
+	});
+}
 
 /*
 	Initialize the qualification section
@@ -391,9 +417,7 @@ function readCookie(name) {
 function showNextQuestionInRatingSection(){
 	var count = $("#nav-tab-ul li").length;
 	id=$("#nav-tab-ul li.active").index();
-	console.log(id +","+count);
 	if (id+2==count){
-		console.log("it is last one");
 		$('#next-rating').addClass('disabled');
 	}
 	id=id+2;
@@ -571,8 +595,9 @@ $(function() {
 	$("source").on("error", function (e) {
         console.log("Error at audio tag level!"+e.target.src);
         problematic_urls=problematic_urls+"<li>"+e.target.src+"</li>";
-        $("#error_details").html(problematic_urls);
-        $("#error_loading_files").show();
+        //$("#error_details").html(problematic_urls);
+        recordError("on loading audio clips",e.target.src);
+        //$("#error_loading_files").show();
     });
 });
 var problematic_urls="";
@@ -600,6 +625,20 @@ function avoidAnsweringBeforeListeningThrough(){
 }
 
 /*
+	Listener on value change for the Gold question.
+	if the answer is correct, change the value of gq_check to 0.
+*/
+function onValueChangeForGoldQuestion(){
+	let ans = $( this ).val()
+	let expectedVal = parseInt(config['goldClipAns'])
+	if ( expectedVal -1 <=ans && ans <= expectedVal +1 )
+		$('#gq_check').val(0);
+	else
+		$('#gq_check').val(-1);
+	console.log($('#gq_check').val())
+}
+
+/*
 	Listener on value change for the trapping question.
 	if the answer is correct, change the value of tp_check to 0.
 */
@@ -608,6 +647,7 @@ function onValueChangeForTpQuestion(){
 		$('#tp_check').val(0);
 	else
 		$('#tp_check').val(-1);
+	//console.log("gc_check"+$('#tp_check').val())
 }
 
 /*
@@ -632,6 +672,10 @@ function playedAudioQ(id){
 		element = $('input[name="'+id+'"]');
 		element.unbind();
 		element.on('change', onValueChangeForTpQuestion);
+	}else if ($('span[id="'+id+'"]').attr("data-src") == config['goldClipURL']){
+		element = $('input[name="'+id+'"]');
+		element.unbind();
+		element.on('change', onValueChangeForGoldQuestion);
 	}else{
 		$('input[name="'+id+'"]').off('change');
 		// check if already this HIT is counted
@@ -774,6 +818,15 @@ function generate_rating_section(){
 }
 </script>
 
+<!--    Error -->
+<section class="container" id="errorSection" hidden>
+	<div class="alert alert-danger" role="alert" >
+		<h5>Error</h5>
+		<p>One or more errors are detected during loading this HIT. Please use the following link to send the error to us: <a class="email"  id="errorEmail"title="Email in HIT" href="">Email</a>.</p>
+		<p><b> Meanwhile, please return this HIT and try another one</b>.</p>
+	</div>
+</section>
+
 <!-- Instructions -->
 <section class="container" id="Survey">
 	<div class="panel panel-primary">
@@ -821,12 +874,6 @@ function generate_rating_section(){
 	</div>
 </section>
 
-<section class="container">
-<div class="alert alert-danger" role="alert" id="error_loading_files" hidden>
-	<b>Error::</b> One or more audio clips cannot be loaded. <b>Please return this HIT and try another one.</b>
-	<span id="error_details"> </span>
-</div>
-</section>
 
 <!-- Qualification -->
 <section class="container" id="qualification">
@@ -1204,6 +1251,9 @@ function generate_rating_section(){
 <!-- Training section ends-->
 
 <input id="tp_check" name="tp_check" type="hidden" value="-1" />
+<input id="gq_check" name="gq_check" type="hidden" value="-1" />
+<input id="errors" name="errors" type="hidden" value="" />
+
 <input id="browser_info" name="browser_info" type="hidden" value="-1" maxlength="2000"/>
 <input id="webrtc_raw" name="webrtc_raw" type="hidden" value="-1" maxlength="2000"/>
 <input id="use_headset" name="use_headset" type="hidden" value="-1" />
@@ -1237,8 +1287,8 @@ function generate_rating_section(){
 
 <section class="container" id="thanks">
 	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
+	<p>Note: The submit button may not work until you answer all questions in this HIT. <a id="myLink" href="#" onclick="helpIdentifyNotAnswered();return false;">(Check which questions are not yet answered)</a> .</p>
 </section>
-
 
 <section class="container" id="max_allowed_HITs_reached" hidden>
 	<p><h2>Well done! </h2> You performed the maximum number of HITs that you were allowed to.</p>
@@ -1259,5 +1309,6 @@ function generate_rating_section(){
 		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
 			  <b>NOTE:</b> Any try to perform assignments and neglecting this message is forbidden and leads ro rejection of all of your submissions.
 			</div>
-
 </section>
+
+

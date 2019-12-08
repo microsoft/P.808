@@ -20,56 +20,6 @@ from scipy.stats import spearmanr
 import time
 import configparser as CP
 
-"""
-config = {
-    "math": {
-     "math1.wav": 3,
-     "math2.wav": 7,
-     "math3.wav": 6,
-    },
-    "question_names": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12"],
-    "expected_votes_per_file": 80,
-    "trapping": {
-        "url_found_in": "input.tp",
-        "ans_found_in": "input.tp_ans",
-    },
-    "gold_question": {
-        "url_found_in": "input.gold_clips",
-        # "ans_found_in": "input.gold_clips_ans",
-        "correct_ans": 5,
-        "variance": 1
-    },
-    "acceptance_criteria": {
-        "all_audio_played_equal": 1,
-        "correct_math_bigger_equal": 1,
-        "correct_tps_bigger_equal": 1,
-        # NOTE: this value should be synchronied by the corresponding value in the ACR.html
-        "allowedMaxHITsInProject": 60,
-        # "correct_gold_q_bigger_equal": 1
-    },
-    "accept_and_use": {
-        # including acceptance_criteria
-        "variance_bigger_equal": 0.1,
-        "gold_standard_bigger_equal": 1,
-        "correct_cmp_bigger_equal": 2,
-    },
-    "bonus": {
-        "quantity_hits_more_than": 30,
-        "quantity_bonus": 0.1,
-        "quality_top_percentage": 20,
-        "quality_bonus": 0.15,
-
-    },
-    "rejection_feedback": "Answer to this assignment did not pass the quality control "
-                          "check. Make sure to use headset (wear both earbuds), perform the task in quiet environment,"
-                          " and use the entire scale range.",
-    # "book_04753_chp_0059_reader_10797_6.wav" mask with
-    # "????????????????????????????????xxxxxx":book_04753_chp_0059_reader_10797
-    # "xxxxxx??xxxx" :oe3m3b09.wav
-    "condition_pattern": "xxxxxx??xxxx"
-}
-
-"""
 max_found_per_file = -1
 
 
@@ -226,7 +176,15 @@ def check_gold_question(row):
     try:
         gq_url = row[config['gold_question']['url_found_in']]
         # gq_correct_ans = int(float(row[config['gold_question']['ans_found_in']]))
-        gq_correct_ans = int(config['gold_question']['correct_ans'])
+        #  tp_correct_ans = int(float(row[config['trapping']['ans_found_in']]))
+        gq_correct_ans= -1
+        # check if it is hardcoded correct answer or dynamic one
+        if config.has_option('gold_question', 'correct_ans'):
+            gq_correct_ans = int(config['gold_question']['correct_ans'])
+        elif config.has_option('gold_question', 'ans_found_in'):
+            gq_correct_ans = int(float(row[config['gold_question']['ans_found_in']]))
+        else:
+            return -1
         gq_var = int(config['gold_question']['variance'])
         for q_name in question_names:
             if gq_url in row[f'answer.{q_name}_url']:

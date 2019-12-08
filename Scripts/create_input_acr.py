@@ -33,6 +33,8 @@ def validate_inputs(cfg,row_input_path):
     #   gold_clips
     if 'number_of_gold_clips_per_session' in cfg['general'] and int(cfg['general']['number_of_gold_clips_per_session'])>0:
         assert 'gold_clips' in columns, f"No column found with 'gold_clips' in [{row_input_path}]"
+        assert 'gold_clips_ans' in columns, f"No column found with 'gold_clips_ans' in [{row_input_path}] " \
+            f"(required since v.1.0)"
 
 
 def create_input_for_mturk(cfg,row_input_path, output_path):
@@ -112,16 +114,25 @@ def create_input_for_mturk(cfg,row_input_path, output_path):
         full_trappings, full_trappings_answer= zip(*full_tp)
         output_df['TP'] = full_trappings
         output_df['TP_ANS'] = full_trappings_answer
-
+    #gold_clips
     if int(cfg['general']['number_of_gold_clips_per_session']) > 0:
         if int(cfg['general']['number_of_gold_clips_per_session']) > 1:
             print("more than one gold_clip is not supported for now - continue with 1")
         n_gold_clips = n_sessions
         gold_clip_source = df['gold_clips'].dropna()
+        gold_clip_ans_source = df['gold_clips_ans'].dropna()
 
-        full_gold_clips = np.tile(gold_clip_source.to_numpy(), (n_gold_clips // gold_clip_source.count()) + 1)[:n_gold_clips]
-        random.shuffle(full_gold_clips)
+        full_gold_clips = np.tile(gold_clip_source.to_numpy(),
+                                  (n_gold_clips // gold_clip_source.count()) + 1)[:n_gold_clips]
+        full_gold_clips_answer = np.tile(gold_clip_ans_source.to_numpy(), (n_gold_clips // gold_clip_ans_source.count())
+                                         + 1)[:n_gold_clips]
+        full_gc = list(zip(full_gold_clips, full_gold_clips_answer))
+        random.shuffle(full_gc)
+
+        full_gold_clips, full_gold_clips_answer = zip(*full_gc)
         output_df['gold_clips'] = full_gold_clips
+        output_df['gold_clips_ans'] = full_gold_clips_answer
+
     output_df.to_csv(output_path, index=False)
 
 

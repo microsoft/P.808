@@ -53,9 +53,10 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 
 /*
 General configuration file:
- - qualificationCookieName: name of cookie that shows the status of qualification section.
- - cookieName: change it for each study, it will be used to monitor if the user has taken training, setup sections, and
+  - cookieName: change it for each study, it will be used to monitor if the user has taken training, setup sections, and
  how many assignments they submitted to expose limits.
+ - qualificationCookieName: name of cookie that shows the status of qualification section.
+ - qualificationValidFor: how long the qualification cookie stay in minutes (525600 : 6 months)
  - forceRetrainingInHours: every X hours force the user to take part in training (recommendation: 1hour)
  - showSetupEveryMinutes: show the setup section every X minutes (recommendation: 15 minutes)
  - questionUrls: URLs to clips to be appeared in the Rating section. Either hard-coded or placeholders.
@@ -73,24 +74,27 @@ General configuration file:
 
 */
 var config ={
+	cookieName:"itu_p808_sup23_exp3",
 	qualificationCookieName:"ACR_LISTNER",
-	//for one year, unit is minutes
 	qualificationValidFor:525600,
-	cookieName:"itu_p808_test_7",
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
     questionUrls: ["assets/clips/sample_speech/s11.wav","assets/clips/sample_speech/s1.wav","assets/clips/sample_speech/s2.wav","assets/clips/sample_speech/s3.wav","assets/clips/sample_speech/s4.wav","assets/clips/sample_speech/s5.wav","assets/clips/sample_speech/s6.wav","assets/clips/sample_speech/s7.wav","assets/clips/sample_speech/s8.wav","assets/clips/sample_speech/s9.wav","assets/clips/sample_tp.wav","assets/clips/sample_speech/s12.wav"],
-    trainingUrls: ["https://audiosamplesp808.blob.core.windows.net/librivox/book_00166_chp_0016_reader_06671_3.wav",
-		"https://audiosamplesp808.blob.core.windows.net/librivox/book_06204_chp_0005_reader_03422_2.wav",
-		"https://audiosamplesp808.blob.core.windows.net/librivox/book_07495_chp_0004_reader_01747_1.wav",
-		"https://audiosamplesp808.blob.core.windows.net/librivox/book_07790_chp_0007_reader_11722_6.wav",
-		"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F6F11_excellent_short.wav"],
+    trainingUrls: [
+    "https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M5232.wav",
+	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F7D25.wav",
+	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M0202.wav",
+	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M4721.wav",
+	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F9347.wav",
+    "https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M1E30_excellent_short.wav"],
 
-    knownQuestionInTrainingUrl:"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F6F11_excellent_short.wav",
+    knownQuestionInTrainingUrl:"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M1E30_excellent_short.wav",
     knownQuestionInTrainingAns: "5",
     knownQuestionUrl:"assets/clips/sample_tp.wav",
     knownQuestionAns: "5",
+    goldClipURL:"assets/clips/sample_speech/s12.wav",
+    goldClipAns:"5",
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
     allowedMaxHITsInProject:60,
@@ -111,6 +115,7 @@ var config ={
 // if performing of this assignment is already counted
 var hitCounterIncreased = false;
 
+const Hide_HIT_REASON = Object.freeze({"MAX_ACHIVED":1, "QUALIFICATON":2})
 /*
 Initializing the page: generate and hide sections depending to the cookies value
 */
@@ -119,13 +124,16 @@ $(function() {
     if (!JSON.parse(config['debug'])){
         console.log = function() {};
     }
-
+	loadTextPlaceHolders();
 	generate_training_section();
 	generate_rating_section();
 	avoidAnsweringBeforeListeningThrough();
 	cookie_debug_status="";
 	// given cookie availability disable the qualification
-    if (readCookie(config['qualificationCookieName'])){
+	qual_passed= readCookie(config['qualificationCookieName']);
+	console.log(qual_passed);
+
+    if (qual_passed!==null && qual_passed=="true"){
 		$('.qualificationFieldset').prop("disabled", true);
 		$("#qualification").hide();
 		$("#qualification :input").removeAttr("required");
@@ -147,14 +155,22 @@ $(function() {
 		cookie_debug_status=cookie_debug_status+"Setup Exist*";
 	}
 
+	hit_num = readCookie(config['cookieName']+"_counter");
+	howManyHITsAnswered =0;
+	if (hit_num != null ){
+		howManyHITsAnswered= Number(hit_num);
+		if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
+			disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
+		}
+	}
+	if ((qual_passed!==null) && (qual_passed=="false")){
+		disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+	}
 
-	howManyHITsAnswered= Number(readCookie(config['cookieName']+"_counter"));
-	if (howManyHITsAnswered >= config['allowedMaxHITsInProject'])
-		disableTheHIT();
 	hitCounterIncreased = false;
 	cookie_debug_status=cookie_debug_status+"Counter:"+howManyHITsAnswered+"*";
 	addBrowserInfo(cookie_debug_status);
-	loadTextPlaceHolders();
+
 
 	// for qualification section
 	initializeQualification();
@@ -209,8 +225,7 @@ function validateQualificationAnswer(){
 		num1_checked && num2_checked && num3_checked && num4_checked && num5_checked;
 	console.log(passed);
 	// add a qualification for 1 year
-	if (passed)
-		createCookie(config.qualificationCookieName,"passed",config.qualificationValidFor);
+	createCookie(config.qualificationCookieName,passed,config.qualificationValidFor);
 }
 
 /*
@@ -309,14 +324,19 @@ String.prototype.toMMSS = function () {
 	Disable the HIS and show a proper message.
 	- used when the maximum number of HITs in project is reached
 */
-function disableTheHIT(){
+function disableTheHIT(c){
 	$("#qualification").hide();
 	$("#training").hide();
 	$("#setup").hide();
 	$("#rating_section").hide();
 	$("#Survey").hide();
 	$("#thanks").hide();
-	$("#max_allowed_HITs_reached").show();
+	$("#device_check_section").hide();
+
+	if (c == Hide_HIT_REASON.MAX_ACHIVED)
+		$("#max_allowed_HITs_reached").show();
+	if (c == Hide_HIT_REASON.QUALIFICATON)
+		$("#qualification_rejected").show();
 }
 
 /*
@@ -371,9 +391,14 @@ function readCookie(name) {
 	Callback when "Next" in Rating section is clicked.
 */
 function showNextQuestionInRatingSection(){
+	var count = $("#nav-tab-ul li").length;
 	id=$("#nav-tab-ul li.active").index();
+	if (id+2==count){
+		$('#next-rating').addClass('disabled');
+	}
 	id=id+2;
 	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
+
 }
 
 /*
@@ -383,6 +408,9 @@ function showPreviousQuestionInRatingSection(){
 	id=$("#nav-tab-ul li.active").index();
 	id=id;
 	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
+	var count = $("#nav-tab-ul li").length;
+	if (id+1<=count)
+		$('#next-rating').removeClass('disabled');
 }
 
 /*
@@ -572,6 +600,20 @@ function avoidAnsweringBeforeListeningThrough(){
 }
 
 /*
+	Listener on value change for the Gold question.
+	if the answer is correct, change the value of gq_check to 0.
+*/
+function onValueChangeForGoldQuestion(){
+	let ans = $( this ).val()
+	let expectedVal = parseInt(config['goldClipAns'])
+	if ( expectedVal -1 <=ans && ans <= expectedVal +1 )
+		$('#gq_check').val(0);
+	else
+		$('#gq_check').val(-1);
+	console.log($('#gq_check').val())
+}
+
+/*
 	Listener on value change for the trapping question.
 	if the answer is correct, change the value of tp_check to 0.
 */
@@ -580,6 +622,7 @@ function onValueChangeForTpQuestion(){
 		$('#tp_check').val(0);
 	else
 		$('#tp_check').val(-1);
+	//console.log("gc_check"+$('#tp_check').val())
 }
 
 /*
@@ -604,6 +647,10 @@ function playedAudioQ(id){
 		element = $('input[name="'+id+'"]');
 		element.unbind();
 		element.on('change', onValueChangeForTpQuestion);
+	}else if ($('span[id="'+id+'"]').attr("data-src") == config['goldClipURL']){
+		element = $('input[name="'+id+'"]');
+		element.unbind();
+		element.on('change', onValueChangeForGoldQuestion);
 	}else{
 		$('input[name="'+id+'"]').off('change');
 		// check if already this HIT is counted
@@ -764,9 +811,9 @@ function generate_rating_section(){
 				  <p>Welcome and congratulation! You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just every one hour) sections::</p>
 				<ul>
 					<li><b>Qualification (just once):</b> Check if you are eligible to perform this HITs</li>
-					<li><b>Setup (every <b class="setup_time"></b> minutes):</b> Configure your system and validate it by answering to 6 questions</li>
-					<li><b>Training (every <b class="training_time"></b> hour):</b> <b class="question_number_training"></b> questions, same as "Ratings" but appears just once a day</li>
-					<li><b>Rating:</b> Listen to <b class="question_number"></b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
+					<li><b>Setup (every <b class="setup_time"> 0</b> minutes):</b> Configure your system and validate it by answering to 6 questions</li>
+					<li><b>Training (every <b class="training_time"> 0 </b> hour):</b> <b class="question_number_training"> 0 </b> questions, same as "Ratings" but appears just once a day</li>
+					<li><b>Rating:</b> Listen to <b class="question_number"> 0 </b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
 				</ul>
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
 				<p><b>Rules:</b></p>
@@ -778,7 +825,7 @@ function generate_rating_section(){
 
 				<p><b>Payment:</b></p>
 				<p>The result of this experiment is <b>very important for us and other scientist</b> working in this area. We have methods that analyse the consistency of your answers. We will use these methods to rank the submitted assignments according to quality.</p>
-				<p>For this experiment, we will pay a base reward of <b>$0.50/HIT</b> for every accepted HIT. We have made available a set of <u class="max_allowed_hits"></u> different HITs. You will receive a bonus of:</p>
+				<p>For this experiment, we will pay a base reward of <b>$0.50/HIT</b> for every accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You will receive a bonus of:</p>
 
 				<ul>
 				  <li>$0.10/HIT (for a total of <b>$0.60/HIT</b>) if you submit <b>more than 30 HITs</b> or</li>
@@ -786,7 +833,7 @@ function generate_rating_section(){
 				</ul>
 
 				<p>Bonuses will be assigned with in 7 days.</p>
-				  <b>Please perform up to <u class="max_allowed_hits"></u> from this group. If you do more than that, the <u>rest will be rejected.</u></b>
+				  <b>Please perform up to <b class="max_allowed_hits"> 0 </b> HITs from this group. If you do more than that, the <u>rest will be rejected.</u></b>
 			</div>
 		</div>
 
@@ -796,7 +843,7 @@ function generate_rating_section(){
 <section class="container">
 <div class="alert alert-danger" role="alert" id="error_loading_files" hidden>
 	<b>Error::</b> One or more audio clips cannot be loaded. <b>Please return this HIT and try another one.</b>
-	<span id="error_details"></span>
+	<span id="error_details"> </span>
 </div>
 </section>
 
@@ -977,7 +1024,7 @@ function generate_rating_section(){
 <div class="panel panel-info">
   <div class="panel-heading">
     <h3 class="panel-title">
-		<a data-target="#setup_panel" data-toggle="collapse" >Setup (every <b class="setup_time"></b> minutes)</a>
+		<a data-target="#setup_panel" data-toggle="collapse" >Setup (every <b class="setup_time"> a </b> minutes)</a>
 	</h3>
   </div>
   <div  class="panel-collapse collapse in" id="setup_panel">
@@ -1130,7 +1177,7 @@ function generate_rating_section(){
 					  Please click on <b>Allow</b> (on some of smartphones there will be no message). <u>We do not process or record any audio with your microphone</u>.
 				 <div class="center">
 						<button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
-						<div id="status"></div>
+						<div id="status"> </div>
 			  	</div>
 			</div>
 		</div>
@@ -1144,12 +1191,12 @@ function generate_rating_section(){
 		<div class="panel panel-primary">
 			<div class="panel-heading">
 				<h3 class="panel-title">
-					<a data-target="#trainingS" data-toggle="collapse" >Training (every <b class="training_time"></b> hour(s))</a>
+					<a data-target="#trainingS" data-toggle="collapse" >Training (every <b class="training_time"> 0 </b> hour(s))</a>
 				</h3>
 			</div>
 			<div  class="panel-collapse collapse in" id="trainingS">
 				<div class="panel-body">
-				<p> Please answer the following <b class="question_number_training"></b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				<p> Please answer the following <b class="question_number_training"> 0 </b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
 				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
 
  				<!-- will be generated -->
@@ -1160,7 +1207,7 @@ function generate_rating_section(){
 
 
 				</div>
-			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number_training"></b> questions.</div>
+			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number_training"> 0 </b> questions.</div>
 			<nav aria-label="..." id="navNextPreT">
 			  <ul class="pager">
 				<li class="previous" onclick="showPreviousQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
@@ -1176,6 +1223,7 @@ function generate_rating_section(){
 <!-- Training section ends-->
 
 <input id="tp_check" name="tp_check" type="hidden" value="-1" />
+<input id="gq_check" name="gq_check" type="hidden" value="-1" />
 <input id="browser_info" name="browser_info" type="hidden" value="-1" maxlength="2000"/>
 <input id="webrtc_raw" name="webrtc_raw" type="hidden" value="-1" maxlength="2000"/>
 <input id="use_headset" name="use_headset" type="hidden" value="-1" />
@@ -1187,18 +1235,18 @@ function generate_rating_section(){
 				<h3 class="panel-title">Ratings</h3>
 			</div>
 			<div class="panel-body">
-				<p> Please answer the following <b class="question_number"></b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				<p> Please answer the following <b class="question_number"> 0 </b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
 				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
 				<!-- will be generated -->
 				<div class="tab-content" id="nav-tabContent-rating">	</div>
-				<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number"></b> questions, then submit your response.</div>
+				<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number">0</b> questions, then submit your response.</div>
 				<nav aria-label="..." id="navNextPre">
 				  <ul class="pager">
 					<li class="previous" id="prev-rating" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button" ><span aria-hidden="true">&larr;</span>Previous</a></li>
-					<li class="next" onclick="showNextQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+					<li class="next" id= "next-rating" onclick="showNextQuestionInRatingSection();" ><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 				  </ul>
 				</nav>
 
@@ -1219,6 +1267,17 @@ function generate_rating_section(){
 		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
 			  <b>NOTE:</b> Performing more HITs
 		than what is explained in the description is forbidden and leads ro rejection of all of your submissions.
+			</div>
+
+</section>
+
+<section class="container" id="qualification_rejected" hidden>
+	<p>There is no assignments that match to your profile now. Please try it again in two-weeks time.
+	We thank you for your participation.</p>
+
+	<div class="alert alert-danger" role="alert">
+		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
+			  <b>NOTE:</b> Any try to perform assignments and neglecting this message is forbidden and leads ro rejection of all of your submissions.
 			</div>
 
 </section>
