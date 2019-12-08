@@ -194,12 +194,6 @@ function recordError(name, message){
 	$("#errorSection").show();
 }
 
-function helpIdentifyNotAnswered(){
-	$(':input[required]:visible').each(function( index ) {
-  		console.log( index + ": " + $( this ).attr('name'));
-	});
-}
-
 /*
 	Initialize the qualification section
 */
@@ -1287,7 +1281,6 @@ function generate_rating_section(){
 
 <section class="container" id="thanks">
 	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
-	<p>Note: The submit button may not work until you answer all questions in this HIT. <a id="myLink" href="#" onclick="helpIdentifyNotAnswered();return false;">(Check which questions are not yet answered)</a> .</p>
 </section>
 
 <section class="container" id="max_allowed_HITs_reached" hidden>
