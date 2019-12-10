@@ -23,6 +23,8 @@ message_to_values={
     "excellent_short": 5
 }
 
+audio_extension = '.wav'
+
 
 def create_trap_db(cfg, cfg_dir_name):
     """
@@ -31,9 +33,9 @@ def create_trap_db(cfg, cfg_dir_name):
     :return:
     """
     # create directory names
-    source_folder = join(cfg_dir_name, cfg['input_directory'], 'source')
-    msg_folder = join(cfg_dir_name, cfg['input_directory'], 'messages')
-    output_folder = join(cfg_dir_name, cfg['input_directory'], 'output')
+    source_folder = join(cfg['input_directory'], 'source')
+    msg_folder = join(cfg['input_directory'], 'messages')
+    output_folder = join(cfg['input_directory'], 'output')
 
     # check directories exist
     assert os.path.exists(source_folder), f"No 'source' directory found, expected in {source_folder}]"
@@ -43,9 +45,9 @@ def create_trap_db(cfg, cfg_dir_name):
         os.makedirs(output_folder)
 
     # find list of files
-    source_files = [join(source_folder, f) for f in os.listdir(source_folder) if isfile(join(source_folder, f))]
+    source_files = [join(source_folder, f) for f in os.listdir(source_folder) if isfile(join(source_folder, f)) and audio_extension in f]
     msg_files = [join(msg_folder, f) for f in os.listdir(msg_folder)
-                 if isfile(join(msg_folder, f)) and cfg['message_file_prefix'] in f]
+                 if isfile(join(msg_folder, f)) and cfg['message_file_prefix'] in f and audio_extension in f]
     count = 0
     list_of_file=[]
     for s_f in source_files:
