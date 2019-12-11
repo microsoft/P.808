@@ -16,39 +16,38 @@ import random
 import numpy as np
 
 
-def validate_inputs(cfg,row_input_path):
+def validate_inputs(cfg, df):
     """
     Validate the structure, and fields in row_input.csv and configuration file
     :param cfg: configuration file
     :param row_input_path: path to row_input
     """
-    columns = list(pd.read_csv(row_input_path, nrows=1).columns)
+    columns = list(df.columns)
 
     # check mandatory columns
     required_columns=['rating_clips', 'math', 'pair_a', 'pair_b', 'trapping_clips', 'trapping_ans']
     for column in required_columns:
-        assert column in columns, f"No column found with '{column}' in [{row_input_path}]"
+        assert column in columns, f"No column found with '{column}' in input file"
 
     # check optionals
     #   gold_clips
-    if 'number_of_gold_clips_per_session' in cfg['general'] and int(cfg['general']['number_of_gold_clips_per_session'])>0:
-        assert 'gold_clips' in columns, f"No column found with 'gold_clips' in [{row_input_path}]"
-        assert 'gold_clips_ans' in columns, f"No column found with 'gold_clips_ans' in [{row_input_path}] " \
+    if 'number_of_gold_clips_per_session' in cfg and int(cfg['number_of_gold_clips_per_session'])>0:
+        assert 'gold_clips' in columns, f"No column found with 'gold_clips' in input file"
+        assert 'gold_clips_ans' in columns, f"No column found with 'gold_clips_ans' in input file " \
             f"(required since v.1.0)"
 
 
-def create_input_for_mturk(cfg,row_input_path, output_path):
+def create_input_for_mturk(cfg, df, output_path):
     """
     Create input.csv for MTurk
     :param cfg: configuration  file
-    :param row_input_path: path to row input, see validate_inputs for details
+    :param df:  row input, see validate_inputs for details
     :param output_path: path to output file
     """
-    df = pd.read_csv(row_input_path)
 
     clips = df['rating_clips'].dropna()
     n_clips = clips.count()
-    n_sessions = math.ceil(n_clips / int(cfg['general']['number_of_clips_per_session']))
+    n_sessions = math.ceil(n_clips / int(cfg['number_of_clips_per_session']))
 
     print (f'{n_clips} clips and {n_sessions} sessions')
 
@@ -85,20 +84,20 @@ def create_input_for_mturk(cfg,row_input_path, output_path):
     output_df['math']= math_output
     # rating_clips
     #   repeat some clips to have a full design
-    n_questions = int(cfg['general']['number_of_clips_per_session'])
+    n_questions = int(cfg['number_of_clips_per_session'])
     needed_clips = n_sessions * n_questions
-    all_clips = np.tile(clips.to_numpy(),(needed_clips //n_clips)+1)[:needed_clips]
+    all_clips = np.tile(clips.to_numpy(), (needed_clips //n_clips)+1)[:needed_clips]
     #   check the method: clips_selection_strategy
     random.shuffle(all_clips)
 
     clips_sessions = np.reshape(all_clips, (n_sessions, n_questions))
 
     for q in range(n_questions):
-        output_df[f'Q{q}']= clips_sessions[:, q]
+        output_df[f'Q{q}'] = clips_sessions[:, q]
 
     # trappings
-    if int(cfg['general']['number_of_trapping_per_session']) > 0:
-        if int(cfg['general']['number_of_trapping_per_session']) > 1:
+    if int(cfg['number_of_trapping_per_session']) > 0:
+        if int(cfg['number_of_trapping_per_session']) > 1:
             print("more than one TP is not supported for now - continue with 1")
         # n_trappings = int(cfg['general']['number_of_trapping_per_session']) * n_sessions
         n_trappings = n_sessions
@@ -115,8 +114,8 @@ def create_input_for_mturk(cfg,row_input_path, output_path):
         output_df['TP'] = full_trappings
         output_df['TP_ANS'] = full_trappings_answer
     #gold_clips
-    if int(cfg['general']['number_of_gold_clips_per_session']) > 0:
-        if int(cfg['general']['number_of_gold_clips_per_session']) > 1:
+    if int(cfg['number_of_gold_clips_per_session']) > 0:
+        if int(cfg['number_of_gold_clips_per_session']) > 1:
             print("more than one gold_clip is not supported for now - continue with 1")
         n_gold_clips = n_sessions
         gold_clip_source = df['gold_clips'].dropna()
@@ -159,10 +158,12 @@ if __name__ == '__main__':
     cfg.read(cfg_path)
 
     print('Start validating inputs')
-    validate_inputs(cfg, row_input)
+    df = pd.read_csv(row_input)
+    validate_inputs(cfg['general'], df)
     print('... validation is finished.')
 
     output_file = os.path.splitext(row_input)[0]+'_publish_batch.csv'
-    create_input_for_mturk(cfg, row_input, output_file)
+
+    create_input_for_mturk(cfg['general'], df, output_file)
 
 
