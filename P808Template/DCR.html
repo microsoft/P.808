@@ -61,12 +61,11 @@ General configuration file:
  - showSetupEveryMinutes: show the setup section every X minutes (recommendation: 15 minutes)
  - questionUrls: URLs to clips to be appeared in the Rating section. Either hard-coded or placeholders.
  - trainingUrls: URLs to clips to be appeared in the Training section. Either hard-coded or placeholders.
- - knownQuestionInTrainingUrl: Training may contain a question with known answer which worker will be forced to give the
- correct answer to.
- - knownQuestionInTrainingAns: the answer that should be selected by worker
- - knownQuestionUrl: the rating section may contain a question with known answer. It will be used in combination of the
+ - knownQuestionInTrainingUrl: for DCR it is A-A case (repeating the reference)
+ - knownQuestionInTrainingAns: the answer that we expect from worker (as it is A-A case, so we always expect 5)
+ - knownQuestionUrl: for DCR it is A-A case (repeating the reference)
  Assignment Review Policy.
- - knownQuestionAns: the answer that we expect from worker
+ - knownQuestionAns: the answer that we expect from worker (as it is A-A case, so we always expect 5)
  - randomizeTrainingQuestions: boolean whether the questions in the training section should be randomized on loading time.
  - randomizeRatingQuestions: boolean whether the questions in the rating section should be randomized on loading time.
  - allowedMaxHITsInProject: How many HITs each worker is allowed to answer in this project
@@ -74,27 +73,40 @@ General configuration file:
 
 */
 var config ={
-	cookieName:"itu_p808_sup23_exp3",
+	cookieName:"itu_p808_sup23_exp3_2",
 	qualificationCookieName:"ACR_LISTNER",
 	qualificationValidFor:525600,
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
-    questionUrls: ["${Q0}","${Q1}","${Q2}","${Q3}","${Q4}","${Q5}","${Q6}","${Q7}","${Q8}","${Q9}","${TP}","${gold_clips}"],
+    questionUrls: [
+	    {"ref":"${Q0_R}", "processed":"${Q0_P}"},
+    	{"ref":"${Q1_R}", "processed":"${Q1_P}"},
+    	{"ref":"${Q2_R}", "processed":"${Q2_P}"},
+    	{"ref":"${Q3_R}", "processed":"${Q3_P}"},
+    	{"ref":"${Q4_R}", "processed":"${Q4_P}"},
+    	{"ref":"${Q5_R}", "processed":"${Q5_P}"},
+    	{"ref":"${Q6_R}", "processed":"${Q6_P}"},
+    	{"ref":"${Q7_R}", "processed":"${Q7_P}"},
+    	{"ref":"${Q8_R}", "processed":"${Q8_P}"},
+    	{"ref":"${Q9_R}", "processed":"${Q9_P}"},
+    	{"ref":"${gold_clip}", "processed":"${gold_clip}"}
+    ],
     trainingUrls: [
-    "https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M5232.wav",
-	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F7D25.wav",
-	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M0202.wav",
-	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M4721.wav",
-	"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F9347.wav",
-    "https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M1E30_excellent_short.wav"],
+    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_M02S78.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M5232.wav"},
+    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F01S71.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F7D25.wav"},
+    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_M01S48.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M0202.wav"},
+    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_M02S67.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M4721.wav"},
+    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F01S93.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F9347.wav"},
+    	//gold clip
+    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F02S95.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F02S95.wav"},
+    ],
 
-    knownQuestionInTrainingUrl:"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M1E30_excellent_short.wav",
+    knownQuestionInTrainingUrl:"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F02S95.wav",
     knownQuestionInTrainingAns: "5",
-    knownQuestionUrl:"${TP}",
-    knownQuestionAns: "${TP_ANS}",
-    goldClipURL:"${gold_clips}",
-    goldClipAns:"${gold_clips_ans}",
+    knownQuestionUrl:"${gold_clip}",
+    knownQuestionAns: "5",
+
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
     allowedMaxHITsInProject:60,
@@ -109,7 +121,8 @@ var config ={
         num3: "626",
         num4: "802",
         num5: "913"
-	}
+	},
+	emailAddress:"ic3ai@outlook.com"
 }
 
 // if performing of this assignment is already counted
@@ -190,7 +203,7 @@ $(function() {
 function recordError(name, message){
 	generalErrorLog =generalErrorLog + " Error "+name+": "+message+";%0D%0A"
 	$('#errors').val(generalErrorLog);
-	$("#errorEmail").attr("href","mailto:ic3ai@outlook.com?subject=Error on HIT Load&body="+generalErrorLog);
+	$("#errorEmail").attr("href","mailto:"+config["emailAddress"]+"?subject=Error on HIT Load&body="+generalErrorLog);
 	$("#errorSection").show();
 }
 
@@ -292,8 +305,12 @@ function loadTextPlaceHolders(){
 	// update the instruction
 	$('.max_allowed_hits').html(config['allowedMaxHITsInProject']);
 	$('.setup_time').html(config['showSetupEveryMinutes']);
-	$('.training_time').html(config['forceRetrainingInHours']);
-
+	if (config['forceRetrainingInHours']==1)
+		$('.training_time').html(config['forceRetrainingInHours']+" hour" );
+	else
+		$('.training_time').html(config['forceRetrainingInHours']+" hours" );
+	$('.question_number_training').html(config['trainingUrls'].length);
+	$('.question_number').html(config['questionUrls'].length);
 }
 
 /*
@@ -465,15 +482,20 @@ var trainingStimulusPlayed;
   config.forceRetrainingInHours
 */
 function playedAudioTraining(id){
-	$('input[name="'+id+'"]').off('change');
-	trainingQuestionNumber= id.substring(1);
-	eval("trainingStimulusPlayed["+trainingQuestionNumber+"-1]=1;");
+	let id_num= id.substring(3);
+	played_ref= $("#audio_n_finish_t_r{0}".f(id_num)).val();
+	played_pro = $("#audio_n_finish_t_p{0}".f(id_num)).val()
+	//both should be played at least once
+	if (played_ref== 0 || played_pro == 0)
+		return;
+	$('input[name="t{0}"]'.f(id_num)).off('change');
+	eval("trainingStimulusPlayed["+id_num+"-1]=1;");
 	console.log(trainingStimulusPlayed.reduce(getSum, 0))
 	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
 		createCookie(config['cookieName']+"_training","un_important",config['forceRetrainingInHours']*60);
 	}
 	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionInTrainingUrl']){
-		element = $('input[name="'+id+'"]');
+		element = $('input[name="t{0}"]'.f(id_num));
 		element.unbind();
 		element.on('change', onValueChangeForTpQuestionInTraining);
 	}
@@ -599,7 +621,7 @@ var problematic_urls="";
 	Called when the scale item is clicked
 */
 function alertForbiddenChange(){
-	alert('You should listen until the end.');
+	alert('You should listen to both clips until the end.');
 	$(this).prop('checked', false);
 }
 
@@ -623,6 +645,8 @@ function avoidAnsweringBeforeListeningThrough(){
 	if the answer is correct, change the value of gq_check to 0.
 */
 function onValueChangeForGoldQuestion(){
+	if(!('goldClipAns' in config))
+		return;
 	let ans = $( this ).val()
 	let expectedVal = parseInt(config['goldClipAns'])
 	if ( expectedVal -1 <=ans && ans <= expectedVal +1 )
@@ -637,6 +661,8 @@ function onValueChangeForGoldQuestion(){
 	if the answer is correct, change the value of tp_check to 0.
 */
 function onValueChangeForTpQuestion(){
+	if(!('knownQuestionAns' in config))
+		return;
 	if ($( this ).val()  == parseInt(config['knownQuestionAns']))
 		$('#tp_check').val(0);
 	else
@@ -649,8 +675,10 @@ function onValueChangeForTpQuestion(){
 	if the answer is wrong, show a message.
 */
 function onValueChangeForTpQuestionInTraining(){
+	if(!('knownQuestionInTrainingAns' in config))
+		return;
 	if ($( this ).val()  != config['knownQuestionInTrainingAns']){
-		alert('Error: In case you hear an interruption message, please follow the instruction given in the message.');
+		alert('Error: your answer does not seem to be correct. How degraded is the "Processed" clip compare to the "Reference" one?');
 		$(this).prop('checked', false);
 	}
 
@@ -661,17 +689,20 @@ function onValueChangeForTpQuestionInTraining(){
 	Now user can rate the quality.
 */
 function playedAudioQ(id){
+	let id_num= id.substring(3);
+	played_ref= $("#audio_n_finish_q_r{0}".f(id_num)).val();
+	played_pro = $("#audio_n_finish_q_p{0}".f(id_num)).val();
+	console.log(played_ref +","+played_pro);
+	//both should be played at least once
+	if (played_ref== 0 || played_pro == 0)
+		return;
 	// check if it was the trapping question
 	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionUrl']){
-		element = $('input[name="'+id+'"]');
+		element = $('input[name="q{0}"]'.f(id_num));
 		element.unbind();
 		element.on('change', onValueChangeForTpQuestion);
-	}else if ($('span[id="'+id+'"]').attr("data-src") == config['goldClipURL']){
-		element = $('input[name="'+id+'"]');
-		element.unbind();
-		element.on('change', onValueChangeForGoldQuestion);
 	}else{
-		$('input[name="'+id+'"]').off('change');
+		$('input[name="q{0}"]'.f(id_num)).off('change');
 		// check if already this HIT is counted
 		if (!hitCounterIncreased){
 			updateCounterCookie(config['cookieName']+"_counter",1);
@@ -732,9 +763,7 @@ const startHeadsetCheck = async function() {
   });
 }
 
-//function startMeasure(){
-// 	startHeadsetCheck();
-//}
+
 </script>
 
 <script type="text/javascript">
@@ -757,8 +786,8 @@ function shuffle(a) {
 	Generate the training section
 */
 function generate_training_section(){
-	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link " data-toggle="tab"  href="#T{0}-panel" id="T{0}-tab " role="tab" aria-controls="T{0}" {2}>Q. {0}</a></li>';
-	acr_tab ='<div class="tab-pane fade {2}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. How do you rate the <b>degradation</b> of the following speech sample comparing to the reference? </p> <div class="row"> <div class="col-sm-6">	  <p align="center"> <span class="baudio" title = "Reference" id="t{0}" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p> </div> <div class="col-sm-6">	  <p align="center"> <span class="baudio" title = "Processed" id="t{0}" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p> </div> </div> <fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Degradation category</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="5">Degradation is inaudible</label></div></td><td class="c">5</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="4">Degradation is audible but not annoying</label></div></td><td class="c">4</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="3">Degradation is slightly annoying</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="2">Degradation is annoying</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="1"required="">Degradation is very annoying</label></div></td><td class="c">1</td></tr>	   </tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
+	dcr_nav_tab = '<li class="nav-item {1}"><a class="nav-link " data-toggle="tab"  href="#T{0}-panel" id="T{0}-tab " role="tab" aria-controls="T{0}" {2}>Q. {0}</a></li>';
+	dcr_tab ='<div class="tab-pane fade {3}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. How do you rate the <b>degradation</b> of the following speech sample comparing to the reference? </p> <div class="row"> <div class="col-sm-6">	  <p align="center"> <span class="baudio" title = "Reference" id="t_r{0}" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p> </div> <div class="col-sm-6">	  <p align="center"> <span class="baudio" title = "Processed" id="t_p{0}" data-onfinished="playedAudioTraining" data-src="{2}" >&nbsp;</span> </p> </div> </div> <fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Degradation category</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="5">Degradation is inaudible</label></div></td><td class="c">5</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="4">Degradation is audible but not annoying</label></div></td><td class="c">4</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="3">Degradation is slightly annoying</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="2">Degradation is annoying</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="1"required="">Degradation is very annoying</label></div></td><td class="c">1</td></tr>	   </tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
 	// this will show which url was shown by in which question as their orther will be randomized
 	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" />';
 
@@ -770,15 +799,15 @@ function generate_training_section(){
 	var i;
 	for (i = 0; i < urls.length; i++) {
 		if (i==0){
-			$('#trainingTabs').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
-			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'in active'));
+			$('#trainingTabs').append(dcr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
+			$('#nav-tabContent').append(dcr_tab.f(i+1, urls[i].ref, urls[i].processed,'in active'));
 		}else{
-			$('#trainingTabs').append(acr_nav_tab.f(i+1,'',''));
-			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],''));
+			$('#trainingTabs').append(dcr_nav_tab.f(i+1,'',''));
+			$('#nav-tabContent').append(dcr_tab.f(i+1, urls[i].ref, urls[i].processed ,''));
 		}
-		$('#av-tabContent').append(input_template.f(i+1, urls[i]));
+		$('#av-tabContent').append(input_template.f(i+1, urls[i].processed));
 	}
-	$('.question_number_training').html(urls.length);
+
 	trainingStimulusPlayed = new Array(urls.length).fill(0);
 }
 
@@ -787,7 +816,7 @@ function generate_training_section(){
 */
 function generate_rating_section(){
 	dcr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#Q{0}-panel" id="Q{0}-tab" role="tab" aria-controls="Q{0}" {2}>Q. {0}</a></li>';
-	dcr_tab ='<div class="tab-pane fade {2}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"> <p></p> <div class="row"> <div class="col-sm-3"></div> <div class="col-sm-6"> <p style="margin-top:10px;">{0}. How do you rate the <b>degradation</b> of the following speech sample comparing to the reference? </p> <div class="row"> <div class="col-sm-6"> <p align="center"> <span class="baudio" title = "Reference" id="q{0}" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> </div> <div class="col-sm-6">	  <p align="center"> <span class="baudio" title = "Processed" id="q{0}" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p> </div> </div>  <fieldset id="fieldset_q{0}" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >Degradation category</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="5">Degradation is inaudible</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="4">Degradation is audible but not annoying</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="3">Degradation is slightly annoying</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="2">Degradation is annoying</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="1"required="">Degradation is very annoying</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> <p></p> </div> <div class="col-sm-3"></div> </div> <p></p> </div>';
+	dcr_tab ='<div class="tab-pane fade {3}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"> <p></p> <div class="row"> <div class="col-sm-3"></div> <div class="col-sm-6"> <p style="margin-top:10px;">{0}. How do you rate the <b>degradation</b> of the following speech sample comparing to the reference? </p> <div class="row"> <div class="col-sm-6"> <p align="center"> <span class="baudio" title = "Reference" id="q_r{0}" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> </div> <div class="col-sm-6">	  <p align="center"> <span class="baudio" title = "Processed" id="q_p{0}" data-onfinished="playedAudioQ" data-src="{2}" >&nbsp;</span> </p> </div> </div>  <fieldset id="fieldset_q{0}" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >Degradation category</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="5">Degradation is inaudible</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="4">Degradation is audible but not annoying</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="3">Degradation is slightly annoying</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="2">Degradation is annoying</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="1"required="">Degradation is very annoying</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> <p></p> </div> <div class="col-sm-3"></div> </div> <p></p> </div>';
 	// this will show which url was shown by in which question as their orther will be randomized
 	input_template= '<input id="Q{0}_URL" name="Q{0}_URL" type="hidden" value="{1}" />';
 	if (JSON.parse(config['randomizeRatingQuestions'])){
@@ -800,15 +829,13 @@ function generate_rating_section(){
 	for (i = 0; i < urls.length; i++) {
 		if (i==0){
 			$('#nav-tab-ul').append(dcr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
-			$('#nav-tabContent-rating').append(dcr_tab.f(i+1, urls[i],'in active'));
+			$('#nav-tabContent-rating').append(dcr_tab.f(i+1, urls[i].ref, urls[i].processed,'in active'));
 		}else{
 			$('#nav-tab-ul').append(dcr_nav_tab.f(i+1,'',''));
-			$('#nav-tabContent-rating').append(dcr_tab.f(i+1, urls[i],''));
+			$('#nav-tabContent-rating').append(dcr_tab.f(i+1, urls[i].ref, urls[i].processed,''));
 		}
-		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i]));
+		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i].processed));
 	}
-	$('.question_number').html(urls.length);
-
 }
 </script>
 
@@ -836,12 +863,12 @@ function generate_rating_section(){
 				<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/process_2.png" alt="scale" class="center" width="300px">
 
 
-				  <p>Welcome and congratulation! You have been selected to participate in our speech quality assessment experiment! This HIT has two + one (just every one hour) sections::</p>
+				  <p>Welcome and congratulation! You have been selected to participate in our speech quality assessment experiment! This HIT has one + three (just once in a while) sections:</p>
 				<ul>
 					<li><b>Qualification (just once):</b> Check if you are eligible to perform this HITs</li>
 					<li><b>Setup (every <b class="setup_time"> 0</b> minutes):</b> Configure your system and validate it by answering to 6 questions</li>
-					<li><b>Training (every <b class="training_time"> 0 </b> hour):</b> <b class="question_number_training"> 0 </b> questions, same as "Ratings" but appears just once a day</li>
-					<li><b>Rating:</b> Listen to <b class="question_number"> 0 </b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
+					<li><b>Training (every <b class="training_time"> 0 hour</b>):</b> <b class="question_number_training"> 0 </b> questions, same as "Ratings" but appears time to time</li>
+					<li><b>Rating:</b> Listen to <b class="question_number"> 0 </b> pairs of audio clips and give <b>your opinion about the quality of the speech</b> you hear.</li>
 				</ul>
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
 				<p><b>Rules:</b></p>
@@ -1213,13 +1240,13 @@ function generate_rating_section(){
 		<div class="panel panel-primary">
 			<div class="panel-heading">
 				<h3 class="panel-title">
-					<a data-target="#trainingS" data-toggle="collapse" >Training (every <b class="training_time"> 0 </b> hour(s))</a>
+					<a data-target="#trainingS" data-toggle="collapse" >Training (every <b class="training_time"> 0 hour</b>)</a>
 				</h3>
 			</div>
 			<div  class="panel-collapse collapse in" id="trainingS">
 				<div class="panel-body">
-				<p> Please answer the following <b class="question_number_training"> 0 </b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
-				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
+				<p> Please answer the following <b class="question_number_training"> 0 </b> questions. For each question, please listen to the pairs of the audio clips and give your opinion about the quality of the speech you hear in the <b>processed</b> clip, compare to its reference, on the following scale. <b>Note</b> that the scale will be activated when both clips played until the end. </p>
+				<p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="trainingTabs">
@@ -1245,7 +1272,6 @@ function generate_rating_section(){
 <!-- Training section ends-->
 
 <input id="tp_check" name="tp_check" type="hidden" value="-1" />
-<input id="gq_check" name="gq_check" type="hidden" value="-1" />
 <input id="errors" name="errors" type="hidden" value="" />
 
 <input id="browser_info" name="browser_info" type="hidden" value="-1" maxlength="2000"/>
@@ -1259,8 +1285,8 @@ function generate_rating_section(){
 				<h3 class="panel-title">Ratings</h3>
 			</div>
 			<div class="panel-body">
-				<p> Please answer the following <b class="question_number"> 0 </b> questions. For each question, please listen to the audio sample and give your opinion about the quality of the speech you hear on the following scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
-				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
+				<p> Please answer the following <b class="question_number"> 0 </b> questions. For each question, please listen to the pairs of the audio clips and give your opinion about the quality of the speech you hear in the <b>processed</b> clip, compare to its reference, on the following scale. <b>Note</b> that the scale will be activated when both clips played until the end. </p>
+				<p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
