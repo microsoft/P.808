@@ -11,7 +11,7 @@ import os
 import configparser as CP
 from jinja2 import Template
 import pandas as pd
-import create_input_acr as cacr
+import create_input as ca
 
 
 def create_analyzer_cfg(cfg, template_path, out_path):
@@ -120,19 +120,25 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Master script to prepare the ACR test')
     parser.add_argument("--project", help="Name of the project", required=True)
     parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=True)
-    parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips'",
+    parser.add_argument("--method", required=True,
+                        help="one of the test methods: 'acr', 'dcr', or 'ccr'")
+    parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
+                                        "case of ccr/dcr it should also contain a column for 'references'",
                         required=True)
     parser.add_argument("--gold_clips", help="A csv containing urls of all gold clips in column 'gold_clips' and their "
-                                             "answer in column 'gold_clips_ans'", required=True)
+                                             "answer in column 'gold_clips_ans'")
     parser.add_argument("--training_clips", help="A csv containing urls of all training clips to be rated in training "
                                                  "section. Column 'training_clips'", required=True)
     parser.add_argument("--trapping_clips", help="A csv containing urls of all trapping clips. Columns 'trapping_clips'"
                                                  "and 'trapping_ans'", required=True)
     args = parser.parse_args()
-
+    methods = ['acr', 'dcr', 'ccr']
+    test_method = args.method.lower()
+    assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr'"
     assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
     assert os.path.exists(args.clips), f"No csv file containing clips in {args.clips}"
-    assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
+    if test_method == "acr":
+        assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
     assert os.path.exists(args.training_clips), f"No csv file containing training clips in {args.training_clips}"
     assert os.path.exists(args.trapping_clips), f"No csv file containing trapping clips in {args.trapping_clips}"
     general = 'cfgs_and_inputs/master_script_inputs/general.csv'
@@ -142,6 +148,10 @@ if __name__ == '__main__':
 
     cfg_template_path = 'cfgs_and_inputs/master_script_inputs/acr_result_parser_template.cfg'
     assert os.path.exists(cfg_template_path), f"No cfg template  found  in {cfg_template_path}"
+    # temporrary
+    if test_method != "acr":
+        print('dcr and ccr are not supported by master script yet.')
+        exit()
 
     cfg = CP.ConfigParser()
     cfg._interpolation = CP.ExtendedInterpolation()
@@ -156,11 +166,11 @@ if __name__ == '__main__':
 
     # create inputs
     print('Start validating inputs')
-    cacr.validate_inputs(cfg['create_input'], df)
+    ca.validate_inputs(cfg['create_input'], df,test_method)
     print('... validation is finished.')
 
     output_csv_file = os.path.join(output_dir, args.project+'_publish_batch.csv')
-    cacr.create_input_for_mturk(cfg['create_input'], df, output_csv_file)
+    ca.create_input_for_mturk(cfg['create_input'], df, test_method, output_csv_file)
 
     # create acr.html
     output_html_file = os.path.join(output_dir, args.project + '_ACR.html')

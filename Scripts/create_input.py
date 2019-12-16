@@ -227,9 +227,9 @@ def create_input_for_mturk(cfg, df, method, output_path):
     :param output_path: path to output file
     """
     if method == 'acr':
-        create_input_for_acr(cfg, df, output_file)
+        create_input_for_acr(cfg, df, output_path)
     else:
-        create_input_for_dcrccr(cfg, df, output_file)
+        create_input_for_dcrccr(cfg, df, output_path)
 
 
 if __name__ == '__main__':
