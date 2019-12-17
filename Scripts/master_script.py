@@ -48,11 +48,11 @@ def create_analyzer_cfg(cfg, template_path, out_path):
     print(f"  [{out_path}] is created")
 
 
-def create_acr_html(cfg, temolate_path, out_path, training_path, trap_path):
+def create_acr_html(cfg, template_path, out_path, training_path, trap_path):
     """
     Create the ACR.html file corresponding to this project
     :param cfg:
-    :param temolate_path:
+    :param template_path:
     :param out_path:
     :return:
     """
@@ -84,7 +84,7 @@ def create_acr_html(cfg, temolate_path, out_path, training_path, trap_path):
     train.append(trap_url)
     config['training_urls'] = train
 
-    with open(temolate_path, 'r') as file:
+    with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
     t = Template(content)
@@ -92,7 +92,6 @@ def create_acr_html(cfg, temolate_path, out_path, training_path, trap_path):
 
     with open(out_path, 'w') as file:
         file.write(html)
-        file.close()
     print(f"  [{out_path}] is created")
 
 def prepare_csv_for_create_input_acr(clips, gold, trapping, general):
