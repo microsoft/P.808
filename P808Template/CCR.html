@@ -56,7 +56,7 @@ General configuration file:
   - cookieName: change it for each study, it will be used to monitor if the user has taken training, setup sections, and
  how many assignments they submitted to expose limits.
  - qualificationCookieName: name of cookie that shows the status of qualification section.
- - qualificationValidFor: how long the qualification cookie stay in minutes (525600 : 6 months)
+ - qualificationValidFor: how long the qualification cookie stay in minutes (43200 : 1 month)
  - forceRetrainingInHours: every X hours force the user to take part in training (recommendation: 1hour)
  - showSetupEveryMinutes: show the setup section every X minutes (recommendation: 15 minutes)
  - questionUrls: URLs to clips to be appeared in the Rating section. Either hard-coded or placeholders.
@@ -75,7 +75,7 @@ General configuration file:
 var config ={
 	cookieName:"itu_p808_sup23_exp3_2",
 	qualificationCookieName:"ACR_LISTNER",
-	qualificationValidFor:525600,
+	qualificationValidFor:43200,
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",

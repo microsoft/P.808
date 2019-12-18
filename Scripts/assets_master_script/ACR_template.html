@@ -56,7 +56,7 @@ General configuration file:
   - cookieName: change it for each study, it will be used to monitor if the user has taken training, setup sections, and
  how many assignments they submitted to expose limits.
  - qualificationCookieName: name of cookie that shows the status of qualification section.
- - qualificationValidFor: how long the qualification cookie stay in minutes (525600 : 6 months)
+ - qualificationValidFor: how long the qualification cookie stay in minutes (43200 : 1 month)
  - forceRetrainingInHours: every X hours force the user to take part in training (recommendation: 1hour)
  - showSetupEveryMinutes: show the setup section every X minutes (recommendation: 15 minutes)
  - questionUrls: URLs to clips to be appeared in the Rating section. Either hard-coded or placeholders.
@@ -76,11 +76,11 @@ General configuration file:
 var config ={
 	cookieName:"{{cfg.cookie_name}}",
 	qualificationCookieName:"{{cfg.qual_cookie_name}}",
-	qualificationValidFor:525600,
+	qualificationValidFor:43200,
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
-    questionUrls: ["${Q0}","${Q1}","${Q2}","${Q3}","${Q4}","${Q5}","${Q6}","${Q7}","${Q8}","${Q9}","${TP}","${gold_clips}"],
+    questionUrls: {{cfg.rating_urls}},
     trainingUrls: {{cfg.training_urls}},
 
     knownQuestionInTrainingUrl:"{{cfg.training_trap_urls}}",
