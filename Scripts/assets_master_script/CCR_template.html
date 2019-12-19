@@ -226,14 +226,20 @@ function validateQualificationAnswer(){
 	}
 	working_area_checked= $("input[name='7_working_area']:checked").val() =="N"
 	hearing_self_report_check=$("input[name='8_hearing']:checked").val() == "normal"
-	num1_checked= $("input[name='num1']").val().trim()==config.qualification.num1
-	num2_checked= $("input[name='num2']").val().trim()==config.qualification.num2
-	num3_checked= $("input[name='num3']").val().trim()==config.qualification.num3
-	num4_checked= $("input[name='num4']").val().trim()==config.qualification.num4
-	num5_checked= $("input[name='num5']").val().trim()==config.qualification.num5
-
+	count_correct_ht=0;
+	if ($("input[name='num1']").val().trim()==config.qualification.num1)
+		count_correct_ht ++;
+	if ($("input[name='num2']").val().trim()==config.qualification.num2)
+		count_correct_ht ++;
+	if ($("input[name='num3']").val().trim()==config.qualification.num3)
+		count_correct_ht ++;
+	if ($("input[name='num4']").val().trim()==config.qualification.num4)
+		count_correct_ht ++;
+	if ($("input[name='num5']").val().trim()==config.qualification.num5)
+		count_correct_ht ++;
+	console.log("count_correct_ht:"+count_correct_ht);
 	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check &&
-		num1_checked && num2_checked && num3_checked && num4_checked && num5_checked;
+		count_correct_ht>= 3;
 	console.log(passed);
 	// add a qualification for 1 year
 	createCookie(config.qualificationCookieName,passed,config.qualificationValidFor);
@@ -981,8 +987,8 @@ function generate_rating_section(){
 
 		<fieldset class="qualificationFieldset">
 				 <div class="form-group">
-				  <label for="sel1">6.	When was the last time you participated in an <span title="Giving your opinion about an audio sample"><u>audio listening test</u></span>?</label>
-				  <select class="form-control" id="sel1" name="6_audio_test" required="">
+				  <label for="sel2">6.	When was the last time you participated in an <span title="Giving your opinion about an audio sample"><u>audio listening test</u></span>?</label>
+				  <select class="form-control" id="sel2" name="6_audio_test" required="">
 					<option value="">Please select</option>
 					<option value="0d">Today</option>
 					<option value="3d">In last 3 days</option>

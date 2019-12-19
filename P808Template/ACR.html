@@ -75,7 +75,7 @@ General configuration file:
 */
 var config ={
 	cookieName:"itu_p808_sup23_exp3",
-	qualificationCookieName:"ACR_LISTNER",
+	qualificationCookieName:"ACR_LISTENER_19_12_2019",
 	qualificationValidFor:43200,
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
@@ -233,14 +233,20 @@ function validateQualificationAnswer(){
 	}
 	working_area_checked= $("input[name='7_working_area']:checked").val() =="N"
 	hearing_self_report_check=$("input[name='8_hearing']:checked").val() == "normal"
-	num1_checked= $("input[name='num1']").val().trim()==config.qualification.num1
-	num2_checked= $("input[name='num2']").val().trim()==config.qualification.num2
-	num3_checked= $("input[name='num3']").val().trim()==config.qualification.num3
-	num4_checked= $("input[name='num4']").val().trim()==config.qualification.num4
-	num5_checked= $("input[name='num5']").val().trim()==config.qualification.num5
-
+	count_correct_ht=0;
+	if ($("input[name='num1']").val().trim()==config.qualification.num1)
+		count_correct_ht ++;
+	if ($("input[name='num2']").val().trim()==config.qualification.num2)
+		count_correct_ht ++;
+	if ($("input[name='num3']").val().trim()==config.qualification.num3)
+		count_correct_ht ++;
+	if ($("input[name='num4']").val().trim()==config.qualification.num4)
+		count_correct_ht ++;
+	if ($("input[name='num5']").val().trim()==config.qualification.num5)
+		count_correct_ht ++;
+	console.log("count_correct_ht:"+count_correct_ht);
 	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check &&
-		num1_checked && num2_checked && num3_checked && num4_checked && num5_checked;
+		count_correct_ht>= 3;
 	console.log(passed);
 	// add a qualification for 1 year
 	createCookie(config.qualificationCookieName,passed,config.qualificationValidFor);
