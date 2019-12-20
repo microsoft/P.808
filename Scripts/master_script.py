@@ -14,15 +14,15 @@ import pandas as pd
 import create_input as ca
 
 
-def create_analyzer_cfg(cfg, template_path, out_path):
+def create_analyzer_cfg_acr(cfg, template_path, out_path):
     """
-    create cfg file to be used by analyzer script
+    create cfg file to be used by analyzer script (acr method)
     :param cfg:
     :param template_path:
     :param out_path:
     :return:
     """
-    print("Start creating config file for acr_result_parser")
+    print("Start creating config file for result_parser")
     config = {}
 
     config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + \
@@ -48,7 +48,102 @@ def create_analyzer_cfg(cfg, template_path, out_path):
     print(f"  [{out_path}] is created")
 
 
-def create_acr_html(cfg, template_path, out_path, training_path, trap_path, cfg_g):
+def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path):
+    """
+    create cfg file to be used by analyzer script (ccr/dcr method)
+    :param cfg:
+    :param template_path:
+    :param out_path:
+    :return:
+    """
+    print("Start creating config file for result_parser")
+    config = {}
+
+    config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + \
+                      int(cfg['create_input']['number_of_trapping_per_session'])
+
+    config['max_allowed_hits'] = cfg['dcr_ccr_html']['allowed_max_hit_in_project']
+
+    config['quantity_hits_more_than'] = cfg['dcr_ccr_html']['quantity_hits_more_than']
+    config['quantity_bonus'] = cfg['dcr_ccr_html']['quantity_bonus']
+    config['quality_top_percentage'] = cfg['dcr_ccr_html']['quality_top_percentage']
+    config['quality_bonus'] = cfg['dcr_ccr_html']['quality_bonus']
+
+    with open(template_path, 'r') as file:
+        content = file.read()
+        file.seek(0)
+    t = Template(content)
+    cfg_file = t.render(cfg=config)
+
+    with open(out_path, 'w') as file:
+        file.write(cfg_file)
+        file.close()
+    print(f"  [{out_path}] is created")
+
+
+def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cfg_g):
+    """
+    Create the hit_app (html file) corresponding to this project for ccr and dcr
+    :param cfg:
+    :param template_path:
+    :param out_path:
+    :return:
+    """
+    print("Start creating custom hit_app (html)")
+
+    config = {}
+    config['cookie_name'] = cfg['cookie_name']
+    config['qual_cookie_name'] = cfg['qual_cookie_name']
+    config['allowed_max_hit_in_project'] = cfg['allowed_max_hit_in_project']
+
+    config['hit_base_payment'] = cfg['hit_base_payment']
+    config['quantity_hits_more_than'] = cfg['quantity_hits_more_than']
+    config['quantity_bonus'] = cfg['quantity_bonus']
+    config['quality_top_percentage'] = cfg['quality_top_percentage']
+    config['quality_bonus'] = float(cfg['quality_bonus']) + float(cfg['quantity_bonus'])
+    config['sum_quantity'] = float(cfg['quantity_bonus']) + float(cfg['hit_base_payment'])
+    config['sum_quality'] = config['quality_bonus'] + float(cfg['hit_base_payment'])
+
+    # rating urls
+    rating_urls = []
+    n_clips = int(cfg_g['number_of_clips_per_session'])
+    n_traps = int(cfg_g['number_of_trapping_per_session'])
+
+    for i in range(0, n_clips):
+        rating_urls.append({"ref": f"${{Q{i}_R}}", "processed": f"${{Q{i}_P}}"})
+
+    if n_traps > 1:
+        print("more than 1 trapping question is not supported. Proceed with 1 trap")
+    rating_urls.append({"ref": "${TP}", "processed": "${TP}"})
+    if 'number_of_gold_clips_per_session' in cfg_g:
+        print("Gold clips are not supported for CCR and DCR method. Proceed without them")
+    config['rating_urls'] = rating_urls
+
+    # training urls
+    df_train = pd.read_csv(training_path)
+    train_urls = []
+    train_ref = None
+    for index, row in df_train.iterrows():
+        if train_ref is None:
+            train_ref = row['training_references']
+        train_urls.append({"ref": f"{row['training_references']}", "processed": f"{row['training_clips']}"})
+    # add a trapping to the training section
+    train_urls.append({"ref": f"{train_ref}", "processed": f"{train_ref}"})
+    config['training_urls'] = train_urls
+    config['training_trap_urls'] = train_ref
+
+    with open(template_path, 'r') as file:
+        content = file.read()
+        file.seek(0)
+    t = Template(content)
+    html = t.render(cfg=config)
+
+    with open(out_path, 'w') as file:
+        file.write(html)
+    print(f"  [{out_path}] is created")
+
+
+def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_path, cfg_g):
     """
     Create the ACR.html file corresponding to this project
     :param cfg:
@@ -114,69 +209,11 @@ def create_acr_html(cfg, template_path, out_path, training_path, trap_path, cfg_
         file.write(html)
     print(f"  [{out_path}] is created")
 
-def create_ccr_html(cfg, template_path, out_path, training_path, cfg_g):
-    """
-    Create the CCR.html file corresponding to this project
-    :param cfg:
-    :param template_path:
-    :param out_path:
-    :param training_path:
-    :param cfg_g:
-    :return:
-    """
-    print("Start creating custom ccr.html")
-    config = {}
-    config['cookie_name'] = cfg['cookie_name']
-    config['qual_cookie_name'] = cfg['qual_cookie_name']
-    config['allowed_max_hit_in_project'] = cfg['allowed_max_hit_in_project']
-    config['training_trap_urls'] = trap_url
-    config['training_trap_ans'] = trap_ans
 
-    config['hit_base_payment'] = cfg['hit_base_payment']
-    config['quantity_hits_more_than'] = cfg['quantity_hits_more_than']
-    config['quantity_bonus'] = cfg['quantity_bonus']
-    config['quality_top_percentage'] = cfg['quality_top_percentage']
-    config['quality_bonus'] = float(cfg['quality_bonus']) + float(cfg['quantity_bonus'])
-    config['sum_quantity'] = float(cfg['quantity_bonus']) + float(cfg['hit_base_payment'])
-    config['sum_quality'] = config['quality_bonus'] + float(cfg['hit_base_payment'])
-
-    df_train = pd.read_csv(training_path)
-    train = []
-    for index, row in df_train.iterrows():
-        train.append(row['training_clips'])
-    train.append(trap_url)
-    config['training_urls'] = train
-
-    # rating urls
-    rating_urls = []
-    for i in range(0, cfg_g['number_of_clips_per_session']):
-        rating_urls.append('${Q'+i+'}')
-    if cfg_g['number_of_trapping_per_session'] > 1:
-        raise Exception("more than 1 trapping question is not supported.")
-    if cfg_g['number_of_trapping_per_session'] == 1:
-        rating_urls.append('${TP}')
-
-    if cfg_g['number_of_gold_clips_per_session'] > 1:
-        raise Exception("more than 1 gold question is not supported.")
-    if cfg_g['number_of_gold_clips_per_session'] == 1:
-        rating_urls.append('${gold_clips}')
-
-    config['rating_urls'] = rating_urls
-
-    with open(template_path, 'r') as file:
-        content = file.read()
-        file.seek(0)
-    t = Template(content)
-    html = t.render(cfg=config)
-
-    with open(out_path, 'w') as file:
-        file.write(html)
-    print(f"  [{out_path}] is created")
-
-
-def prepare_csv_for_create_input_acr(clips, gold, trapping, general):
+def prepare_csv_for_create_input(test_method, clips, gold, trapping, general):
     """
     Merge different input files into one dataframe
+    :param test_method
     :param clips:
     :param trainings:
     :param gold:
@@ -185,12 +222,16 @@ def prepare_csv_for_create_input_acr(clips, gold, trapping, general):
     :return:
     """
     df_clips = pd.read_csv(clips)
-    df_gold = pd.read_csv(gold)
-    df_trap = pd.read_csv(trapping)
     df_general = pd.read_csv(general)
+    if test_method == "acr":
+        df_gold = pd.read_csv(gold)
+        df_trap = pd.read_csv(trapping)
+    else:
+        df_gold = None
+        df_trap = df_clips[['references']].copy()
+        df_trap.rename(columns={'references': 'trapping_clips'}, inplace=True)
 
     result = pd.concat([df_clips, df_gold, df_trap, df_general], axis=1, sort=False)
-
     return result
 
 
@@ -209,33 +250,51 @@ if __name__ == '__main__':
     parser.add_argument("--training_clips", help="A csv containing urls of all training clips to be rated in training "
                                                  "section. Column 'training_clips'", required=True)
     parser.add_argument("--trapping_clips", help="A csv containing urls of all trapping clips. Columns 'trapping_clips'"
-                                                 "and 'trapping_ans'", required=True)
+                                                 "and 'trapping_ans'")
+    # check input arguments
     args = parser.parse_args()
+
     methods = ['acr', 'dcr', 'ccr']
     test_method = args.method.lower()
     assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr'"
     assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
     assert os.path.exists(args.clips), f"No csv file containing clips in {args.clips}"
+    assert os.path.exists(args.training_clips), f"No csv file containing training clips in {args.training_clips}"
+
     if test_method == "acr":
         assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
-    assert os.path.exists(args.training_clips), f"No csv file containing training clips in {args.training_clips}"
-    assert os.path.exists(args.trapping_clips), f"No csv file containing trapping clips in {args.trapping_clips}"
+        assert os.path.exists(args.trapping_clips), f"No csv file containing trapping clips in {args.trapping_clips}"
 
-    general_path = os.path.join(os.path.dirname(__file__),'assets_master_script/general.csv')
-    # for acr
-    acr_template_path = os.path.join(os.path.dirname(__file__),'assets_master_script/ACR_template.html')
-    acr_cfg_template_path = os.path.join(os.path.dirname(__file__),'assets_master_script/acr_result_parser_template.cfg')
-    # for dcr
-    # for ccr
+    # heck assets
+    general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
+    #   for acr
+    acr_template_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/ACR_template.html')
+    acr_cfg_template_path = os.path.join(os.path.dirname(__file__),
+                                         'assets_master_script/acr_result_parser_template.cfg')
+    #   for dcr
+    dcr_template_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/DCR_template.html')
+    #   for ccr
+    ccr_template_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/CCR_template.html')
+    dcr_ccr_cfg_template_path = os.path.join(os.path.dirname(__file__),
+                                             'assets_master_script/dcr_ccr_result_parser_template.cfg')
+
+    template_path = ''
 
     assert os.path.exists(general_path), f"No csv file containing general infos in {general_path}"
-    assert os.path.exists(acr_template_path), f"No html template file found  in {acr_template_path}"
-    assert os.path.exists(acr_cfg_template_path), f"No cfg template  found  in {acr_cfg_template_path}"
+    if test_method == "acr":
+        assert os.path.exists(acr_template_path), f"No html template file found  in {acr_template_path}"
+        assert os.path.exists(acr_cfg_template_path), f"No cfg template  found  in {acr_cfg_template_path}"
+        template_path = acr_template_path
 
-    # temporrary
-    if test_method != "acr":
-        print('dcr and ccr are not supported by master script yet.')
-        exit()
+    if test_method == "dcr":
+        assert os.path.exists(dcr_template_path), f"No html template file found  in {dcr_template_path}"
+        assert os.path.exists(dcr_ccr_cfg_template_path), f"No cfg template  found  in {dcr_ccr_cfg_template_path}"
+        template_path = dcr_template_path
+
+    if test_method == "ccr":
+        assert os.path.exists(ccr_template_path), f"No html template file found  in {ccr_template_path}"
+        assert os.path.exists(dcr_ccr_cfg_template_path), f"No cfg template  found  in {dcr_ccr_cfg_template_path}"
+        template_path = ccr_template_path
 
     cfg = CP.ConfigParser()
     cfg._interpolation = CP.ExtendedInterpolation()
@@ -246,22 +305,28 @@ if __name__ == '__main__':
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
     # prepare format
-    df = prepare_csv_for_create_input_acr(args.clips, args.gold_clips, args.trapping_clips, general_path)
+    df = prepare_csv_for_create_input(test_method, args.clips, args.gold_clips, args.trapping_clips, general_path)
 
     # create inputs
     print('Start validating inputs')
-    ca.validate_inputs(cfg['create_input'], df,test_method)
+    ca.validate_inputs(cfg['create_input'], df, test_method)
     print('... validation is finished.')
 
     output_csv_file = os.path.join(output_dir, args.project+'_publish_batch.csv')
     ca.create_input_for_mturk(cfg['create_input'], df, test_method, output_csv_file)
 
-    # create acr.html
-    output_html_file = os.path.join(output_dir, args.project + '_ACR.html')
-    create_acr_html(cfg['acr_html'], acr_template_path, output_html_file, args.training_clips, args.trapping_clips,
-                    cfg['create_input'])
+    # create hit_app
+    output_html_file = os.path.join(output_dir, f"{args.project}_{test_method}.html")
+    if test_method == 'acr':
+        create_hit_app_acr(cfg['acr_html'], template_path, output_html_file, args.training_clips,
+                           args.trapping_clips, cfg['create_input'])
+    else:
+        create_hit_app_ccr_dcr(cfg['dcr_ccr_html'], template_path, output_html_file, args.training_clips,
+                               cfg['create_input'])
 
     # create a config file for analyzer
-
-    output_cfg_file = os.path.join(output_dir, args.project + '_acr_result_parser.cfg')
-    create_analyzer_cfg(cfg, acr_cfg_template_path, output_cfg_file)
+    output_cfg_file = os.path.join(output_dir, f"{args.project}_{test_method}_result_parser.cfg")
+    if test_method == 'acr':
+        create_analyzer_cfg_acr(cfg, acr_cfg_template_path, output_cfg_file)
+    else:
+        create_analyzer_cfg_dcr_ccr(cfg, dcr_ccr_cfg_template_path, output_cfg_file)
