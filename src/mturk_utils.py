@@ -365,12 +365,12 @@ def create_qualification_type_without_test(client,cfg):
 
 
 def create_qualification_type_with_test(client,cfg):
-    with open('cfgs_and_inputs/qualification.xml', 'r') as test_file:
+    with open('cfgs_and_inputs_to_removeconfigurations/qualification.xml', 'r') as test_file:
         test = test_file.read()
         #test_url_escaped= urllib.parse.quote(test)
         test_url_escaped = test
         print(test_url_escaped)
-        with open('cfgs_and_inputs/answer_key.xml', 'r') as answer_file:
+        with open('cfgs_and_inputs_to_remove/answer_key.xml', 'r') as answer_file:
             ans = answer_file.read()
 
             response = client.create_qualification_type(
@@ -391,13 +391,13 @@ def create_qualification_type_with_test(client,cfg):
 
 
 def update_qualification_type_with_test(client,cfg):
-    with open('cfgs_and_inputs/qualification.xml', 'r') as test_file:
+    with open('cfgs_and_inputs_to_remove/qualification.xml', 'r') as test_file:
         test = test_file.read()
         #test_url_escaped= urllib.parse.quote(test)
         test_url_escaped = test
         print(test_url_escaped)
         q_id= get_qualification_id(client,'test4')
-        with open('cfgs_and_inputs/answer_key.xml', 'r') as answer_file:
+        with open('cfgs_and_inputs_to_remove/answer_key.xml', 'r') as answer_file:
             ans = answer_file.read()
 
             response = client.update_qualification_type(

@@ -83,8 +83,8 @@ version:
     CMP1_A, CMP1_B, CMP2_A, CMP2_B, CMP3_A, CMP3_B, CMP4_A, CMP4_B, Q1, Q10, Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9, T1, T2, 
     T3, T4, T5, TP, TP_ANS, math
     ```
-5. use `Scripts\mturk_utils.py`  to create HITs (see `create_hit` the [Readme](../Scripts/README.md) file there)
-6. use  `Scripts\mturk_utils.py`  to download the answers (see `answers` the [Readme](../Scripts/README.md) file there)
+5. use `Scripts\mturk_utils.py`  to create HITs (see `create_hit` the [Readme](../README.md) file there)
+6. use  `Scripts\mturk_utils.py`  to download the answers (see `answers` the [Readme](../README.md) file there)
 
 
  

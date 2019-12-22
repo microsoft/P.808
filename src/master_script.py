@@ -265,16 +265,16 @@ if __name__ == '__main__':
         assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
         assert os.path.exists(args.trapping_clips), f"No csv file containing trapping clips in {args.trapping_clips}"
 
-    # heck assets
+    # check assets
     general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
     #   for acr
-    acr_template_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/ACR_template.html')
+    acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/ACR_template.html')
     acr_cfg_template_path = os.path.join(os.path.dirname(__file__),
                                          'assets_master_script/acr_result_parser_template.cfg')
     #   for dcr
-    dcr_template_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/DCR_template.html')
+    dcr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/DCR_template.html')
     #   for ccr
-    ccr_template_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/CCR_template.html')
+    ccr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/CCR_template.html')
     dcr_ccr_cfg_template_path = os.path.join(os.path.dirname(__file__),
                                              'assets_master_script/dcr_ccr_result_parser_template.cfg')
 
