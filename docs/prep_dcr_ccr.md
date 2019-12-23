@@ -26,15 +26,15 @@ column name `training_clips` and URLs to corresponding reference clips in column
     
     6.2. Run master script with all above-mentioned resources as input (following example is for ccr)
         
-        ``` bash
-        cd src
-        python master_script.py 
-            --project YOUR_PROJECT_NAME
-            --method ccr
-            --cfg your_configuration_file.cfg
-            --clips rating_clips.csv
-            --training_clips training_clips.csv
-        ```
+    ```bash
+    cd src
+    python master_script.py 
+        --project YOUR_PROJECT_NAME
+        --method ccr
+        --cfg your_configuration_file.cfg
+        --clips rating_clips.csv
+        --training_clips training_clips.csv
+    ```
     Note: file path are expected to be relative to the current working directory.
     
     6.3. Double check the outcome of script: A folder should be create with YOUR_PROJECT_NAME in current working 
