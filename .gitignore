@@ -1,4 +1,4 @@
 mturk.cfg
-Scripts/trapping/source/desktop.ini
-Scripts/trapping/output/desktop.ini
-Scripts/trapping/messages/desktop.ini
+desktop.ini
+*__pycache__*
+*.pyc
