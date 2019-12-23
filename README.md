@@ -1,5 +1,5 @@
 # P.808 Toolkit
-The P.808 Toolkit is a software package that enables users to run speech quality assessment test
+The P.808 Toolkit is a software package that enables users to run subjective speech quality assessment test
 in Amazon Mechanical Turk (AMT) crowdsourcing platform, according to the ITU-T Recommendation P.808.
 
 For more information about the ITU-T Rec. P.808 please read:
@@ -22,8 +22,8 @@ For bug reports and issues with this code, please see the
 
 Contact Babak Naderi <bnaderi9[at]gmail.com) with any questions.
 
-
-## Code License
+## License
+### Code License
 MIT License
 
 Copyright 2019 (c) Microsoft Corporation.
@@ -34,7 +34,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-## Audio clips License
+### Audio clips License
 The datasets are provided under the original terms that Microsoft received such datasets. See below for more information about each dataset.
 
 The datasets used in this project are licensed as follows:

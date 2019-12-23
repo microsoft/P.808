@@ -113,7 +113,7 @@ def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cfg_g):
         rating_urls.append({"ref": f"${{Q{i}_R}}", "processed": f"${{Q{i}_P}}"})
 
     if n_traps > 1:
-        print("more than 1 trapping question is not supported. Proceed with 1 trap")
+        print("more than 1 trapping clips question is not supported. Proceed with 1 trap")
     rating_urls.append({"ref": "${TP}", "processed": "${TP}"})
     if 'number_of_gold_clips_per_session' in cfg_g:
         print("Gold clips are not supported for CCR and DCR method. Proceed without them")
@@ -127,7 +127,7 @@ def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cfg_g):
         if train_ref is None:
             train_ref = row['training_references']
         train_urls.append({"ref": f"{row['training_references']}", "processed": f"{row['training_clips']}"})
-    # add a trapping to the training section
+    # add a trapping clips to the training section
     train_urls.append({"ref": f"{train_ref}", "processed": f"{train_ref}"})
     config['training_urls'] = train_urls
     config['training_trap_urls'] = train_ref
@@ -188,7 +188,7 @@ def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_path, c
     for i in range(0, n_clips ):
         rating_urls.append('${Q'+str(i)+'}')
     if n_traps > 1:
-        raise Exception("more than 1 trapping question is not supported.")
+        raise Exception("more than 1 trapping clips question is not supported.")
     if n_traps == 1:
         rating_urls.append('${TP}')
 
@@ -263,7 +263,7 @@ if __name__ == '__main__':
 
     if test_method == "acr":
         assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
-        assert os.path.exists(args.trapping_clips), f"No csv file containing trapping clips in {args.trapping_clips}"
+        assert os.path.exists(args.trapping_clips), f"No csv file containing trapping  clips in {args.trapping_clips}"
 
     # check assets
     general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')

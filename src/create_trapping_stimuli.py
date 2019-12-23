@@ -28,7 +28,7 @@ audio_extension = '.wav'
 
 def create_trap_db(cfg, cfg_dir_name):
     """
-    Creates the trapping dataset
+    Creates the trapping clips dataset
     :param cfg: configuration file
     :return:
     """
@@ -80,7 +80,7 @@ def create_trap_db(cfg, cfg_dir_name):
 
 def create_trap_stimulus(source, message, output, cfg):
     """
-    Create a trapping stimulus
+    Create a trapping clips stimulus
     :param source: path to source stimuli from dataset
     :param message: path to the message clip
     :param output: path to output file
@@ -106,10 +106,10 @@ def create_trap_stimulus(source, message, output, cfg):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Create trapping/gold standard stimuli dataset. ')
+    parser = argparse.ArgumentParser(description='Create trapping clips/gold standard stimuli dataset. ')
     # Configuration: read it from trapping.cfg
-    parser.add_argument("--cfg", default="trapping.cfg",
-                        help="Check trapping.cfg for all the details")
+    parser.add_argument("--cfg",
+                        help="Check trapping.cfg for all the details", required=True)
     args = parser.parse_args()
 
     #cfgpath = join(dirname(__file__), args.cfg)

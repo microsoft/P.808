@@ -77,10 +77,10 @@ def check_if_session_accepted(data):
     if data['correct_math'] is not None and data['correct_math'] < \
             int(config['acceptance_criteria']['correct_math_bigger_equal']):
         accept = False
-        msg += "Gold or trapping question are answered wrongly;"
+        msg += "Gold or trapping clips question are answered wrongly;"
     if data['correct_tps'] < int(config['acceptance_criteria']['correct_tps_bigger_equal']):
         accept = False
-        msg += "Gold or trapping question are answered wrongly;"
+        msg += "Gold or trapping clips question are answered wrongly;"
 
     if not accept:
         data['Reject'] = msg
@@ -128,7 +128,7 @@ def check_audio_played(row, method):
 
 def check_tps(row, method):
     """
-    Check if the trapping questions are answered correctly
+    Check if the trapping clips questions are answered correctly
     :param row:
     :param method: acr, dcr, or ccr
     :return:
@@ -142,7 +142,7 @@ def check_tps(row, method):
     try:
         for q_name in question_names:
             if tp_url in row[f'answer.{q_name}_url']:
-                # found a trapping question
+                # found a trapping clips question
                 if int(row[f'answer.{q_name}']) == tp_correct_ans:
                     correct_tps = 1
                     return correct_tps
@@ -601,7 +601,7 @@ def transform(test_method, sessions, agrregate_on_condition):
 
     for session in sessions:
         for question in question_names:
-            # is it a trapping question
+            # is it a trapping clips question
             if session[config['trapping']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             # is it a gold clips

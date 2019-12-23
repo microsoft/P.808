@@ -234,7 +234,7 @@ def create_input_for_mturk(cfg, df, method, output_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create input.csv for ACR, DCR, or CCR test. ')
-    # Configuration: read it from trapping.cfg
+    # Configuration: read it from trapping clips.cfg
     parser.add_argument("--row_input", required=True,
                         help="All urls depending to the test method, for ACR: 'rating_clips', 'math', 'pair_a', "
                              "'pair_b', 'trapping_clips', 'trapping_ans',  for DCR/CCR: 'rating_clips', 'references', "
