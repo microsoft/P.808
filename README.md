@@ -9,7 +9,7 @@ Geneva: International Telecommunication Union, 2018.
 
 ## Getting Started
 * [Preparation](docs/preparation.md)
-* [Running the Evaluation on Amazon Mechanical Turk](docs/running_test_mturk.md)
+* [Running the Test on Amazon Mechanical Turk](docs/running_test_mturk.md)
 * [Analyzing Data](docs/results.md)
 
 

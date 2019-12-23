@@ -1,3 +1,0 @@
-pandas
-argparse
-scipy

@@ -1,5 +1,9 @@
+argparse
+pandas
 configparser
 librosa
 numpy
 soundfile
-argparse
+jinja2
+boto3
+scipy
