@@ -26,15 +26,37 @@ column name `gold_clips` and expected answer to each clip in a column name `gold
     
 1. Create trapping stimuli set for your dataset.
 
+    4.1. Configure the `create_trapping_stimuli.py` in your config file. See [configuration of create_trapping_stimuli script ](conf-trapping.md)
+     for more information.
+     
+    4.2. Delete all files from `trapping clips\source` directory
+    ``` bash
+    cd "src\trapping clips\source"
+    del *.* 
+    ```  
+    4.3. Add some clips from your dataset to `trapping clips\source` directory. Select clips in a way that
+    1. Cover fair distributions of speakers (best couple of clips per each speaker)
+    1. Cover entire range of quality (some good, fair and bad ones)
+    
+    4.4. Run `create_trapping_stimuli.py`
+    ``` bash
+    cd src
+    python create_trapping_stimuli.py 
+        --cfg your_config_file.cfg
+    ```
+    4.5. Trapping clips are stored in `trapping clips\output` directory. List of clips and their correct answer can 
+    be found in `trapping clips\source\output_report.csv`. You can replace file names (appears in column name `trapping_clips`)
+    with the URLs pointing to those files to create the `trapping_clips.csv` file (see below).
+        
 1. Upload your **trapping clips** in a cloud server and create the `trapping_clips.csv` file which contains all URLs in 
 a column name `trapping_clips` and expected answer to each clip in a column name `trapping_ans` 
 (see [trapping_clips.csv](../src/test_inputs/trapping_clips.csv) as an example).
 
 1. Create your custom project by running the master scrip: 
-
-    6.1. Configure the the project in your config file. See [master script configuration](conf_master.md) for more information.
+	
+    6.1 Configure the the project in your config file. See [master script configuration](conf_master.md) for more information.
     
-    6.2. Run master script with all above-mentioned resources as input
+    6.2. Run `master_script.py` with all above-mentioned resources as input
         
     ``` bash
     cd src

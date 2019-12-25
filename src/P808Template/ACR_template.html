@@ -242,7 +242,7 @@ function validateQualificationAnswer(){
 	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check &&
 		count_correct_ht>= 3;
 	console.log(passed);
-	// add a qualification for 1 year
+	// add a qualification for 'qualificationValidFor' minutes
 	createCookie(config.qualificationCookieName,passed,config.qualificationValidFor);
 }
 
