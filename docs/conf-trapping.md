@@ -1,3 +1,5 @@
+ [Home](../README.md) > [Preparation](preparation.md) > [Preparation for Absolute Category Rating (ACR)](prep_acr.md)
+ 
  # Configure for `create_trapping_stimuli.py`
  
  This describe the configuration for the `create_trapping_stimuli` script. A sample configuration file can be found in `configurations\trapping.cfg`.

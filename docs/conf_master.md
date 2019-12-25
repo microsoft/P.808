@@ -1,4 +1,6 @@
- # Configure for `master_script.py`
+[Home](../README.md) > [Preparation](preparation.md) > [Preparation for Absolute Category Rating (ACR)](prep_acr.md)
+
+# Configure for `master_script.py`
  
 This describe the configuration for the `master_scripz.py`. A sample configuration file can be found in `configurations\master.cfg`.
  
