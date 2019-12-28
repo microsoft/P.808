@@ -45,4 +45,4 @@ column name `training_clips` and URLs to corresponding reference clips in column
     * `YOUR_PROJECT_NAME_publish_batch.csv`: List of dynamic content to be used during publishing batch in AMT.
     * `YOUR_PROJECT_NAME_ccr_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script
         
-Now, you are ready for [Running the Test on Amazon Mechanical Turk](docs/running_test_mturk.md).
+Now, you are ready for [Running the Test on Amazon Mechanical Turk](running_test_mturk.md).

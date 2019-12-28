@@ -78,4 +78,4 @@ a column name `trapping_clips` and expected answer to each clip in a column name
     * `YOUR_PROJECT_NAME_publish_batch.csv`: List of dynamic content to be used during publishing batch in AMT.
     * `YOUR_PROJECT_NAME_acr_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script
         
-Now, you are ready for [Running the Test on Amazon Mechanical Turk](docs/running_test_mturk.md).
+Now, you are ready for [Running the Test on Amazon Mechanical Turk](running_test_mturk.md).
