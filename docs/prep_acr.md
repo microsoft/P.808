@@ -42,7 +42,7 @@ column name `gold_clips` and expected answer to each clip in a column name `gold
     4.4. Run `create_trapping_stimuli.py`
     ``` bash
     cd src
-    python create_trapping_stimuli.py 
+    python create_trapping_stimuli.py ^
         --cfg your_config_file.cfg
     ```
     4.5. Trapping clips are stored in `trapping clips\output` directory. List of clips and their correct answer can 
@@ -61,14 +61,14 @@ a column name `trapping_clips` and expected answer to each clip in a column name
         
     ``` bash
     cd src
-    python master_script.py 
-        --project YOUR_PROJECT_NAME
-        --method acr
-        --cfg your_configuration_file.cfg
-        --clips rating_clips.csv
-        --training_clips training_clips.csv
-        --gold_clips gold_clips.csv
-        --trapping_clips trapping_clips.csv
+    python master_script.py ^
+        --project YOUR_PROJECT_NAME ^
+        --method acr ^
+        --cfg your_configuration_file.cfg ^
+        --clips rating_clips.csv ^
+        --training_clips training_clips.csv ^
+        --gold_clips gold_clips.csv ^
+        --trapping_clips trapping_clips.csv 
     ```
     Note: file path are expected to be relative to the current working directory.
     

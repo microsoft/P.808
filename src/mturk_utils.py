@@ -86,6 +86,60 @@ def assign_bonus(client, bonus_list_path):
         print(f' Sent {line_count} bonuses: {success} succeed, {failed} faild.')
 
 
+def approve_reject_assignments_together(client, assignment_path):
+    """
+    Assign bonuses to group of workers.
+    A csv file with following columns need to be provided: workerId, assignmentId, bonusAmount, reason
+    :param client: boto3 client object for communicating to MTurk
+    :param assignment_path: path to the csv file with: workerId, assignmentId, bonusAmount, reason
+    :param approve: boolean when false the script reject answers
+    :return:
+    """
+
+    print('Approving/Rejecting assignments')
+    with open(assignment_path, mode='r') as assignment_list:
+        reader = csv.DictReader(assignment_list)
+        line_count = 0
+        successApp = 0
+        successRej = 0
+        failed=0
+        for row in reader:
+            if line_count == 0:
+                assert 'assignmentId' in row,  f"No column found with name 'assignmentId' in [{assignment_path}]"
+                assert 'HITId' in row, f"No column found with name 'HITId' in [{assignment_path}]"
+                assert 'Approve' in row, f"No column found with name 'Approve' in [{assignment_path}]"
+                assert 'Reject' in row, f"No column found with 'Reject' in [{assignment_path}]"
+
+            if row['Approve'] =='x':
+                # approving
+                response = client.approve_assignment(
+                    AssignmentId=row['assignmentId']
+                )
+                if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                    successApp += 1
+                else:
+                    print(f'\tFailed:  "Approving assignment" {row["assignmentId"]}:')
+                    failed += 1
+
+            else:
+                # rejecting
+                response = client.reject_assignment(
+                    AssignmentId=row['assignmentId'],
+                    RequesterFeedback=row['Reject']
+                )
+                if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                    successRej += 1
+                else:
+                    print(f'\tFailed:  "Rejecting assignment" {row["assignmentId"]}:')
+                    failed += 1
+
+            line_count += 1
+        print(f'Processed {line_count} assignments - Approved {successApp} assignments and reject {successRej}. '
+              f'The script failed on {failed} calls.')
+
+
+
+
 def approve_reject_assignments(client, assignment_path, approve):
     """
     Assign bonuses to group of workers.
@@ -474,6 +528,11 @@ if __name__ == '__main__':
                         help="Reject all assignments found in the input csv file. Path to a csv file "
                              "(columns: assignmentId,feedback). Path relative to current working directory")
 
+    parser.add_argument("--approve_reject", type=str,
+                        help="Approve or reject assignments found in the input csv file. Path to a csv file "
+                             "(columns: assignmentId, HITId, approve, reject). Path relative to current working "
+                             "directory")
+
     parser.add_argument("--create_hit", type=str,
                         help="Create one or more  HITs. Configuration file for creating HIT. "
                              "Path relative to current working directory")
@@ -533,6 +592,12 @@ if __name__ == '__main__':
         assignments_list_path = args.reject
         assert os.path.exists(assignments_list_path), f"No input file found in [{assignments_list_path}]"
         approve_reject_assignments(client, assignments_list_path, approve=False)
+
+    if args.approve_reject is not None:
+        assignments_list_path = args.approve_reject
+        assert os.path.exists(assignments_list_path), f"No input file found in [{assignments_list_path}]"
+        approve_reject_assignments_together(client, assignments_list_path)
+
 
     if args.create_hit is not None:
         #create_hit_cfg = os.path.join(os.path.dirname(__file__), args.create_hit)

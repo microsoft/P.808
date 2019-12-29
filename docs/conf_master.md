@@ -2,7 +2,7 @@
 
 # Configure for `master_script.py`
  
-This describe the configuration for the `master_scripz.py`. A sample configuration file can be found in `configurations\master.cfg`.
+This describe the configuration for the `master_scrip.py`. A sample configuration file can be found in [`configurations\master.cfg`](.\src\configurations\master.cfg).
  
 ## `[create_input]`
 

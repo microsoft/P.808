@@ -30,12 +30,12 @@ column name `training_clips` and URLs to corresponding reference clips in column
         
     ```bash
     cd src
-    python master_script.py 
-        --project YOUR_PROJECT_NAME
-        --method ccr
-        --cfg your_configuration_file.cfg
-        --clips rating_clips.csv
-        --training_clips training_clips.csv
+    python master_script.py ^
+        --project YOUR_PROJECT_NAME ^
+        --method ccr ^
+        --cfg your_configuration_file.cfg ^
+        --clips rating_clips.csv ^
+        --training_clips training_clips.csv 
     ```
     Note: file path are expected to be relative to the current working directory.
     

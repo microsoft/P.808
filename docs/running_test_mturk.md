@@ -37,7 +37,7 @@ You will use the first two files in this part.
          * **Location**: It is required that workers are native speakers of language under study
 
     4.3. Save and go to “**2 – Design Layout**”:
-
+    
         4.3.1. Click on **Source**
         
         4.3.2. Copy and paste the content of `YOUR_PROJECT_NAME_acr.html` here.
@@ -50,7 +50,7 @@ Using the API makes it possible to apply the [Assignment Review Policy](https://
 However when the HITs are created using the API, they will not be visible in the website (stand Dec.2019). Therefore 
 all actions (like download results, approve/reject assignments, etc.) should be done using the API.
 
-### Create a _New Batch with Existing Project_ - using website.
+### Create a _New Batch with Existing Project_ - using website
 
 1. Go to “**Create**” > “**New Batch with an Existing Project**”, find your project and click on "**Publish Batch**" 
 
@@ -60,7 +60,7 @@ all actions (like download results, approve/reject assignments, etc.) should be 
 
 1. Later, download the results from “**Manage**” > “**YOUR_BATCH_NAME**” > “**Review Results**” > “**Download CSV**”. 
 
-### Create a _New Batch with Existing Project_ - using API.
+### Create a _New Batch with Existing Project_ - using script/API
 
 1. Update [create_hit.cfg](../src/configurations/create_hit.cfg) configuration file with hit_layout_id, [hit_type], and [create_hit].
 
@@ -68,20 +68,20 @@ all actions (like download results, approve/reject assignments, etc.) should be 
 
     ```bash
     cd src
-    python mturk_utils.py 
-        --cfg mturk.cfg
-        --create_hit create_hit.cfg
+    python mturk_utils.py ^
+        --cfg mturk.cfg ^
+        --create_hit create_hit.cfg ^
         --create_hit_input YOUR_PROJECT_NAME_publish_batch.csv
     ```
     
-The script will creates a csv file containing HITIds,HITTypeIds,HITGroupIds of created HITs (call it Batch_123_456.csv).
-This file is required for downloading the results.
+    The script will creates a csv file containing HITIds,HITTypeIds,HITGroupIds of created HITs (call it Batch_123_456.csv).
+    This file is required for downloading the results.
         
 3. Later, download the results
     ```bash
     cd src
-    python mturk_utils.py 
-        --cfg mturk.cfg
+    python mturk_utils.py ^
+        --cfg mturk.cfg ^
         --answers Batch_123_456.csv
     ```
  

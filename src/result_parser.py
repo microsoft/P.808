@@ -496,7 +496,7 @@ def calc_quantity_bonuses(answer_list, conf, path):
     return merged
 
 
-def calc_quality_bonuses(quantity_bonus_result, answer_list, condition_level_mos, conf, path, n_uniqe_workers):
+def calc_quality_bonuses(quantity_bonus_result, answer_list, condition_level_mos, conf, path, n_uniqe_workers,test_method):
     """
     Calculate the bonuses given the configurations
     :param answer_list:
@@ -505,36 +505,44 @@ def calc_quality_bonuses(quantity_bonus_result, answer_list, condition_level_mos
     :return:
     """
     print('Calculate the quality bonuses...')
+    mos_name = "MOS"
+    if test_method =='ccr':
+        mos_name = "CMOS"
+    elif test_method =='dcr':
+        mos_name = "DMOS"
+
     eligible_list = []
     df = pd.DataFrame(answer_list)
     tmp = pd.DataFrame(condition_level_mos)
-    c_df = tmp[['condition_name', 'MOS']].copy()
-    c_df.rename(columns={'MOS': 'MOS_condiction'}, inplace=True)
+    c_df = tmp[['condition_name', mos_name]].copy()
+    c_df.rename(columns={mos_name: 'MOS_condiction'}, inplace=True)
     candidates = quantity_bonus_result['workerId'].tolist()
 
     max_workers = int(len(candidates) * int(conf['bonus']['quality_top_percentage']) / 100)
     for worker in candidates:
             # select answers
             worker_answers = df[df['workerid'] == worker]
-            votes_p_file, votes_per_condition = transform(worker_answers.to_dict('records'), True)
+            votes_p_file, votes_per_condition = transform(test_method, worker_answers.to_dict('records'), True)
             aggregated_data = pd.DataFrame(votes_per_condition)
 
             if len(aggregated_data) > 0:
                 merged = pd.merge(aggregated_data, c_df, how='inner', left_on='condition_name', right_on='condition_name')
-                r = calc_correlation(merged["MOS_condiction"].tolist(), merged["MOS"].tolist())
+                r = calc_correlation(merged["MOS_condiction"].tolist(), merged[mos_name].tolist())
             else:
                 r = 0
             entry = {'workerId': worker, 'r': r}
             eligible_list.append(entry)
+    if len(eligible_list) > 0:
+        eligible_df = pd.DataFrame(eligible_list)
+        eligible_df = eligible_df[eligible_df['r'] >= float(conf['bonus']['quality_min_pcc'])]
+        eligible_df = eligible_df.sort_values(by=['r'], ascending=False)
 
-    eligible_df = pd.DataFrame(eligible_list)
-    eligible_df = eligible_df[eligible_df['r'] >= float(conf['bonus']['quality_min_pcc'])]
-    eligible_df = eligible_df.sort_values(by=['r'], ascending=False)
-
-    merged = pd.merge(eligible_df, quantity_bonus_result, how='inner', left_on='workerId', right_on='workerId')
-    smaller_df = merged[['workerId', 'r', 'accept', 'assignmentId']].copy()
-    smaller_df['bonusAmount'] = smaller_df['accept'] * float(config['bonus']['quality_bonus'])
-    smaller_df['reason'] = 'Well done! You belong to top 20%.'
+        merged = pd.merge(eligible_df, quantity_bonus_result, how='inner', left_on='workerId', right_on='workerId')
+        smaller_df = merged[['workerId', 'r', 'accept', 'assignmentId']].copy()
+        smaller_df['bonusAmount'] = smaller_df['accept'] * float(config['bonus']['quality_bonus'])
+        smaller_df['reason'] = 'Well done! You belong to top 20%.'
+    else:
+        smaller_df = pd.DataFrame(columns=['workerId',	'r', 'accept', 'assignmentId', 	'bonusAmount', 'reason'])
     smaller_df.head(max_workers).to_csv(path, index=False)
     print(f'   Quality bonuses report is saved in: {path}')
 
@@ -765,7 +773,7 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
             if 'all' not in list_of_req:
                 quantity_bonus_df = calc_quantity_bonuses(full_data, ['all'], None)
             calc_quality_bonuses(quantity_bonus_df, accepted_sessions, vote_per_condition, config, quality_bonus_path,
-                                 n_workers)
+                                 n_workers, test_method)
 
 
 
