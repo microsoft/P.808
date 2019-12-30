@@ -41,15 +41,13 @@ The datasets used in this project are licensed as follows:
 
 * Following clips are created under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode) license:
     *  `src/P808Template/assets/clips/math/*`
-    *  `src/P808Template/assets/clips/sample_hearing_test/*`
+    *  `src/P808Template/assets/clips/hearing_test/*`
     *  `src/trapping/messages/*`
 * Following clips are taken from [PTDB-TUG: Pitch Tracking Database from Graz University of Technology](https://www.spsc.tugraz.at/databases-and-tools/ptdb-tug-pitch-tracking-database-from-graz-university-of-technology.html); License: http://opendatacommons.org/licenses/odbl/1.0/ 
-    * `src//environment test/script/clips/*`
+    * `src/environment test/script/clips/*`
     * `src/P808Template/assets/clips/signal_level.wav`
 * Following clips are created by adding noise to above-mentioned clips; License [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode) ?
     * `src/environment test/script/clips_snr/*`
     * `src/environment test/assets/jnd_noise/*`
-    * `src/P808Template/assets/clips/sample_jnd/*`
-    * `src/P808Template/assets/clips/sample_speech/*`
+    * `src/P808Template/assets/clips/environment_test/*`
     * `src/trapping/source/*`
-    * `src/P808Template/assets/clips/sample_tp.wav`

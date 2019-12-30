@@ -1,16 +1,29 @@
-# HIT App
-Implementation of the ITU-T P.808 Recommendation to be used in Amazon Mechanical Turk platform.
+# HIT App Templates
+Templates for  ACR, DCR, and CCR methods to be used in Amazon Mechanical Turk platform. 
+The ACR implementation is based on the ITU-T P.808 Recommendation and implementation of DCr and CCR are based on 
+ITU-T P.800 Recommendation adapted to the crowdsourcing approach.
 
 ## Qualification
-[tba]
+The qualification can be used as a separate HIT or in the integrated mode i.e. a section in the main HIT.
+The qualification contains 10 questions including a hearing test.  
 
-## ACR
+## ACR_Template
 The implementation of Absolute Category Rating listening test as specified in the Annex A of ITU-T P.808.
 The HIT has four sections: 
 #### Instruction
 Provides information to the workers including their task, rules and bonuses (+ terms).
 
-#### Setup
+#### Qualification - Just once
+In case the qualification is not in a separate HIT, this section check for necessary information.
+The qualification will be assigned when a user    
+- reported to have English mother tongue 
+- reported to have a headset
+- reported to do not work in the relevant area
+- reported to have a normal hearing
+- answered 3 or more questions of hearing tests correctly (out of 5).
+
+
+#### Setup (every X minutes)
 Contains 6 questions: 1) to adjust the listening level, 2) A short math exercises with digits panning between left and 
 right in stereo to proof usage of two-eared headphones. 3-6) Environment Test in form of pair comparision test. Stimuli 
 presented here are carefully selected, to represent finest Just Noticeable Difference in Quality recognizable by normal
@@ -19,73 +32,32 @@ participants in a laboratory session. It is expected with a proper setting, a cr
 
 You can specify how often this section show up. It is recommended to have it in every session.    
 
-#### Training
+#### Listening device check
+This section use WebRTC to check if the user has a headset. 
+
+#### Training (every X hours)
 Here small set of anchoring stimuli presented to worker in a similar GUI as the  "rating section". 
 Training section is generated dynamically based on list of URLS in the `config['trainingUrls']`.
-Hardcode the urls in the  `config['trainingUrls']` or use placeholders like `"${T1}"` so the values will be set from 
-input.csv file.
-Order of stimuli can be randomized, and retraining can be forced after X hours (see the Usage section).
+These will be added by master_script. Order of stimuli can be randomized, and retraining can be forced after X hours 
+(see the Usage section).
 
 #### Ratings
 Main task of crowd worker is to provide their opinion here. 
 This section is generated dynamically based on list of URLS in the `config['questionUrls']`.
-It is expected to use placeholders here, so the values will be picked and replaced during HIT generation process from
-the input.csv.
-Order of stimuli can be randomized (recommended).
+Proper placeholders will be added by master_script. Order of stimuli can be randomized (recommended).
+Typically, a trapping stimuli and a gold clip will be added to this section. 
  
 ## Usage
+Check out the [preparation](../../docs/prep_acr.md) step. The master_script.py will make a customized version of 
+template for your project. In case you want to change the advanced details, check out the html code and modify the 
+`config` object.
 
-Note: It is recommended to invite group of workers who satisfy pre-requisites to this job. Workers should first perform 
-the `Qualification`job.
-
-Steps:
-1. Modify the config  variable in ACR.html
-
-    ```
-    var config ={
-        // cookie name which will be used to specify training and setup ncessity. 
-        cookieName:"itu_p808_test", 
-        // how often should the Training section will be presented. Recommended: 1
-        forceRetrainingInHours:1,   
-        debug:true,
-        // list of URLS (or placehodlers) refering to audio clips. One question per URL will be created in Ratings section.
-        // placeholders will be replaced by URLS from input.csv file in the HIT creation process.
-        questionUrls: ["${Q1}","${Q2}","${Q3}","${Q4}","${Q5}","${Q6}","${Q7}","${Q8}","${Q9}","${Q10}","${TP}"],
-         // list of URLS (or placehodlers) refering to audio clips. One question per URL will be created in Training section.
-        // placeholders will be replaced by URLS from input.csv file in the HIT creation process.
-        trainingUrls: ["${T1}","${T2}","${T3}","${T4}","${T5}"],
-        // should the order of audio clips be randomized in training section? Recommended: True
-        randomizeTrainingQuestions:"true",
-        // should the order of audio clips be randomized in Ratings section? Recommended: True
-        randomizeRatingQuestions:"true",
-        // how often should the "Setup" section be presented to worker? Recommended: 3min --> everytime
-        showSetupEveryMinutes:3,
-        // In case you want to use Assignment Review Policies, what is the URL of file with known correct answer
-        // the same URL should appear in the "questionUrls".
-        knownQuestionUrl:"${TP}",
-        // What is the correct answer?
-        knownQuestionAns:"${TP_ANS}"
-    } 
-    ```
-2. In case you do not want to use Assignment Review Policies, just simply use the MTurk website to
-create a New Project using the ACR.html and follow the steps there.
-In case you want to use  use Assignment Review Policies:
-
-NOTE: the Assignment Review Policies is only available when you create HITs using API. The drawback is that those HITs 
-will not be visible in MTurk website, and all management process should be done using scripts/api.
-
-1. create a "project" in MTurk website using the ACR.html
-2. obtain the Layout ID (see: https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMturkAPI/ApiReference_HITLayoutArticle.html)
-3. add the Layout ID to the `create_acr_hit.cfg` and update other settings there.
-4. create input.csv: it is expected to have one column per placeholders used in `ACR.html`.  Here is a list for current
-version:
-    ```
-    CMP1_A, CMP1_B, CMP2_A, CMP2_B, CMP3_A, CMP3_B, CMP4_A, CMP4_B, Q1, Q10, Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9, T1, T2, 
-    T3, T4, T5, TP, TP_ANS, math
-    ```
-5. use `Scripts\mturk_utils.py`  to create HITs (see `create_hit` the [Readme](../README.md) file there)
-6. use  `Scripts\mturk_utils.py`  to download the answers (see `answers` the [Readme](../README.md) file there)
+## DCR_Template
+The implementation of Degradation Category Rating listening test as specified in the Annex D of ITU-T P.800.
+The template has same structure as ACR_Template.
 
 
- 
+## CCR_Template
+The implementation of Comparison Category Rating (CCR) listening test as specified in the Annex E of ITU-T P.800.
+The template has same structure as ACR_Template. 
 
