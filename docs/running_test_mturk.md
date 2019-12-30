@@ -38,11 +38,11 @@ You will use the first two files in this part.
 
    4.3. Save and go to “**2 – Design Layout**”:
    
-      4.3.1. Click on **Source**
+       4.3.1. Click on **Source**
         
-      4.3.2. Copy and paste the content of `YOUR_PROJECT_NAME_acr.html` here.
+       4.3.2. Copy and paste the content of `YOUR_PROJECT_NAME_acr.html` here.
       
-      4.3.3. Click on **Source**, then **Save**
+       4.3.3. Click on **Source**, then **Save**
      
 Next, you should create a New Batch with Existing Project. 
 That can be done using either the AMT website or API. 
