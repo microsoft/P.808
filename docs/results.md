@@ -23,8 +23,10 @@ created in the first step ([preparation](preparation.md)).
         --quantity_bonus all ^
         --quality_bonus
     ```
+    * `--cfg` use the configuration file generated for your project in the [preparation](preparation.md) step here (i.e.`YOUR_PROJECT_NAME_ccr_result_parser.cfg`).
     * `--method` could be either `acr`, `dcr`, or `ccr`.
-    * `--quantity_bonus` could be `all`, or `submitted`
+    * `--quantity_bonus` could be `all`, or `submitted`. It specify which assignments should be consider when calculating
+    the amount of quantity bonus (everything i.e. `all` or just the assignments with status submitted i.e. `submitted`).
     
     Beside the console outputs, following files will be generated in the same directory as the `--answers` file located.
     All file names will start with the `--answers` file name.   

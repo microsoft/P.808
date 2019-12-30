@@ -7,9 +7,9 @@ the ITU-T Rec. P.808 [1].
 It is required to perform the [preparation](preparation.md) step first. 
 As a result you should have a directory name YOUR_PROJECT_NAME which contains:
  
-    * `YOUR_PROJECT_NAME_ccr.html`: Customized HIT app to be used in AMT.
-    * `YOUR_PROJECT_NAME_publish_batch.csv`: List of dynamic content to be used during publishing batch in AMT.
-    * `YOUR_PROJECT_NAME_ccr_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script    
+   * `YOUR_PROJECT_NAME_ccr.html`: Customized HIT app to be used in AMT.
+   * `YOUR_PROJECT_NAME_publish_batch.csv`: List of dynamic content to be used during publishing batch in AMT.
+   * `YOUR_PROJECT_NAME_ccr_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script    
     
 You will use the first two files in this part.
 
@@ -23,26 +23,26 @@ You will use the first two files in this part.
 
 1. Create a New Project for your test
   
-    4.1. Go to “**Create**” > “**New Project**” > “**Survey Link**” > “**Create project**”
+   4.1. Go to “**Create**” > “**New Project**” > “**Survey Link**” > “**Create project**”
 
-    4.2. Fill information in “**1 – Enter Properties**”, important ones:
+   4.2. Fill information in “**1 – Enter Properties**”, important ones:
 
-    * **Setting up your survey**
+   * **Setting up your survey**
        * **Reward per response**: It is recommended to pay more than the minimum wage of target country per hour. 
         * **Number of respondents**: It is the number of votes that you want to collect per clip.
         * **Time allotted per Worker**: 1 Hour
-    * **Worker requirements**
+   * **Worker requirements**
         * **Add another criterion**: **HIT Approval Rate(%)** greater than 98
          * **Add another criterion**: **Number of HITs Approved** greater than 500
          * **Location**: It is required that workers are native speakers of language under study
 
-    4.3. Save and go to “**2 – Design Layout**”:
-    
-        4.3.1. Click on **Source**
+   4.3. Save and go to “**2 – Design Layout**”:
+   
+      4.3.1. Click on **Source**
         
-        4.3.2. Copy and paste the content of `YOUR_PROJECT_NAME_acr.html` here.
-        
-        4.3.3. Click on **Source**, then **Save**
+      4.3.2. Copy and paste the content of `YOUR_PROJECT_NAME_acr.html` here.
+      
+      4.3.3. Click on **Source**, then **Save**
      
 Next, you should create a New Batch with Existing Project. 
 That can be done using either the AMT website or API. 
@@ -62,7 +62,7 @@ all actions (like download results, approve/reject assignments, etc.) should be 
 
 ### Create a _New Batch with Existing Project_ - using script/API
 
-1. Update [create_hit.cfg](../src/configurations/create_hit.cfg) configuration file with hit_layout_id, [hit_type], and [create_hit].
+1. Update [create_hit.cfg](../src/configurations/create_hit.cfg) configuration file with _hit_layout_id_, [hit_type], and [create_hit].
 
 1. Create a batch using following command
 
@@ -84,7 +84,8 @@ all actions (like download results, approve/reject assignments, etc.) should be 
         --cfg mturk.cfg ^
         --answers Batch_123_456.csv
     ```
- 
+
+When the Batch is finished, you are ready to continue with [analyzing the results](results.md). 
 ## References
 [1]. [ITU-T Recommendation P. 808](https://www.itu.int/rec/T-REC-P.808/en): _Subjective evaluation of speech quality with a crowdsourcing approach_, International Telecommunication Union, Geneva, 2018.
    
