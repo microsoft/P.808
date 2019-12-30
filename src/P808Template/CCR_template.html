@@ -368,11 +368,14 @@ function createCookie(name, value, minutes) {
     if (minutes) {
         var date = new Date();
         date.setTime(date.getTime() + (minutes * 60 * 1000));
-        expires = "; expires=" + date.toGMTString();
+        expires = date.toGMTString();
     } else {
         expires = "";
     }
-     document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + expires + "; path=/";
+
+    let st =value +";"+ expires ;
+    console.log(st);
+    localStorage.setItem(name, st);
 }
 
 /*
@@ -395,18 +398,21 @@ function updateCounterCookie(name, updateBy){
 	Return the value of cookie, or null
 */
 function readCookie(name) {
-    var nameEQ = encodeURIComponent(name) + "=";
-    var cookies = document.cookie.split(';');
-    for (var i = 0; i < cookies.length; i++) {
-        var c = cookies[i];
-        while (c.charAt(0) === ' ')
-            c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) === 0)
-            return decodeURIComponent(c.substring(nameEQ.length, c.length));
-    }
-    return null;
+	var storedValue = localStorage.getItem(name);
+	if (storedValue){
+		let infos = storedValue.toString().split(';');
+		let value = infos[0];
+		let validUntil = new Date(infos[1]);
+		let today = new Date();
+		if (today<=  validUntil)
+			return value;
+		else{
+			localStorage.removeItem(name);
+			return null;
+		}
+	}else
+		return null;
 }
-
 
 /*
 	Callback when "Next" in Rating section is clicked.
@@ -867,7 +873,7 @@ function generate_rating_section(){
 	<div class="panel panel-primary">
 		<div class="panel-heading">
 			<h3 class="panel-title">
-				<a data-target="#instruction" data-toggle="collapse" >Instructions for speech quality assessment (Part 2 - Rating)</a>
+				<a data-target="#instruction" data-toggle="collapse" >Instructions for speech quality assessment</a>
 			</h3>
 		</div>
 		<div  class="panel-collapse collapse in" id="instruction">
@@ -875,7 +881,7 @@ function generate_rating_section(){
 			  <b>Introduction</b>
 
 				<!--<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/process_2.png" alt="scale" class="center" width="300px">-->
-				<img src="assets/img/process_3.png" alt="scale" class="center" style='width: 60%' >
+				<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/process_3.png" alt="scale" class="center" style='width: 60%' >
 
 				  <p>Welcome! You are about to participate in our speech quality assessment experiment! This HIT has two + two (just every now and then) sections:</p>
 				<ul>
@@ -1044,32 +1050,32 @@ function generate_rating_section(){
 					<div class="row" style="text-align:center;">
 						<span class="baudio" id="n1" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s0.wav" >&nbsp;</span>
 					</div>
-					<input type="text" name="num1" required="" class="nospace">
+					<input type="text" name="num1" required="" class="nospace" autocomplete="off">
 				</div>
 
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row" style="text-align:center;">
 						<span class="baudio" id="n2" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s1.wav" >&nbsp;</span>
 					</div>
-					<input type="text" name="num2" required="" class="nospace">
+					<input type="text" name="num2" required="" class="nospace" autocomplete="off">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row"style="text-align:center;">
 						<span class="baudio" id="n3" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s2.wav" >&nbsp;</span>
 					</div>
-					<input type="text" name="num3" required="" class="nospace">
+					<input type="text" name="num3" required="" class="nospace" autocomplete="off">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row"style="text-align:center;">
 						<span class="baudio" id="n4" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s3.wav" >&nbsp;</span>
 					</div>
-					<input type="text" name="num4" required="" class="nospace">
+					<input type="text" name="num4" required="" class="nospace" autocomplete="off">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row" style="text-align:center;">
 						<span class="baudio" id="n5" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s4.wav" >&nbsp;</span>
 					</div>
-					<input type="text" name="num5" required="" class="nospace">
+					<input type="text" name="num5" required="" class="nospace" autocomplete="off">
 				</div>
 			</div>
 
