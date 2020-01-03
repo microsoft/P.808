@@ -1,8 +1,8 @@
-# Materials for generate Gold standard stimuli database
+# Materials to generate Gold standard stimuli database
 
 
-## for ACR test
-All files starting with `ACR_*`. They are create based on description in section 6.3.8 of the ITU-T P.808 [1] and [2].
+## For ACR test
+All files start with `ACR_*`. They are created based on description in section 6.3.8 of the ITU-T P.808 [1] and [2].
 The audio clips were created using Bing Speech API. 
 
 Text: 

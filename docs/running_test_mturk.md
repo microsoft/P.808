@@ -2,10 +2,10 @@
 
 # Running the Test on Amazon Mechanical Turk
 
-Following steps explains how to conduct the Speech Quality Assessment test on Amazon Mechanical Turk (AMT) according to
+Following steps explain how to conduct the Speech Quality Assessment test on Amazon Mechanical Turk (AMT) according to
 the ITU-T Rec. P.808 [1]. 
 It is required to perform the [preparation](preparation.md) step first. 
-As a result you should have a directory name YOUR_PROJECT_NAME which contains:
+As a result you should have a directory named YOUR_PROJECT_NAME which contains:
  
    * `YOUR_PROJECT_NAME_ccr.html`: Customized HIT app to be used in AMT.
    * `YOUR_PROJECT_NAME_publish_batch.csv`: List of dynamic content to be used during publishing batch in AMT.
@@ -23,26 +23,26 @@ You will use the first two files in this part.
 
 1. Create a New Project for your test
   
-   4.1. Go to “**Create**” > “**New Project**” > “**Survey Link**” > “**Create project**”
+   1. Go to “**Create**” > “**New Project**” > “**Survey Link**” > “**Create project**”
 
-   4.2. Fill information in “**1 – Enter Properties**”, important ones:
+   1. Fill information in “**1 – Enter Properties**”, important ones:
 
    * **Setting up your survey**
        * **Reward per response**: It is recommended to pay more than the minimum wage of target country per hour. 
         * **Number of respondents**: It is the number of votes that you want to collect per clip.
         * **Time allotted per Worker**: 1 Hour
    * **Worker requirements**
-        * **Add another criterion**: **HIT Approval Rate(%)** greater than 98
-         * **Add another criterion**: **Number of HITs Approved** greater than 500
-         * **Location**: It is required that workers are native speakers of language under study
+       * **Add another criterion**: **HIT Approval Rate(%)** greater than 98
+        * **Add another criterion**: **Number of HITs Approved** greater than 500
+        * **Location**: It is required that workers are native speakers of the language under study
 
-   4.3. Save and go to “**2 – Design Layout**”:
+   1. Save and go to “**2 – Design Layout**”:
    
-       4.3.1. Click on **Source**
+       1. Click on **Source**
         
-       4.3.2. Copy and paste the content of `YOUR_PROJECT_NAME_acr.html` here.
+       1. Copy and paste the content of `YOUR_PROJECT_NAME_acr.html` here.
       
-       4.3.3. Click on **Source**, then **Save**
+       1. Click on **Source**, then **Save**
      
 Next, you should create a New Batch with Existing Project. 
 That can be done using either the AMT website or API. 
@@ -74,10 +74,10 @@ all actions (like download results, approve/reject assignments, etc.) should be 
         --create_hit_input YOUR_PROJECT_NAME_publish_batch.csv
     ```
     
-    The script will creates a csv file containing HITIds,HITTypeIds,HITGroupIds of created HITs (call it Batch_123_456.csv).
+    The script will create a csv file containing HITIds,HITTypeIds,HITGroupIds of created HITs (call it Batch_123_456.csv).
     This file is required for downloading the results.
         
-3. Later, download the results
+1. Later, download the results
     ```bash
     cd src
     python mturk_utils.py ^
