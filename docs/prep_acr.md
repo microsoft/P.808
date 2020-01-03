@@ -59,18 +59,18 @@ a column named `trapping_clips` and expected answer to each clip in a column nam
     
     1. Run `master_script.py` with all above-mentioned resources as input
         
-    ``` bash
-    cd src
-    python master_script.py ^
-        --project YOUR_PROJECT_NAME ^
-        --method acr ^
-        --cfg your_configuration_file.cfg ^
-        --clips rating_clips.csv ^
-        --training_clips training_clips.csv ^
-        --gold_clips gold_clips.csv ^
-        --trapping_clips trapping_clips.csv 
-    ```
-       Note: file paths are expected to be relative to the current working directory.
+        ``` bash
+        cd src
+        python master_script.py ^
+            --project YOUR_PROJECT_NAME ^
+            --method acr ^
+            --cfg your_configuration_file.cfg ^
+            --clips rating_clips.csv ^
+            --training_clips training_clips.csv ^
+            --gold_clips gold_clips.csv ^
+            --trapping_clips trapping_clips.csv 
+        ```
+        Note: file paths are expected to be relative to the current working directory.
     
     1. Double check the outcome of the script. A folder should be created with YOUR_PROJECT_NAME in current working 
     directory which contains: 

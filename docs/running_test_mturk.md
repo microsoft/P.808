@@ -23,26 +23,26 @@ You will use the first two files in this part.
 
 1. Create a New Project for your test
   
-   1. Go to “**Create**” > “**New Project**” > “**Survey Link**” > “**Create project**”
+    1. Go to “**Create**” > “**New Project**” > “**Survey Link**” > “**Create project**”
 
-   1. Fill information in “**1 – Enter Properties**”, important ones:
+    1. Fill information in “**1 – Enter Properties**”, important ones: 
 
-	 * **Setting up your survey**
-       * **Reward per response**: It is recommended to pay more than the minimum wage of target country per hour. 
-        * **Number of respondents**: It is the number of votes that you want to collect per clip.
-        * **Time allotted per Worker**: 1 Hour
-	 * **Worker requirements**
-       * **Add another criterion**: **HIT Approval Rate(%)** greater than 98
-        * **Add another criterion**: **Number of HITs Approved** greater than 500
-        * **Location**: It is required that workers are native speakers of the language under study
+	    * **Setting up your survey**
+            * **Reward per response**: It is recommended to pay more than the minimum wage of target country per hour. 
+            * **Number of respondents**: It is the number of votes that you want to collect per clip.
+            * **Time allotted per Worker**: 1 Hour
+	    * **Worker requirements**
+            * **Add another criterion**: **HIT Approval Rate(%)** greater than 98
+            * **Add another criterion**: **Number of HITs Approved** greater than 500
+            * **Location**: It is required that workers are native speakers of the language under study
 
-   1. Save and go to “**2 – Design Layout**”:
+    1. Save and go to “**2 – Design Layout**”:
    
-       1. Click on **Source**
+        1. Click on **Source**
         
-       1. Copy and paste the content of `YOUR_PROJECT_NAME_acr.html` here.
+        1. Copy and paste the content of `YOUR_PROJECT_NAME_acr.html` here.
       
-       1. Click on **Source**, then **Save**
+        1. Click on **Source**, then **Save**
      
 Next, you should create a New Batch with Existing Project. 
 That can be done using either the AMT website or API. 
