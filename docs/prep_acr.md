@@ -70,7 +70,7 @@ a column named `trapping_clips` and expected answer to each clip in a column nam
         --gold_clips gold_clips.csv ^
         --trapping_clips trapping_clips.csv 
     ```
-    Note: file paths are expected to be relative to the current working directory.
+       Note: file paths are expected to be relative to the current working directory.
     
     1. Double check the outcome of the script. A folder should be created with YOUR_PROJECT_NAME in current working 
     directory which contains: 

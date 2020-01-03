@@ -27,11 +27,11 @@ You will use the first two files in this part.
 
    1. Fill information in “**1 – Enter Properties**”, important ones:
 
-   * **Setting up your survey**
+	 * **Setting up your survey**
        * **Reward per response**: It is recommended to pay more than the minimum wage of target country per hour. 
         * **Number of respondents**: It is the number of votes that you want to collect per clip.
         * **Time allotted per Worker**: 1 Hour
-   * **Worker requirements**
+	 * **Worker requirements**
        * **Add another criterion**: **HIT Approval Rate(%)** greater than 98
         * **Add another criterion**: **Number of HITs Approved** greater than 500
         * **Location**: It is required that workers are native speakers of the language under study
