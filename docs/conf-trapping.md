@@ -1,4 +1,4 @@
- [Home](../README.md) > [Preparation](preparation.md) > [Preparation for Absolute Category Rating (ACR)](prep_acr.md)
+ [Home](../README.md) > [Preparation](preparation.md) > [Preparation for Absolute Category Rating (ACR)](prep_acr.md) > Configure for `create_trapping_stimuli.py`
  
  # Configure for `create_trapping_stimuli.py`
  
