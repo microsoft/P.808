@@ -42,6 +42,12 @@ created in the first step ([preparation](preparation.md)).
     * `[downloaded_batch_result]_quantity_bonus_report.csv`: List of workers who are eligible for quantity bonus with the amount of bonus (to be used with the mturk_utils.py).
     * `[downloaded_batch_result]_quality_bonus_report.csv`: List of workers who are eligible for quality bonus with the amount of bonus (to be used with the mturk_utils.py).     
     
+    Note:
+    * Votes in CCR test and the `CMOS` values should be interpreted as answer to following questions: The Quality of 
+    the "processed" clip Compared to the Quality of the "reference/unprocessed" Clip is .. (Much Worse:-3 to Much Better:+3)."
+    On the loading time of Rating Section in the HIT APP order or processed and reference clips are randomized, but the sign
+    of vote is always corrected to answer the above-mentioned question. 
+    
 ## Approve/Reject submissions
 
 Depending to how you create the HITs (using the AMT website or script) you should use the same method for approving/rejecting

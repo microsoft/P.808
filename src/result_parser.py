@@ -663,7 +663,8 @@ def transform(test_method, sessions, agrregate_on_condition):
         count = vote_counter
 
         tmp['n'] = count-1
-        tmp[mos_name] = abs(statistics.mean(votes))
+        # tmp[mos_name] = abs(statistics.mean(votes))
+        tmp[mos_name] = statistics.mean(votes)
         if tmp['n'] > 1:
             tmp['std'] = statistics.stdev(votes)
             tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
@@ -686,7 +687,8 @@ def transform(test_method, sessions, agrregate_on_condition):
 
             tmp['n'] = len(votes)
             if tmp['n'] > 0:
-                tmp[mos_name] = abs(statistics.mean(votes))
+                # tmp[mos_name] = abs(statistics.mean(votes))
+                tmp[mos_name] = statistics.mean(votes)
             else:
                 tmp[mos_name] = None
             if tmp['n'] > 1:
