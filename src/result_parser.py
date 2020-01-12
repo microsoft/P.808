@@ -523,7 +523,7 @@ def calc_quality_bonuses(quantity_bonus_result, answer_list, overall_mos, conf, 
     if use_condition_level:
         aggregate_on = 'condition_name'
     else:
-        aggregate_on = 'file_name'
+        aggregate_on = 'file_url'
     c_df = tmp[[aggregate_on, mos_name]].copy()
     c_df.rename(columns={mos_name: 'mos'}, inplace=True)
 
@@ -628,9 +628,10 @@ def transform(test_method, sessions, agrregate_on_condition):
             if session[config['trapping']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             # is it a gold clips
-            if test_method=='acr' and session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
+            if test_method == 'acr' and session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
-            file_name = session[f'answer.{question}_url'].rsplit('/', 1)[-1]
+            short_file_name = session[f'answer.{question}_url'].rsplit('/', 1)[-1]
+            file_name = session[f'answer.{question}_url']
             if file_name not in data_per_file:
                 data_per_file[file_name] = []
             votes = data_per_file[file_name]
@@ -644,15 +645,16 @@ def transform(test_method, sessions, agrregate_on_condition):
     for key in data_per_file.keys():
         #tmp = initiate_file_row({})
         tmp = {}
-        tmp['file_name'] = key
+        tmp['file_url'] = key
+        tmp['short_file_name'] = key.rsplit('/', 1)[-1]
         votes = data_per_file[key]
         vote_counter = 1
 
         # extra step:: add votes to the per-condition dict
         if agrregate_on_condition:
-            condition = filename_to_condition(key)
+            condition = filename_to_condition(tmp['short_file_name'])
             if condition not in data_per_condition:
-                data_per_condition[condition]=[]
+                data_per_condition[condition] = []
             data_per_condition[condition].extend(votes)
 
         for vote in votes:
@@ -699,22 +701,6 @@ def transform(test_method, sessions, agrregate_on_condition):
     return group_per_file, group_per_condition
 
 
-def initiate_file_row(d):
-    """
-    add default values in the dict
-    :param d:
-    :return:
-    """
-    d['file_name'] = None
-    d['n'] = None
-    d['mean'] = None
-    d['std'] = None
-    d['95%CI'] = None
-    for i in range(1, int(config['general']['expected_votes_per_file']) + 1):
-        d[f'vote_{i}'] = None
-    return d
-
-
 def create_headers_for_per_file_report(test_method):
     """
     add default values in the dict
@@ -726,7 +712,7 @@ def create_headers_for_per_file_report(test_method):
         mos_name = "DMOS"
     elif test_method == 'ccr':
         mos_name = "CMOS"
-    header = ['file_name', 'n', mos_name, 'std', '95%CI']
+    header = ['file_url', 'short_file_name', 'n', mos_name, 'std', '95%CI']
     max_votes = max_found_per_file
     if max_votes == -1:
         max_votes = int(config['general']['expected_votes_per_file'])
