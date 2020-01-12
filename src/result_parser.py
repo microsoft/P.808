@@ -490,6 +490,8 @@ def calc_quantity_bonuses(answer_list, conf, path):
     merged.rename(columns={'worker_id': 'workerId', 'assignment': 'assignmentId'}, inplace=True)
 
     merged['reason'] = f'Well done! More than {config["bonus"]["quantity_hits_more_than"]} accepted submissions.'
+    merged = merged.round({'bonusAmount': 2})
+
     if path is not None:
         merged.to_csv(path, index=False)
         print(f'   Quantity bonuses report is saved in: {path}')
@@ -540,6 +542,8 @@ def calc_quality_bonuses(quantity_bonus_result, answer_list, condition_level_mos
         merged = pd.merge(eligible_df, quantity_bonus_result, how='inner', left_on='workerId', right_on='workerId')
         smaller_df = merged[['workerId', 'r', 'accept', 'assignmentId']].copy()
         smaller_df['bonusAmount'] = smaller_df['accept'] * float(config['bonus']['quality_bonus'])
+
+        smaller_df = smaller_df.round({'bonusAmount': 2})
         smaller_df['reason'] = 'Well done! You belong to top 20%.'
     else:
         smaller_df = pd.DataFrame(columns=['workerId',	'r', 'accept', 'assignmentId', 	'bonusAmount', 'reason'])
