@@ -14,6 +14,13 @@ without being artificially processed.
 contains all URLs to speech clips in a column named `rating_clips` and URLs to the corresponding reference clips in 
 `references`. (see [rating_clips_ccr.csv](../src/test_inputs/rating_clips_ccr.csv) as an example).
 
+    **Note about file names**:
+    * Later in the analyzes, clip's file name will be used as a unique key and appears in the results.    
+    * In case you have 'conditions' which are represented with more than one clip, you may consider to use the condition's 
+        name in the clip's file name e.g. xxx_c01_xxxx.wav. When you provide the corresponding pattern, the analyzes script 
+        will create aggregated results over conditions as well.  
+
+
 1. Upload your **training clips** in a cloud server and create the `training_clips.csv` file which contains all URLs in a 
 column named `training_clips` and URLs to corresponding reference clips in column `training_references` 
 (see [training_clips_ccr.csv](../src/test_inputs/training_clips_ccr.csv) as an example).

@@ -498,12 +498,16 @@ def calc_quantity_bonuses(answer_list, conf, path):
     return merged
 
 
-def calc_quality_bonuses(quantity_bonus_result, answer_list, condition_level_mos, conf, path, n_uniqe_workers,test_method):
+def calc_quality_bonuses(quantity_bonus_result, answer_list, overall_mos, conf, path, n_workers, test_method, use_condition_level):
     """
     Calculate the bonuses given the configurations
+    :param quantity_bonus_result:
     :param answer_list:
+    :param overall_mos:
     :param conf:
     :param path:
+    :param test_method:
+    :param use_condition_level: if true the condition level aggregation will be used otherwise file level
     :return:
     """
     print('Calculate the quality bonuses...')
@@ -515,21 +519,28 @@ def calc_quality_bonuses(quantity_bonus_result, answer_list, condition_level_mos
 
     eligible_list = []
     df = pd.DataFrame(answer_list)
-    tmp = pd.DataFrame(condition_level_mos)
-    c_df = tmp[['condition_name', mos_name]].copy()
-    c_df.rename(columns={mos_name: 'MOS_condiction'}, inplace=True)
-    candidates = quantity_bonus_result['workerId'].tolist()
+    tmp = pd.DataFrame(overall_mos)
+    if use_condition_level:
+        aggregate_on = 'condition_name'
+    else:
+        aggregate_on = 'file_name'
+    c_df = tmp[[aggregate_on, mos_name]].copy()
+    c_df.rename(columns={mos_name: 'mos'}, inplace=True)
 
-    max_workers = int(len(candidates) * int(conf['bonus']['quality_top_percentage']) / 100)
+    candidates = quantity_bonus_result['workerId'].tolist()
+    max_workers = int(n_workers * int(conf['bonus']['quality_top_percentage']) / 100)
+
     for worker in candidates:
             # select answers
             worker_answers = df[df['workerid'] == worker]
-            votes_p_file, votes_per_condition = transform(test_method, worker_answers.to_dict('records'), True)
-            aggregated_data = pd.DataFrame(votes_per_condition)
-
+            votes_p_file, votes_per_condition = transform(test_method, worker_answers.to_dict('records'), use_condition_level)
+            if use_condition_level:
+                aggregated_data = pd.DataFrame(votes_per_condition)
+            else:
+                aggregated_data = pd.DataFrame(votes_p_file)
             if len(aggregated_data) > 0:
-                merged = pd.merge(aggregated_data, c_df, how='inner', left_on='condition_name', right_on='condition_name')
-                r = calc_correlation(merged["MOS_condiction"].tolist(), merged[mos_name].tolist())
+                merged = pd.merge(aggregated_data, c_df, how='inner', left_on=aggregate_on, right_on=aggregate_on)
+                r = calc_correlation(merged["mos"].tolist(), merged[mos_name].tolist())
             else:
                 r = 0
             entry = {'workerId': worker, 'r': r}
@@ -544,7 +555,7 @@ def calc_quality_bonuses(quantity_bonus_result, answer_list, condition_level_mos
         smaller_df['bonusAmount'] = smaller_df['accept'] * float(config['bonus']['quality_bonus'])
 
         smaller_df = smaller_df.round({'bonusAmount': 2})
-        smaller_df['reason'] = 'Well done! You belong to top 20%.'
+        smaller_df['reason'] = f'Well done! You belong to top {conf["bonus"]["quality_top_percentage"]}%.'
     else:
         smaller_df = pd.DataFrame(columns=['workerId',	'r', 'accept', 'assignmentId', 	'bonusAmount', 'reason'])
     smaller_df.head(max_workers).to_csv(path, index=False)
@@ -758,6 +769,7 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
     if len(accepted_sessions) > 1:
         print("Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip")
+        use_condition_level = config.has_option('general', 'condition_pattern')
         votes_per_file, vote_per_condition = transform(test_method, accepted_sessions,
                                                        config.has_option('general', 'condition_pattern'))
         votes_per_file_path = os.path.splitext(answer_path)[0] + '_votes_per_clip.csv'
@@ -765,9 +777,10 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
 
         headers = create_headers_for_per_file_report(test_method)
         write_dict_as_csv(votes_per_file, votes_per_file_path, headers=headers)
-        write_dict_as_csv(vote_per_condition, votes_per_cond_path)
         print(f'   Votes per files are saved in: {votes_per_file_path}')
-        print(f'   Votes per files are saved in: {votes_per_cond_path}')
+        if use_condition_level:
+            write_dict_as_csv(vote_per_condition, votes_per_cond_path)
+            print(f'   Votes per files are saved in: {votes_per_cond_path}')
 
         bonus_file = os.path.splitext(answer_path)[0] + '_quantity_bonus_report.csv'
         quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
@@ -776,8 +789,12 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
             quality_bonus_path = os.path.splitext(answer_path)[0] + '_quality_bonus_report.csv'
             if 'all' not in list_of_req:
                 quantity_bonus_df = calc_quantity_bonuses(full_data, ['all'], None)
-            calc_quality_bonuses(quantity_bonus_df, accepted_sessions, vote_per_condition, config, quality_bonus_path,
-                                 n_workers, test_method)
+            if use_condition_level:
+                votes_to_use = vote_per_condition
+            else:
+                votes_to_use = votes_per_file
+            calc_quality_bonuses(quantity_bonus_df, accepted_sessions, votes_to_use, config, quality_bonus_path,
+                                 n_workers, test_method, use_condition_level)
 
 
 

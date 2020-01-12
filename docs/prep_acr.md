@@ -10,6 +10,12 @@ For all the resource files (steps 1-4) an example is provided in `src/test_input
 1. Upload your **speech clips** in a cloud server and create `rating_clips.csv` file which contains all URLs in a 
 column named `rating_clips` (see [rating_clips.csv](../src/test_inputs/rating_clips.csv) as an example).
 
+    **Note about file names**:
+    * Later in the analyzes, clip's file name will be used as a unique key and appears in the results.    
+    * In case you have 'conditions' which are represented with more than one clip, you may consider to use the condition's 
+        name in the clip's file name e.g. xxx_c01_xxxx.wav. When you provide the corresponding pattern, the analyzes script 
+        will create aggregated results over conditions as well.  
+
 1. Upload your **training clips** in a cloud server and create `training_clips.csv` file which contains all URLs in a 
 column named `training_clips` (see [training_clips.csv](../src/test_inputs/training_clips.csv) as an example).
   
