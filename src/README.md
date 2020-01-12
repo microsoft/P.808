@@ -1,4 +1,7 @@
-# Scripts
+# Deprecate
+See the [readme file in root](../README.md). 
+
+~~# Scripts~~
 Here you find scripts that might be useful during the process of conducting an experiment based on P.808 using MTurk.
 
 ## mturk_utils
