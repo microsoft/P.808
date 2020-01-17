@@ -171,12 +171,56 @@ $(function() {
 
 		// for qualification section
 		initializeQualification();
+		initializeActivePageMonitoring();
 	}catch(err){
 		console.error(err);
 		recordError(err.name,err.message);
 
 	}
 });
+
+var overAllHiddenTime = 0;
+var startHiddenDate = null;
+var sessionId = null;
+var sessionIdVariableName=null;
+/**
+	monitor and record the status of page including being focus, and active time
+
+**/
+function initializeActivePageMonitoring(){
+	sessionId = Math.random().toString(36).substr(2, 9);
+	sessionIdVariableName = config.qualificationCookieName +"_sid";
+	createCookie(sessionIdVariableName,sessionId,70);
+
+	document.addEventListener("visibilitychange", function() {
+		var isHidden = document.hidden;
+		if (isHidden){
+			startHiddenDate = new Date();
+		}else{
+			//get back the focus
+			stopHiddenDate = new Date();
+			diff = stopHiddenDate -startHiddenDate;
+			overAllHiddenTime = overAllHiddenTime + diff;
+			$('#time_page_hidden_sec').val(overAllHiddenTime/1000);
+		}
+		console.log( "document_hidden: "+ document.hidden + "time: "+overAllHiddenTime);
+
+	});
+}
+
+/**
+	check if there is any parallel session available.
+**/
+function isAnyParallelSession(){
+	hit_num = readCookie(sessionIdVariableName);
+	if (hit_num != sessionId){
+		$('#any_parallel_session').val("true");
+		console.log("parallel session.")
+		return true;
+	}
+	return false;
+
+}
 
 /**
  central method to record errors
@@ -503,6 +547,8 @@ var trainingStimulusPlayed;
   config.forceRetrainingInHours
 */
 function playedAudioTraining(id){
+	// parallel session check
+	isAnyParallelSession();
 	$('input[name="'+id+'"]').off('change');
 	trainingQuestionNumber= id.substring(1);
 	eval("trainingStimulusPlayed["+trainingQuestionNumber+"-1]=1;");
@@ -699,6 +745,8 @@ function onValueChangeForTpQuestionInTraining(){
 	Now user can rate the quality.
 */
 function playedAudioQ(id){
+	// parallel session check
+	isAnyParallelSession();
 	// check if it was the trapping question
 	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionUrl']){
 		element = $('input[name="'+id+'"]');
@@ -1291,6 +1339,8 @@ function generate_rating_section(){
 <input id="webrtc_raw" name="webrtc_raw" type="hidden" value="-1" maxlength="2000"/>
 <input id="use_headset" name="use_headset" type="hidden" value="-1" />
 
+<input id="time_page_hidden_sec" name="time_page_hidden_sec" type="hidden" value="0" />
+<input id="any_parallel_session" name="any_parallel_session" type="hidden" value="false" />
 <!--- Rating task -->
 <section class="container" id="rating_section">
 		<div class="panel panel-primary">
