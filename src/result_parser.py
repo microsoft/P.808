@@ -19,6 +19,8 @@ from scipy import stats
 from scipy.stats import spearmanr
 import time
 import configparser as CP
+from datetime import datetime
+import locale
 
 max_found_per_file = -1
 
@@ -724,23 +726,106 @@ def create_headers_for_per_file_report(test_method):
     return header
 
 
-def stats(input_file):
-    df = pd.read_csv(input_file, low_memory=False)
-    median_time_in_sec = df["WorkTimeInSeconds"].median()
-    payment_text = df['Reward'].values[0]
-    paymnet = re.findall("\d+\.\d+", payment_text)
+def calc_hourly_payed(working_time_series, reward):
+    median_active_time = working_time_series.median()
+    avg_pay = 3600 * float(reward) / median_active_time
+    formatted_time = time.strftime("%M:%S", time.gmtime(median_active_time))
+    return [formatted_time, avg_pay]
 
-    avg_pay = 3600*float(paymnet[0])/median_time_in_sec
-    formatted_time = time.strftime("%M:%S", time.gmtime(median_time_in_sec))
+
+def remove_parallel_sessions(df):
+    df.set_index('AssignmentId', drop=False, inplace=True)
+    date_time_pattern = '%a %b %d %H:%M:%S PST %Y'
+    workers = df['WorkerId'].unique()
+    locale.setlocale(locale.LC_ALL, 'en_US')
+    df['accepted_time'] = pd.to_datetime(df['AcceptTime'], format=date_time_pattern)
+    df['submitted_time'] = pd.to_datetime(df['SubmitTime'], format=date_time_pattern)
+
+    for worker in workers:
+        filtered_submissions = df[df['WorkerId'] ==worker].copy()
+        new_df = pd.DataFrame(columns=['time','type','id'])
+        if len(filtered_submissions['HITId'])>1:
+            # multiple submission
+            for index, row in filtered_submissions.iterrows():
+                new_df.append({'time': row['accepted_time'],
+                               'type': 'accept',
+                               'id': row['AssignmentId']}, ignore_index=True)
+                new_df.append({'time': row['submitted_time'],
+                               'type': 'submit',
+                               'id': row['AssignmentId']}, ignore_index=True)
+
+            new_df.sort_values(by=['time'], inplace=True, ascending=False)
+            open_task =  False
+            submit_time =datetime.now()
+            id = ''
+            for index, row in new_df.iterrows():
+                if not open_task:
+                    if row.type == 'submit':
+                        submit_time = row.time
+                        id =  row.id
+                        open_task=True
+                    else:
+                        continue
+                else:
+                    if row.type == 'submit' or  (row.type == 'accept' and row.id ==id):
+                        diff = (submit_time- row.time).total_seconds()
+                        df[id].active_time =diff
+                        open_task = False
+        else:
+            df.loc[filtered_submissions['AssignmentId'].iloc[0], 'active_time'] = (filtered_submissions.submitted_time.iloc[0] - filtered_submissions.accepted_time.iloc[0]).total_seconds()
+    return df
+
+
+def stats(input_file):
+    stats_file_path = os.path.splitext(answer_path)[0] + '_stats.csv'
+    stat ={}
+
+    df = pd.read_csv(input_file, low_memory=False)
+    payment_text = df['Reward'].values[0]
+    payment = re.findall("\d+\.\d+", payment_text)[0]
+
+    [formatted_time, avg_pay] = calc_hourly_payed(df["WorkTimeInSeconds"], payment)
     print(f"Stats: work duration (median) {formatted_time} (MM:SS), payment per hour: ${avg_pay:.2f}")
+    stat['work_time_duration_median'] = formatted_time
+    stat['payment_per_hour'] = avg_pay
+
+    if 'Answer.time_page_hidden_sec' in df:
+        [formatted_time, avg_pay] = calc_hourly_payed(df["WorkTimeInSeconds"] - df['Answer.time_page_hidden_sec'],
+                                                      payment)
+        print(f"       active work duration (median) {formatted_time} (MM:SS), payment per hour: ${avg_pay:.2f}")
+        stat['work_time_duration_net_median'] = formatted_time
+        stat['payment_per_net_hour'] = avg_pay
+
+    if 'Answer.any_parallel_session' in df:
+        df = df.astype({'Answer.any_parallel_session': 'str'}, copy=False)
+        df_filter = df[df['Answer.any_parallel_session'] == 'False']
+
+        [formatted_time, avg_pay] = calc_hourly_payed(df_filter["WorkTimeInSeconds"] -
+                                                      df_filter['Answer.time_page_hidden_sec'], payment)
+        p = (len(df['HITId']) - len(df_filter['HITId']))/len(df['HITId'])
+        p = round(p*100, 2)
+        stat['parallel_activity_percent'] = p
+        print(f"       {p}% of sessions with parallel activity")
+
+        #print(f"       active work duration with no parallel task(median) {formatted_time} "
+        #      f"(MM:SS), payment per hour: ${avg_pay:.2f}")
+
+        stat['work_time_no_parallel_activity'] = formatted_time
+        stat['payment_per_net_hour_no_paraller'] = avg_pay
+
+        removed_parallels = remove_parallel_sessions(df)
+        [formatted_time, avg_pay] = calc_hourly_payed(removed_parallels["active_time"] -
+                                                      removed_parallels['Answer.time_page_hidden_sec'], payment)
+        print(f"       active work duration with no parallel sessions (median) {formatted_time} "
+              f"(MM:SS), payment per hour: ${avg_pay:.2f}")
 
 
 def calc_correlation(cs, lab):
-    rho, pval = spearmanr(cs, lab)
+    rho, p_val = spearmanr(cs, lab)
     return rho
 
 
-def number_of_uniqe_workers(answers):
+def number_of_unique_workers(answers):
     df = pd.DataFrame(answers)
     df.drop_duplicates('worker_id', keep='first', inplace=True)
     return len(df)
@@ -751,7 +836,7 @@ question_names = []
 def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus):
 
     full_data, accepted_sessions = data_cleaning(answer_path, test_method)
-    n_workers = number_of_uniqe_workers(full_data)
+    n_workers = number_of_unique_workers(full_data)
     print(f"{n_workers} workers participated in this batch.")
     stats(answer_path)
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
