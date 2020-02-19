@@ -12,15 +12,15 @@ import math
 import pandas as pd
 import argparse
 import os
+import re
 import numpy as np
 import sys
 import re
 from scipy import stats
 from scipy.stats import spearmanr
 import time
+import itertools
 import configparser as CP
-from datetime import datetime
-import locale
 
 max_found_per_file = -1
 
@@ -595,17 +595,15 @@ def filename_to_condition(f_name):
     """
     if f_name in file_to_condition_map:
         return file_to_condition_map[f_name]
-    condition_name = ""
-    f_char = list(f_name)
-    p_chars = list(config['general']['condition_pattern'])
-    #print (f"+{p_chars}+")
-    # "book_04753_chp_0059_reader_10797_6.wav"
-    #  --> "????????????????????????????????xxxxxx":book_04753_chp_0059_reader_10797
-    for i in range(0, len(p_chars)):
-        if p_chars[i] == '?':
-            condition_name += f_char[i]
-    file_to_condition_map[f_name] = condition_name
-    return condition_name
+    file_to_condition_map[f_name] = {'Unknown': 'NoCondition' }
+    pattern = ''
+    if config.has_option('general','condition_pattern'):
+        pattern = config['general']['condition_pattern']
+    m = re.match(pattern, f_name)
+    if m:
+        file_to_condition_map[f_name] = m.groupdict('')
+
+    return file_to_condition_map[f_name]
 
 
 def transform(test_method, sessions, agrregate_on_condition):
@@ -647,18 +645,30 @@ def transform(test_method, sessions, agrregate_on_condition):
     for key in data_per_file.keys():
         #tmp = initiate_file_row({})
         tmp = {}
-        tmp['file_url'] = key
-        tmp['short_file_name'] = key.rsplit('/', 1)[-1]
         votes = data_per_file[key]
         vote_counter = 1
 
         # extra step:: add votes to the per-condition dict
+        tmp = filename_to_condition(key)
         if agrregate_on_condition:
-            condition = filename_to_condition(tmp['short_file_name'])
+            condition_keys = config['general']['condition_keys'].split(',')
+            condition_keys.append('Unknown')
+            condition_dict = {k: tmp[k] for k in tmp.keys() & condition_keys}
+            for num_combinations in range(len(condition_dict)):
+                combinations = list(itertools.combinations(condition_dict.values(), num_combinations + 1))
+                for combination in combinations:
+                    condition = '____'.join(combination).strip('_')
+                    if condition not in data_per_condition:
+                        data_per_condition[condition]=[]
+                    data_per_condition[condition].extend(votes)
+        else:
+            condition = 'Overall'
             if condition not in data_per_condition:
                 data_per_condition[condition] = []
             data_per_condition[condition].extend(votes)
 
+        tmp['file_url'] = key
+        tmp['short_file_name'] = key.rsplit('/', 1)[-1]
         for vote in votes:
             tmp[f'vote_{vote_counter}'] = vote
             vote_counter += 1
@@ -705,7 +715,7 @@ def transform(test_method, sessions, agrregate_on_condition):
     return group_per_file, group_per_condition
 
 
-def create_headers_for_per_file_report(test_method):
+def create_headers_for_per_file_report(test_method, condition_keys):
     """
     add default values in the dict
     :param d:
@@ -716,7 +726,7 @@ def create_headers_for_per_file_report(test_method):
         mos_name = "DMOS"
     elif test_method == 'ccr':
         mos_name = "CMOS"
-    header = ['file_url', 'short_file_name', 'n', mos_name, 'std', '95%CI']
+    header = ['file_url', 'n', mos_name, 'std', '95%CI','short_file_name'] + condition_keys
     max_votes = max_found_per_file
     if max_votes == -1:
         max_votes = int(config['general']['expected_votes_per_file'])
@@ -726,106 +736,23 @@ def create_headers_for_per_file_report(test_method):
     return header
 
 
-def calc_hourly_payed(working_time_series, reward):
-    median_active_time = working_time_series.median()
-    avg_pay = 3600 * float(reward) / median_active_time
-    formatted_time = time.strftime("%M:%S", time.gmtime(median_active_time))
-    return [formatted_time, avg_pay]
-
-
-def remove_parallel_sessions(df):
-    df.set_index('AssignmentId', drop=False, inplace=True)
-    date_time_pattern = '%a %b %d %H:%M:%S PST %Y'
-    workers = df['WorkerId'].unique()
-    locale.setlocale(locale.LC_ALL, 'en_US')
-    df['accepted_time'] = pd.to_datetime(df['AcceptTime'], format=date_time_pattern)
-    df['submitted_time'] = pd.to_datetime(df['SubmitTime'], format=date_time_pattern)
-
-    for worker in workers:
-        filtered_submissions = df[df['WorkerId'] ==worker].copy()
-        new_df = pd.DataFrame(columns=['time','type','id'])
-        if len(filtered_submissions['HITId'])>1:
-            # multiple submission
-            for index, row in filtered_submissions.iterrows():
-                new_df.append({'time': row['accepted_time'],
-                               'type': 'accept',
-                               'id': row['AssignmentId']}, ignore_index=True)
-                new_df.append({'time': row['submitted_time'],
-                               'type': 'submit',
-                               'id': row['AssignmentId']}, ignore_index=True)
-
-            new_df.sort_values(by=['time'], inplace=True, ascending=False)
-            open_task =  False
-            submit_time =datetime.now()
-            id = ''
-            for index, row in new_df.iterrows():
-                if not open_task:
-                    if row.type == 'submit':
-                        submit_time = row.time
-                        id =  row.id
-                        open_task=True
-                    else:
-                        continue
-                else:
-                    if row.type == 'submit' or  (row.type == 'accept' and row.id ==id):
-                        diff = (submit_time- row.time).total_seconds()
-                        df[id].active_time =diff
-                        open_task = False
-        else:
-            df.loc[filtered_submissions['AssignmentId'].iloc[0], 'active_time'] = (filtered_submissions.submitted_time.iloc[0] - filtered_submissions.accepted_time.iloc[0]).total_seconds()
-    return df
-
-
 def stats(input_file):
-    stats_file_path = os.path.splitext(answer_path)[0] + '_stats.csv'
-    stat ={}
-
     df = pd.read_csv(input_file, low_memory=False)
+    median_time_in_sec = df["WorkTimeInSeconds"].median()
     payment_text = df['Reward'].values[0]
-    payment = re.findall("\d+\.\d+", payment_text)[0]
+    paymnet = re.findall("\d+\.\d+", payment_text)
 
-    [formatted_time, avg_pay] = calc_hourly_payed(df["WorkTimeInSeconds"], payment)
+    avg_pay = 3600*float(paymnet[0])/median_time_in_sec
+    formatted_time = time.strftime("%M:%S", time.gmtime(median_time_in_sec))
     print(f"Stats: work duration (median) {formatted_time} (MM:SS), payment per hour: ${avg_pay:.2f}")
-    stat['work_time_duration_median'] = formatted_time
-    stat['payment_per_hour'] = avg_pay
-
-    if 'Answer.time_page_hidden_sec' in df:
-        [formatted_time, avg_pay] = calc_hourly_payed(df["WorkTimeInSeconds"] - df['Answer.time_page_hidden_sec'],
-                                                      payment)
-        print(f"       active work duration (median) {formatted_time} (MM:SS), payment per hour: ${avg_pay:.2f}")
-        stat['work_time_duration_net_median'] = formatted_time
-        stat['payment_per_net_hour'] = avg_pay
-
-    if 'Answer.any_parallel_session' in df:
-        df = df.astype({'Answer.any_parallel_session': 'str'}, copy=False)
-        df_filter = df[df['Answer.any_parallel_session'] == 'False']
-
-        [formatted_time, avg_pay] = calc_hourly_payed(df_filter["WorkTimeInSeconds"] -
-                                                      df_filter['Answer.time_page_hidden_sec'], payment)
-        p = (len(df['HITId']) - len(df_filter['HITId']))/len(df['HITId'])
-        p = round(p*100, 2)
-        stat['parallel_activity_percent'] = p
-        print(f"       {p}% of sessions with parallel activity")
-
-        #print(f"       active work duration with no parallel task(median) {formatted_time} "
-        #      f"(MM:SS), payment per hour: ${avg_pay:.2f}")
-
-        stat['work_time_no_parallel_activity'] = formatted_time
-        stat['payment_per_net_hour_no_paraller'] = avg_pay
-
-        removed_parallels = remove_parallel_sessions(df)
-        [formatted_time, avg_pay] = calc_hourly_payed(removed_parallels["active_time"] -
-                                                      removed_parallels['Answer.time_page_hidden_sec'], payment)
-        print(f"       active work duration with no parallel sessions (median) {formatted_time} "
-              f"(MM:SS), payment per hour: ${avg_pay:.2f}")
 
 
 def calc_correlation(cs, lab):
-    rho, p_val = spearmanr(cs, lab)
+    rho, pval = spearmanr(cs, lab)
     return rho
 
 
-def number_of_unique_workers(answers):
+def number_of_uniqe_workers(answers):
     df = pd.DataFrame(answers)
     df.drop_duplicates('worker_id', keep='first', inplace=True)
     return len(df)
@@ -836,7 +763,7 @@ question_names = []
 def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus):
 
     full_data, accepted_sessions = data_cleaning(answer_path, test_method)
-    n_workers = number_of_unique_workers(full_data)
+    n_workers = number_of_uniqe_workers(full_data)
     print(f"{n_workers} workers participated in this batch.")
     stats(answer_path)
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
@@ -848,7 +775,11 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
         votes_per_file_path = os.path.splitext(answer_path)[0] + '_votes_per_clip.csv'
         votes_per_cond_path = os.path.splitext(answer_path)[0] + '_votes_per_cond.csv'
 
-        headers = create_headers_for_per_file_report(test_method)
+        condition_keys = []
+        if config.has_option('general', 'condition_pattern'):
+            condition_keys = config['general']['condition_keys'].split(',')
+            condition_keys.append('Unknown')
+        headers = create_headers_for_per_file_report(test_method, condition_keys)
         write_dict_as_csv(votes_per_file, votes_per_file_path, headers=headers)
         print(f'   Votes per files are saved in: {votes_per_file_path}')
         if use_condition_level:
