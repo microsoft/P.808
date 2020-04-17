@@ -11,6 +11,7 @@ import os
 import matplotlib.pyplot as plt
 from statsmodels.formula.api import ols
 from scipy import stats
+import argparse
 
 def main(args):
   input_file = args.input_file
@@ -45,7 +46,7 @@ def main(args):
   model = dfmelt.model
   file = dfmelt.short_file_name
 
-  formula = 'rating ~ C(model, Treatment(reference = {0}")) + C(file, Sum)'.format(args.model_name)
+  formula = 'rating ~ C(model, Treatment(reference = "{0}")) + C(file, Sum)'.format(args.model_name)
   lm = ols(formula, dfmelt).fit()
 
   with open(output_file, 'w') as fh:
