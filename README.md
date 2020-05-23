@@ -7,6 +7,11 @@ For more information about the ITU-T Rec. P.808 please read:
 [ITU-T Recommandation P.808, _Subjective evaluation of speech quality with a crowdsourcing approach._](https://www.itu.int/rec/T-REC-P.808/en) 
 Geneva: International Telecommunication Union, 2018.
 
+A technical description of the implementation and validation is given in this paper:
+
+* [An Open Source Implementation of ITU-T Recommendation P.808 with Validation.](https://arxiv.org/pdf/2005.08138.pdf)
+Babak Naderi, Ross Cutler, 2020.
+
 ## Getting Started
 * [Preparation](docs/preparation.md)
 * [Running the Test on Amazon Mechanical Turk](docs/running_test_mturk.md)
