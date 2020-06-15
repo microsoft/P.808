@@ -394,18 +394,19 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
             print('total trapping clips from store [{0}]'.format(len(await trapclipsstore.clip_names)))
     else:
         df_gold = None
-        testclipsstore = ClipsInAzureStorageAccount(cfg['noisy'], 'noisy')
-        testclipsurls = [testclipsstore.make_clip_url(clip) for clip in await testclipsstore.clip_names]
-        print('The total test clips for our study is [{0}]'.format(len(testclipsurls)))
+        if not os.path.exists(clips):
+            testclipsstore = ClipsInAzureStorageAccount(cfg['noisy'], 'noisy')
+            testclipsurls = [testclipsstore.make_clip_url(clip) for clip in await testclipsstore.clip_names]
+            print('The total test clips for our study is [{0}]'.format(len(testclipsurls)))
 
-        clipdictList = []
-        for eclip in rating_clips:
-            for i, c in enumerate(testclipsurls):
-                if os.path.basename(c) in eclip:
-                    clipdictList.append({'rating_clips':eclip, 'references':testclipsurls[i]})
-                    break
+            clipdictList = []
+            for eclip in rating_clips:
+                for i, c in enumerate(testclipsurls):
+                    if os.path.basename(c) in eclip:
+                        clipdictList.append({'rating_clips':eclip, 'references':testclipsurls[i]})
+                        break
 
-        df_clips = pd.DataFrame(clipdictList)
+            df_clips = pd.DataFrame(clipdictList)
         df_trap = df_clips[['references']].copy()
         df_trap.rename(columns={'references': 'trapping_clips'}, inplace=True)
 
