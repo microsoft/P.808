@@ -210,12 +210,14 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping):
         df_trap = await trapclipsstore.get_dataframe()
         print('total trapping clips from store [{0}]'.format(len(await trapclipsstore.clip_names)))
 
+    df_clips = df_clips.fillna('')
     print('iterating through [{0}] clips'.format(len(df_clips)))
     for i in range(len(df_clips)):
         metadata = {'file_shortname': df_clips.index[i]}
         metadata['file_urls'] = {}
         for col in df_clips.columns:
-            metadata['file_urls'][col] = df_clips.loc[df_clips.index[i], col]
+            if df_clips.loc[df_clips.index[i], col] != '':
+                metadata['file_urls'][col] = df_clips.loc[df_clips.index[i], col]
         metadata['ground_truth'] = []
         random_gold_sample = df_gold.sample()
         random_trap_sample = df_trap.sample()
