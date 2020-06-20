@@ -73,7 +73,14 @@ def main(cfg, args):
     df.to_csv(os.path.join(
         output_dir, "Batch_{0}_per_clip_results.csv".format(now.strftime("%m%d%Y"))))
     model_pivot_table = df.pivot_table(
-        values='MOS', index='model', columns='clipset')
+        values='MOS', index='model', columns='clipset', margins=True, margins_name='Overall', aggfunc=[np.mean, len, np.std])
+    model_pivot_table = model_pivot_table.swaplevel(axis=1)
+    model_pivot_table.drop('Overall', inplace=True)
+    for cols in model_pivot_table.columns.levels[0]:
+        model_pivot_table.loc[:, (cols, 'CI')] = model_pivot_table.loc[:, cols].apply(lambda x: 1.96 * x['std']/np.sqrt(x['len']), axis=1)
+        model_pivot_table.loc[:, (cols, 'DMOS')] = model_pivot_table.loc[:, cols]. apply(lambda x: x['mean'] - model_pivot_table.loc['noisy', (cols, 'mean')], axis=1)
+
+    model_pivot_table = model_pivot_table.sort_values(('Overall', 'mean'), ascending=False).sort_index(axis=1, ascending=False)
     model_pivot_table.to_csv(os.path.join(
         output_dir, "Batch_{0}_per_condition_results.csv".format(now.strftime("%m%d%Y"))))
 
