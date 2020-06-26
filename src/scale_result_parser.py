@@ -47,6 +47,7 @@ def main(cfg, args):
             break
 
     results = []
+    rater_stats = []
 
     for task in all_tasks:
         # Filter out results that are not a part of the interested project
@@ -58,11 +59,12 @@ def main(cfg, args):
                 'short_file_name': task.param_dict['metadata']['file_shortname']}
             clip_dict['model'] = file_url
             clip_dict['file_url'] = task.param_dict['metadata']['file_urls'][file_url]
-            ratings = task.param_dict['response']['annotations'][file_url]
+            ratings = task.param_dict['response'][file_url]['responses']
+            rater_stats.extend(ratings)
             for i in range(len(ratings)):
                 vote = 'vote_' + str(i+1)
-                clip_dict[vote] = ratings[i]
-            clip_dict['MOS'] = np.mean(ratings)
+                clip_dict[vote] = ratings[i]['rating']
+            clip_dict['MOS'] = np.mean([rating['rating'] for rating in ratings])
             clip_dict['n'] = len(ratings)
             clipset_match = re.match(
                 '.*[/](?P<clipset>audioset|ms_realrec|noreverb_clnsp|reverb_clnsp|stationary)', clip_dict['file_url'])
@@ -70,8 +72,11 @@ def main(cfg, args):
             results.append(clip_dict)
 
     df = pd.DataFrame(results)
+    df_rater = pd.DataFrame(rater_stats)
     df.to_csv(os.path.join(
         output_dir, "Batch_{0}_per_clip_results.csv".format(now.strftime("%m%d%Y"))))
+    df_rater.to_csv(os.path.join(
+        output_dir, "Batch_{0}_rater_stats.csv".format(now.strftime("%m%d%Y"))))
     model_pivot_table = df.pivot_table(
         values='MOS', index='model', columns='clipset', margins=True, margins_name='Overall', aggfunc=[np.mean, len, np.std])
     model_pivot_table = model_pivot_table.swaplevel(axis=1)
