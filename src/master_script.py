@@ -240,13 +240,13 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     rating_urls = []
     n_clips = int(cfg_g['number_of_clips_per_session'])
     n_traps = int(cfg_g['number_of_trapping_per_session'])
-
+    #'dummy':'dummy' is added becuase of current bug in AMT for replacing variable names. See issue #6
     for i in range(0, n_clips):
-        rating_urls.append({"ref": f"${{Q{i}_R}}", "processed": f"${{Q{i}_P}}"})
+        rating_urls.append({"ref": f"${{Q{i}_R}}", "processed": f"${{Q{i}_P}}", 'dummy': 'dummy'})
 
     if n_traps > 1:
         print("more than 1 trapping clips question is not supported. Proceed with 1 trap")
-    rating_urls.append({"ref": "${TP}", "processed": "${TP}"})
+    rating_urls.append({"ref": "${TP}", "processed": "${TP}", 'dummy': 'dummy'})
     if 'number_of_gold_clips_per_session' in cfg_g:
         print("Gold clips are not supported for CCR and DCR method. Proceed without them")
     config['rating_urls'] = rating_urls
