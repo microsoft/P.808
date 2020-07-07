@@ -4,7 +4,7 @@ in Amazon Mechanical Turk (AMT) crowdsourcing platform, according to the ITU-T R
 
 For more information about the ITU-T Rec. P.808 please read:
 
-[ITU-T Recommandation P.808, _Subjective evaluation of speech quality with a crowdsourcing approach._](https://www.itu.int/rec/T-REC-P.808/en) 
+[ITU-T Recommendation P.808, _Subjective evaluation of speech quality with a crowdsourcing approach._](https://www.itu.int/rec/T-REC-P.808/en) 
 Geneva: International Telecommunication Union, 2018.
 
 A technical description of the implementation and validation is given in this paper:
