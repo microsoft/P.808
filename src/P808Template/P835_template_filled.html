@@ -85,11 +85,18 @@ var config ={
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
-    questionUrls: {{cfg.rating_urls}},
-    trainingUrls: {{cfg.training_urls}},
+    questionUrls: ['https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c24_ef03_s001.wav',
+    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c04_em02_s002.wav',
+    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c05_ef02_s004.wav'],
 
-    knownQuestionInTrainingUrl:"{{cfg.training_trap_urls}}",
-    knownQuestionInTrainingAns: "{{cfg.training_trap_ans}}",
+    trainingUrls: ['https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c24_ef03_s001.wav',
+    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c04_em02_s002.wav',
+    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c05_ef02_s004.wav',
+    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c06_em01_s003.wav',
+    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/tps/D401_c49_ef11_4.wav'],
+
+    knownQuestionInTrainingUrl:"https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/tps/D401_c49_ef11_4.wav",
+    knownQuestionInTrainingAns: "4",
     knownQuestionUrl:"${TP}",
     knownQuestionAns: "${TP_ANS}",
     goldClipURL:"${gold_clips}",
@@ -140,7 +147,7 @@ $(function() {
 		cookie_debug_status="";
 		// given cookie availability disable the qualification
 		qual_passed= readCookie(config['qualificationCookieName']);
-
+		
 
 		if (qual_passed!==null && qual_passed=="true"){
 			$('.qualificationFieldset').prop("disabled", true);
@@ -1563,7 +1570,7 @@ function questionName2Text(qName){
 				<li class="next" onclick="showNextQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button">Next trial<span aria-hidden="true">&rarr;</span></a></li>
 			  </ul>
 			</nav>
-			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>Next Trial</b> to answer all <b class="question_number_training"> 0 </b> trials.</div>
+			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>Next Trial</b> to answer all <b class="question_number_training"> 0 </b> questions.</div>
 			</div>
 			</div>
 		</div>
