@@ -135,6 +135,12 @@ $(function() {
 			console.log = function() {};
 		}
 		loadTextPlaceHolders();
+		// set the order of scales for p835
+		r =Math.random();
+		if (r<0.5)
+			$("#p835_order").val("sig_bak");
+		else
+			$("#p835_order").val("bak_sig");
 		generate_training_section();
 		generate_rating_section();
 		avoidAnsweringBeforeListeningThrough();
@@ -185,6 +191,7 @@ $(function() {
 		// for qualification section
 		initializeQualification();
 		initializeActivePageMonitoring();
+
 	}catch(err){
 		console.error(err);
 		recordError(err.name,err.message);
@@ -834,64 +841,6 @@ function shuffle(a) {
 	return a;
 }
 
-/*
-	Generate the training section
-*/
-function generate_training_section_old(){
-	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link " data-toggle="tab"  href="#T{0}-panel" id="T{0}-tab " role="tab" aria-controls="T{0}" {2}>Q. {0}</a></li>';
-	acr_tab ='<div class="tab-pane fade {2}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p><p align="center"> <span class="baudio" id="t{0}" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p><fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the speech</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="4">Good</label></div></td><td class="c">4</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="3">Fair</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="2">Poor</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr>	   </tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
-	// this will show which url was shown by in which question as their orther will be randomized
-	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" />';
-
-    if (JSON.parse(config['randomizeTrainingQuestions']))
-		urls = shuffle(config['trainingUrls']);
-	else
-		urls = config['trainingUrls'];
-
-	var i;
-	for (i = 0; i < urls.length; i++) {
-		if (i==0){
-			$('#trainingTabs').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
-			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'in active'));
-		}else{
-			$('#trainingTabs').append(acr_nav_tab.f(i+1,'',''));
-			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],''));
-		}
-		$('#av-tabContent').append(input_template.f(i+1, urls[i]));
-	}
-	$('.question_number_training').html(urls.length);
-	trainingStimulusPlayed = new Array(urls.length).fill(0);
-}
-
-/*
-	Generate rating section
-*/
-function generate_rating_section_old(){
-	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#Q{0}-panel" id="Q{0}-tab" role="tab" aria-controls="Q{0}" {2}>Q. {0}</a></li>';
-	acr_tab ='<div class="tab-pane fade {2}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"> <p></p> <div class="row"> <div class="col-sm-3"></div> <div class="col-sm-6"> <p style="margin-top:10px;">{0}. How do you rate the <b>overall quality</b> of the following speech sample? </p> <p align="center"> <span class="baudio" id="q{0}" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> <fieldset id="fieldset_q{0}" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >Quality of the speech</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="5">Excellent</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="4">Good</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="3">Fair</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="2">Poor</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="1"required="">Bad</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> <p></p> </div> <div class="col-sm-3"></div> </div> <p></p> </div>';
-	// this will show which url was shown by in which question as their orther will be randomized
-	input_template= '<input id="Q{0}_URL" name="Q{0}_URL" type="hidden" value="{1}" />';
-	if (JSON.parse(config['randomizeRatingQuestions'])){
-		urls = shuffle(config['questionUrls']);
-	}else{
-		urls = config['questionUrls'];
-	}
-
-	var i;
-	for (i = 0; i < urls.length; i++) {
-		if (i==0){
-			$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
-			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],'in active'));
-		}else{
-			$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'',''));
-			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],''));
-		}
-		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i]));
-	}
-	$('.question_number').html(urls.length);
-
-}
-
 /* --- P.835 Specific methods ---*/
 var currentElementForTrial = [];
 var elements = [[]];
@@ -915,6 +864,14 @@ function generate_training_section(){
 	'<div id="t{0}_ovrl" style ="display: none;"> <p align="center"> <span class="baudio" id="t{0}_ovrl_audio" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p> <div style="margin:30px 10px;"> </div> <p>3/3. Select the category which best describes the sample you just heard for purposes of everyday speech communication.</p> <fieldset id="fieldset_t{0}_ovrl" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the OVERALL SPEECH SAMPLE was</th><th  class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_ovrl" value="5">Excellent</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_ovrl" value="4">Good</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_ovrl" value="3">Fair</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_ovrl" value="2">Poor</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_ovrl" value="1"required="">Bad</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
 	'<div class="row" style="margin: 25px 0px;">	<div class="col-sm-4" style="text-align:center;"> <button type="button" class="btn btn-light btn-sm" onclick="prevQuestion({0}-1, true)" ><span class="glyphicon glyphicon-chevron-left"></span> </button> </div> <div class="col-sm-4" style="text-align:center;"> <div class="row" style="text-align:center;" id= "progress_T_{0}"></div></div> <div class="col-sm-4" style="text-align:center;"> <button type="button" id ="next_t{0}_button" class="btn btn-light btn-sm" onclick="nextQuestion({0}-1,true)"><span class="glyphicon glyphicon-chevron-right"></span></button> </div> </div> <p></p> </div> <div class="col-sm-3"></div> </div> </div>';
 
+	// set the order of scale
+	order = $("#p835_order").val();
+	order_num=[1,2];
+	if (order =="bak_sig"){
+		// swap the order
+		question_listsTraining =['t{0}_bak', 't{0}_sig', 't{0}_ovrl'];
+		order_num=[2, 1];
+	}
 
 	// this will show which url was shown by in which question as their orther will be randomized
 	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" />';
@@ -932,10 +889,10 @@ function generate_training_section(){
 		elementsTraining[1] = [];
 		if (i==0){
 			$('#trainingTabs').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
-			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'in active',1,2));
+			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'in active', order_num[0], order_num[1]));
 		}else{
 			$('#trainingTabs').append(acr_nav_tab.f(i+1,'',''));
-			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'',1 ,2));
+			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'',order_num[0] ,order_num[1]));
 		}
 		$('#av-tabContent').append(input_template.f(i+1, urls[i]));
 		el = []
@@ -957,7 +914,9 @@ function generate_training_section(){
 }
 
 
-
+/*
+	Generate rating section
+*/
 function generate_rating_section(){
 
 	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#Q{0}-panel" id="Q{0}-tab" role="tab" aria-controls="Q{0}" {2}>Trial {0}</a></li>';
@@ -975,6 +934,15 @@ function generate_rating_section(){
 		urls = config['questionUrls'];
 	}
 
+	// set the order of scale
+	order = $("#p835_order").val();
+	order_num=[1,2];
+	if (order =="bak_sig"){
+		// swap the order
+		question_lists =['q{0}_bak', 'q{0}_sig', 'q{0}_ovrl'];
+		order_num=[2, 1];
+	}
+
 	elements = new Array(urls.length);
 	currentElementForTrial = new Array(urls.length);
 
@@ -983,29 +951,25 @@ function generate_rating_section(){
 		elements[i] = [];
 		if (i==0){
 			$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
-			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],'in active', 1, 2));
+			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],'in active', order_num[0], order_num[1]));
 		}else{
 			$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'',''));
-			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],'', 1, 2));
+			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],'', order_num[0], order_num[1]));
 		}
 
 		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i]));
 		el = []
-		el.push(document.getElementById("q{0}_sig".f(i+1)));
-		el.push(document.getElementById("q{0}_bak".f(i+1)));
-		el.push(document.getElementById("q{0}_ovrl".f(i+1)));
+
+
+		for (j = 0; j < question_lists.length; j++) {
+			tmp_name = question_lists[j].f(i+1);
+			el.push(document.getElementById(tmp_name));
+			// add questions to the set of unanswered one
+			unansweredQuestions.add(tmp_name);
+			//set the listeners to change to next question when vote is given
+			$( 'input[name='+tmp_name+']').click({trial_num: i, num: j, isTraining: false},onRating);
+		}
 		elements[i] = el;
-
-		// add questions to the set of unanswered one
-		unansweredQuestions.add("q{0}_sig".f(i+1));
-		unansweredQuestions.add("q{0}_bak".f(i+1));
-		unansweredQuestions.add("q{0}_ovrl".f(i+1));
-
-		//set the listeners to change to next question when vote is given
-		$( 'input[name="q{0}_sig"]'.f(i+1)).click({trial_num: i, num: 0, isTraining: false},onRating);
-		$( 'input[name="q{0}_bak"]'.f(i+1)).click({trial_num: i, num: 1, isTraining: false},onRating);
-		$( 'input[name="q{0}_ovrl"]'.f(i+1)).click({trial_num: i, num: 2, isTraining: false},onRating);
-
 		// initialize the GUI
 		hideAllElementsOnlyNumR(i, 0);
 		currentElementForTrial[i] = 0;
@@ -1637,6 +1601,8 @@ function questionName2Text(qName){
 <input id="time_page_hidden_sec" name="time_page_hidden_sec" type="hidden" value="0" />
 <input id="any_parallel_session" name="any_parallel_session" type="hidden" value="false" />
 
+
+<input id="p835_order" name="p835_order" type="hidden" value="bak_sig" />
 <!--- Rating task -->
 
 <section class="container" id="rating_section">
