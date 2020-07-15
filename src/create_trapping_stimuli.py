@@ -20,7 +20,12 @@ message_to_values={
     "poor_short": 2,
     "fair_short": 3,
     "good_short": 4,
-    "excellent_short": 5
+    "excellent_short": 5,
+    "1_short": 1,
+    "2_short": 2,
+    "3_short": 3,
+    "4_short": 4,
+    "5_short": 5
 }
 
 audio_extension = '.wav'
