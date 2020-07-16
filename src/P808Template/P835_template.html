@@ -736,7 +736,6 @@ function onValueChangeForTpQuestionInTraining(e){
 /*
 	Called when the audio in rating section by the given id is completely played.
 	Now user can rate the quality.
-	TODO: check TP and Goldquestions
 */
 function playedAudioQ(id){
 	// parallel session check
@@ -745,11 +744,11 @@ function playedAudioQ(id){
 	// check if it was the trapping question
 	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionUrl']){
 		element = $('input[name="'+input_id+'"]');
-		element.unbind();
+		element.unbind('change');
 		element.on('change', onValueChangeForTpQuestion);
 	}else if ($('span[id="'+id+'"]').attr("data-src") == config['goldClipURL']){
 		element = $('input[name="'+input_id+'"]');
-		element.unbind();
+		element.unbind('change');
 		element.on('change', onValueChangeForGoldQuestion);
 	}else{
 		$('input[name="'+input_id+'"]').off('change');
@@ -879,7 +878,7 @@ function generate_training_section(){
 
 	var i;
 	for (i = 0; i < urls.length; i++) {
-		elementsTraining[1] = [];
+		elementsTraining[i] = [];
 		if (i==0){
 			$('#trainingTabs').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
 			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'in active', order_num[0], order_num[1]));

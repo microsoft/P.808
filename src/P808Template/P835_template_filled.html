@@ -85,9 +85,10 @@ var config ={
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
-    questionUrls: ['https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c24_ef03_s001.wav',
+    questionUrls: ['https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c01_ef03_s001.wav',
     'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c04_em02_s002.wav',
-    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c05_ef02_s004.wav'],
+    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c05_ef02_s004.wav',
+    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/tps/D401_c49_ef11_4.wav'],
 
     trainingUrls: ['https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c24_ef03_s001.wav',
     'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c04_em02_s002.wav',
@@ -97,10 +98,10 @@ var config ={
 
     knownQuestionInTrainingUrl:"https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/tps/D401_c49_ef11_4.wav",
     knownQuestionInTrainingAns: "4",
-    knownQuestionUrl:"${TP}",
-    knownQuestionAns: "${TP_ANS}",
-    goldClipURL:"${gold_clips}",
-    goldClipAns:"${gold_clips_ans}",
+    knownQuestionUrl:"https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/tps/D401_c49_ef11_4.wav",
+    knownQuestionAns: "4",
+    goldClipURL:"https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c01_ef03_s001.wav",
+    goldClipAns:"5",
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
     //allowedMaxHITsInProject:{{cfg.allowed_max_hit_in_project}},
@@ -711,7 +712,7 @@ function onValueChangeForGoldQuestion(){
 		$('#gq_check').val(0);
 	else
 		$('#gq_check').val(-1);
-	console.log($('#gq_check').val())
+	console.log("gq_check {0}".f($('#gq_check').val()))
 }
 
 /*
@@ -723,7 +724,7 @@ function onValueChangeForTpQuestion(){
 		$('#tp_check').val(0);
 	else
 		$('#tp_check').val(-1);
-	//console.log("gc_check"+$('#tp_check').val())
+	console.log("tp_check "+$('#tp_check').val())
 }
 
 /*
@@ -752,11 +753,11 @@ function playedAudioQ(id){
 	// check if it was the trapping question
 	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionUrl']){
 		element = $('input[name="'+input_id+'"]');
-		element.unbind();
+		element.unbind('change');
 		element.on('change', onValueChangeForTpQuestion);
 	}else if ($('span[id="'+id+'"]').attr("data-src") == config['goldClipURL']){
 		element = $('input[name="'+input_id+'"]');
-		element.unbind();
+		element.unbind('change');
 		element.on('change', onValueChangeForGoldQuestion);
 	}else{
 		$('input[name="'+input_id+'"]').off('change');
@@ -886,7 +887,7 @@ function generate_training_section(){
 
 	var i;
 	for (i = 0; i < urls.length; i++) {
-		elementsTraining[1] = [];
+		elementsTraining[i] = [];
 		if (i==0){
 			$('#trainingTabs').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
 			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'in active', order_num[0], order_num[1]));
