@@ -96,8 +96,7 @@ var config ={
     goldClipAns:"${gold_clips_ans}",
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
-    //allowedMaxHITsInProject:{{cfg.allowed_max_hit_in_project}},
-     allowedMaxHITsInProject: 60,
+    allowedMaxHITsInProject:{{cfg.allowed_max_hit_in_project}},
 	allowedMaxContinuesSessionDurationInMinutes:45,
 	qualification:{
 		mother_tongue: ["english","en"],
@@ -1162,7 +1161,6 @@ function questionName2Text(qName){
 					<li><b>Training (every <b class="training_time"> 0 </b> hour):</b> <b class="question_number_training"> 0 </b> questions, same as "Ratings" but appears just once a day</li>
 					<li><b>Rating:</b> Listen to <b class="question_number"> 0 </b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
 				</ul>
-				<p>Note that not all of the speech in these audio files is in English.</p>
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
 				<p><b>Rules:</b></p>
 				<ul>
@@ -1548,7 +1546,7 @@ function questionName2Text(qName){
 				</ul>
 				<p><b>Note:</b> The order of questions may change from one HIT to the other.</p>
 
-				<p>Please provide your rating for the following <b class="question_number_training"> 0 </b> trials. For each rating in a trial, please listen to the audio sample again and give your opinion on the corresponding scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				<p>Please provide your rating for the following <b class="question_number_training"> 0 </b> trials. For each rating in a trial, you should listen to the audio sample <b>again </b>and give your opinion on the corresponding scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="trainingTabs"> 	</ul>
@@ -1600,7 +1598,7 @@ function questionName2Text(qName){
 				</ul>
 				<p><b>Note:</b> The order of questions may change from one HIT to the other.</p>
 
-				<p>Please provide your rating for the following <b class="question_number"> 0 </b> trials. For each rating in a trial, please listen to the audio sample again and give your opinion on the corresponding scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				<p>Please provide your rating for the following <b class="question_number"> 0 </b> trials. For each rating in a trial, please listen to the audio sample <b>again</b> and give your opinion on the corresponding scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
 
 
  				<!-- will be generated -->
@@ -1623,7 +1621,7 @@ function questionName2Text(qName){
 
 <section class="container" id="thanks">
 	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
-	<p>Note: The submit button will be activated when you answer all questions in this HIT. Make sure to answer to all 3 questions in each trial. <a id="myLink" href="#" onclick="help_which_questions_remain();return false;">Click here to see which questions in the "Rating" section are not answered? .</p>
+	<p>Note: The submit button works only if you answer to all questions. Make sure to answer to all 3 questions in each trial. <a id="myLink" href="#" onclick="help_which_questions_remain();return false;">Click here to see which questions in the "Rating" section are not answered? .</p>
 </section>
 
 <section class="container" id="max_allowed_HITs_reached" hidden>
