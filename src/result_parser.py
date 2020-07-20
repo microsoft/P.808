@@ -789,6 +789,7 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
     stats(answer_path)
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
     if len(accepted_sessions) > 1:
+        condition_set = []
         for suffix in suffixes:
             question_name_suffix = suffix
             print("Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip")
@@ -811,6 +812,21 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
                 vote_per_condition = sorted(vote_per_condition, key=lambda i: i['condition_name'])
                 write_dict_as_csv(vote_per_condition, votes_per_cond_path)
                 print(f'   Votes per files are saved in: {votes_per_cond_path}')
+                condition_set.append(pd.DataFrame(vote_per_condition))
+
+        if use_condition_level and len(suffixes) > 1:
+            # aggregate multiple conditions into one file for p.835
+            full_set_conditions = None
+            for df in condition_set:
+                if full_set_conditions is None:
+                    full_set_conditions = df
+                else:
+                    df = df.drop(columns='n')
+                    full_set_conditions = pd.merge(full_set_conditions, df, left_on='condition_name', right_on='condition_name')
+            votes_per_all_cond_path = os.path.splitext(answer_path)[0] + f'_votes_per_cond_all.csv'
+            full_set_conditions.to_csv(votes_per_all_cond_path, index=False,
+                                       columns=['condition_name', 'n', 'MOS_BAK', 'MOS_SIG', 'MOS_OVRL', 'std_bak',
+                                                'std_sig', 'std_ovrl', '95%CI_bak', '95%CI_sig', '95%CI_ovrl'])
 
         bonus_file = os.path.splitext(answer_path)[0] + '_quantity_bonus_report.csv'
         quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
