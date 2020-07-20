@@ -8,9 +8,10 @@ the method used to create the Batch).
 1. Modify `condition_pattern` in your result parser config file i.e.`YOUR_PROJECT_NAME_ccr_result_parser.cfg` which was 
 created in the first step ([preparation](preparation.md)).
 
-    **Note**: In case there is possible to have a condition level aggregation in your dataset, uncomment the `condition_pattern`.
+    **Note**: In case there is possible to have a condition level aggregation in your dataset, uncomment the 
+    `condition_pattern` and `condition_keys`.
     
-    **Note**: The `condition_pattern` specifies which part of the clip file name refers to the condition name/number that they are
+    **Note**: The `condition_pattern` specifies which part of the clip URL refers to the condition name/number that they are
     representing. Clips with the same value on that position, are considered to belong to the same condition and votes 
     assigned to them will be aggregated to create the `per_condition` report.
      
