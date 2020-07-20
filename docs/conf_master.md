@@ -12,7 +12,7 @@ This describes the configuration for the `master_script.py`. A sample configurat
 
 
 
-## `[acr_html]`
+## `[acr_html]` or `[p835_html]` 
 * `cookie_name:itu_p808_sup23_exp3`: A cookie with this name will be used to store the current state of a worker in this project.
  Key attributes like number of assignments answered by the worker, if the training or setup sections are needed. 
  It is a project specific value. 
