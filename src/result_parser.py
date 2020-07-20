@@ -775,6 +775,7 @@ question_names = []
 question_name_suffix = ''
 p835_suffixes = ['_bak', '_sig', '_ovrl']
 
+
 def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus):
     global question_name_suffix
     if test_method == 'p835':
@@ -801,11 +802,13 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
             condition_keys = []
             if config.has_option('general', 'condition_pattern'):
                 condition_keys = config['general']['condition_keys'].split(',')
+                votes_per_file = sorted(votes_per_file, key=lambda i: i[condition_keys[0]])
                 condition_keys.append('Unknown')
             headers = create_headers_for_per_file_report(test_method, condition_keys)
             write_dict_as_csv(votes_per_file, votes_per_file_path, headers=headers)
             print(f'   Votes per files are saved in: {votes_per_file_path}')
             if use_condition_level:
+                vote_per_condition = sorted(vote_per_condition, key=lambda i: i['condition_name'])
                 write_dict_as_csv(vote_per_condition, votes_per_cond_path)
                 print(f'   Votes per files are saved in: {votes_per_cond_path}')
 
