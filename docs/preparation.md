@@ -9,7 +9,7 @@ The following steps should be performed to prepare the test setup.
 
     ```bash
     git clone https://github.com/microsoft/P.808.git
-    cd hitapp_p808
+    cd P.808
     ```
 
 1. Install the python module dependencies in `requirements.txt` using `pip`
@@ -27,3 +27,4 @@ URLs associated to them as described in [General Resources](general_res.md)
     - [Preparation for Absolute Category Rating (ACR)](prep_acr.md)
     - [Preparation for Degradation Category Rating (DCR)](prep_dcr_ccr.md)
     - [Preparation for Comparison Category Rating (CCR)](prep_dcr_ccr.md)
+    - [Preparation for the P.835](prep_p835.md)
