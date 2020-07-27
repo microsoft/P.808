@@ -59,12 +59,16 @@ The datasets used in this project are licensed as follows:
 * Following clips are taken from [PTDB-TUG: Pitch Tracking Database from Graz University of Technology](https://www.spsc.tugraz.at/databases-and-tools/ptdb-tug-pitch-tracking-database-from-graz-university-of-technology.html); License: http://opendatacommons.org/licenses/odbl/1.0/ 
     * `src/environment test/script/clips/*`
     * `src/P808Template/assets/clips/signal_level.wav`
-* Following clips are created by adding noise to above-mentioned clips; License [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode) ?
+* Follwoing clips are taken from [Noisy speech database for training speech enhancement algorithms and TTS models](http://hdl.handle.net/10283/2791)
+    * `p835_reference_conditions/source/*`
+* Following clips are created by adding noise (or other degradation) to above-mentioned clips; License [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode) ?
     * `src/environment test/script/clips_snr/*`
     * `src/environment test/assets/jnd_noise/*`
     * `src/P808Template/assets/clips/environment_test/*`
     * `src/trapping/source/*`
-* TOBE COMPLETED: P.835 ref.
+    * `p835_reference_conditions/trapping clips/*`
+    * `p835_reference_conditions/degraded_*/*`
+    
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a

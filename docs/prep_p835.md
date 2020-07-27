@@ -1,7 +1,6 @@
 [Home](../README.md) > [Preparation](preparation.md) > Preparation for the P.835]
 # Preparation of P.835 test
 
- ## TOBE UPDATED 
 The following steps should be performed to prepare the P.835 test setup.
 
 **Note**: make sure to first perform steps listed in the [general preparation process](preparation.md).
@@ -29,12 +28,13 @@ column named `gold_clips` and expected answer to each clip in a column named `go
   
     **Hint**: Gold standard clips are used as a hidden quality control item in each session. It is expected that their 
     answers are so obvious for all participants that they all give the `gold_clips_ans` rating (+/- 1 deviation is 
-    accepted). It is recommended to use clips with excellent (answer 5) or very bad (answer 1) quality.
+    accepted) to the "overall quality" question. It is recommended to use clips with excellent (answer 5) or very bad 
+    (answer 1) quality.
     
 1. Create trapping stimuli set for your dataset.
 
     1. Configure the `create_trapping_stimuli.py` in your config file. See [configuration of create_trapping_stimuli script ](conf-trapping.md)
-     for more information.
+     for more information. An example is provided in `configurations\trapping_p835.cfg`.
      
     2. Delete all files from `trapping clips\source` directory
     ``` bash
