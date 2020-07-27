@@ -2,7 +2,8 @@
  
  # Configure for `create_trapping_stimuli.py`
  
- This describes the configuration for the `create_trapping_stimuli` script. A sample configuration file can be found in `configurations\trapping.cfg`.
+ This describes the configuration for the `create_trapping_stimuli` script. A sample configuration file can be found in
+  `configurations\trapping.cfg` or `configurations\trapping_p835.cfg` (for P.835 method).
  The `create_trapping_stimuli` script creates the trapping clips based on the section 6.3.8 of the ITU-T P.808 [1] and [2].
   
  ## `[trappings]`

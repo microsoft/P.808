@@ -182,7 +182,7 @@ def create_analyzer_cfg_acr(cfg, template_path, out_path):
 
 def create_analyzer_cfg_p835(cfg, template_path, out_path):
     """
-    create cfg file to be used by analyzer script (acr method)
+    create cfg file to be used by analyzer script (p835 method)
     :param cfg:
     :param template_path:
     :param out_path:

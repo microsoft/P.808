@@ -8,6 +8,7 @@ files:
      - `src/P808Template/ACR_template.html`
      - `src/P808Template/DCR_template.html`
      - `src/P808Template/CCR_template.html`
+     - `src/P808Template/P835_template.html`
      - `src/P808Template/Qualification.html`
      
 1. Upload the links in the `src/assets_master_script/general.csv`:

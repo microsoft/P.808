@@ -622,6 +622,10 @@ method_to_mos={
     "p835_ovrl": 'MOS_OVRL'
 }
 
+question_names = []
+question_name_suffix = ''
+p835_suffixes = ['_bak', '_sig', '_ovrl']
+
 #p835
 def transform(test_method, sessions, agrregate_on_condition):
     """
@@ -751,6 +755,11 @@ def create_headers_for_per_file_report(test_method, condition_keys):
 
 
 def stats(input_file):
+    """
+    calc the statistics considering the time worker spend
+    :param input_file:
+    :return:
+    """
     df = pd.read_csv(input_file, low_memory=False)
     median_time_in_sec = df["WorkTimeInSeconds"].median()
     payment_text = df['Reward'].values[0]
@@ -762,21 +771,36 @@ def stats(input_file):
 
 
 def calc_correlation(cs, lab):
+    """
+    calc the spearman's correlation
+    :param cs:
+    :param lab:
+    :return:
+    """
     rho, pval = spearmanr(cs, lab)
     return rho
 
 
 def number_of_uniqe_workers(answers):
+    """
+    return numbe rof unique workers
+    :param answers:
+    :return:
+    """
     df = pd.DataFrame(answers)
     df.drop_duplicates('worker_id', keep='first', inplace=True)
     return len(df)
 
-question_names = []
-question_name_suffix = ''
-p835_suffixes = ['_bak', '_sig', '_ovrl']
-
-
 def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus):
+    """
+    main method for calculating the results
+    :param config:
+    :param test_method:
+    :param answer_path:
+    :param list_of_req:
+    :param quality_bonus:
+    :return:
+    """
     global question_name_suffix
     if test_method == 'p835':
         question_name_suffix = p835_suffixes[2]
