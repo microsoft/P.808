@@ -289,6 +289,7 @@ def data_cleaning(filename, method):
     # Input.math, Answer.Math,Answer.audio_n_play_math1
     worker_list = []
     use_sessions = []
+    count_sig_bak = 0
     for row in reader:
         correct_cmp_ans = 0
         setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
@@ -336,6 +337,8 @@ def data_cleaning(filename, method):
         if check_if_session_should_be_used(d):
             d['accept_and_use'] = 1
             use_sessions.append(row)
+            if method == 'p835' and row['answer.p835_order'] == 'sig_bak':
+                count_sig_bak += 1
         else:
             d['accept_and_use'] = 0
 
@@ -357,6 +360,8 @@ def data_cleaning(filename, method):
     save_approve_rejected_ones_for_gui(worker_list, accept_reject_gui_file)
     print(f"   {len(accept_and_use_sessions)} answers are good to be used further")
     print(f"   Data cleaning report is saved in: {report_file}")
+    if method == 'p835':
+        print(f"   percentage of 'sig_bak':  {round(count_sig_bak/len(accept_and_use_sessions),4)*100} %")
     return worker_list, use_sessions
 
 #p835
@@ -790,6 +795,7 @@ def number_of_uniqe_workers(answers):
     df = pd.DataFrame(answers)
     df.drop_duplicates('worker_id', keep='first', inplace=True)
     return len(df)
+
 
 def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus):
     """
