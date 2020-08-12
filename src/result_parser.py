@@ -631,7 +631,7 @@ question_names = []
 question_name_suffix = ''
 p835_suffixes = ['_bak', '_sig', '_ovrl']
 
-#p835
+
 def transform(test_method, sessions, agrregate_on_condition):
     """
     Given the valid sessions from answer.csv, group votes per files, and per conditions.
@@ -652,7 +652,7 @@ def transform(test_method, sessions, agrregate_on_condition):
             if session[config['trapping']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             # is it a gold clips
-            if test_method == 'acr' and session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
+            if test_method in ['acr','p835'] and session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             short_file_name = session[f'answer.{question}_url'].rsplit('/', 1)[-1]
             file_name = session[f'answer.{question}_url']
