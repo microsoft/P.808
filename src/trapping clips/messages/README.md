@@ -13,13 +13,15 @@ Text:
 ```
 This is an interruption. Please select the answer X to confirm your attention now.
 ```
+Files started with `adj_ACR_*` are adjusted to have -26 dBov using tools from the ITU-T Rec. G.191.
+
 ## For P.835
-As there is 3 different scales for each stimuli, here specify which "Score" user should select:
+Files started by `p835_*`.  As there is 3 different scales for each stimuli, here specify which "Score" user should select:
 Text: 
 ```
 This is an interruption. Please select the score X to confirm your attention now.
 ```
-
+Files started with `adj_p835_*` are adjusted to have -26 dBov using tools from the ITU-T Rec. G.191.
 
 ## References
 [1]. [ITU-T Recommendation P. 808](https://www.itu.int/rec/T-REC-P.808/en): Subjective evaluation of speech quality with a crowdsourcing approach, International Telecommunication Union, Geneva, 2018.

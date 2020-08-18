@@ -536,6 +536,7 @@ async def main(cfg, test_method, args):
                                              'assets_master_script/dcr_ccr_result_parser_template.cfg')
     #   for  p835
     p835_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P835_template.html')
+    #p835_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P835_template_one_audio.html')
     p835_cfg_template_path = os.path.join(os.path.dirname(__file__),
                                           'assets_master_script/acr_result_parser_template.cfg')
     template_path = ''
