@@ -14,6 +14,12 @@ column named `rating_clips` (see [rating_clips.csv](../src/test_inputs/rating_cl
     * In case you have 'conditions' which are represented with more than one clip, you may consider to use the condition's 
         name in the clip's file name or in the URL e.g. xxx_c01_xxxx.wav. Latter you can use regex pattern to extract the 
         condition identifier from the URLs.
+        
+    **Note on Reference Conditions**
+    * It is strongly recommended to include Reference Conditions in your study to cover the entire range of MOS on all 
+    three scales. Results of our studies showed that Reference Conditions based on teh ITU-T Rec. P.835 does not cover
+    the entire range of scales, rather the framework propose in ETSI 103 281 Annex D can cover the entire range. We 
+    recommend to use [3gpp_p501_FB](../p835_reference_conditions/3gpp_p501_FB) which is created base on the ETSI/3GPP framework.  
 
 1. Upload your **training clips** in a cloud server and create `training_clips.csv` file which contains all URLs in a 
 column named `training_clips` (see [training_clips.csv](../src/test_inputs/training_clips.csv) as an example).

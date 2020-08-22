@@ -16,7 +16,8 @@
  * `output`: generated trapping clips will be stored here.
  
  `message_file_prefix:ACR_`: specify prefix of audio clips available in `source` directory which should be used. 
- Use `ACR_` for the P.808 tests and `p835_score_` for the P.835 tests.
+ Use `ACR_` for the P.808 tests and `p835_score_` for the P.835 tests. The speech level of clips started by `adj_*` are
+ adjusted to -26dBov.
   
  **One** of the following options should be used:
  
