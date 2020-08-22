@@ -61,3 +61,6 @@ The template has same structure as ACR_Template.
 The implementation of Comparison Category Rating (CCR) listening test as specified in the Annex E of ITU-T P.800.
 The template has same structure as ACR_Template. 
 
+## P835_template
+The implementation of the ITU-T Rec. P.835 recommendation. An extension of it for only one time listening are given on 
+P835_template_one_audio.html.
