@@ -73,43 +73,23 @@ General configuration file:
 
 */
 var config ={
-	cookieName:"itu_p808_sup23_exp3_2",
-	qualificationCookieName:"ACR_LISTNER",
+	cookieName:"{{cfg.cookie_name}}",
+	qualificationCookieName:"{{cfg.qual_cookie_name}}",
 	qualificationValidFor:43200,
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
-    questionUrls: [
-	    {"ref":"${Q0_R}", "processed":"${Q0_P}"},
-    	{"ref":"${Q1_R}", "processed":"${Q1_P}"},
-    	{"ref":"${Q2_R}", "processed":"${Q2_P}"},
-    	{"ref":"${Q3_R}", "processed":"${Q3_P}"},
-    	{"ref":"${Q4_R}", "processed":"${Q4_P}"},
-    	{"ref":"${Q5_R}", "processed":"${Q5_P}"},
-    	{"ref":"${Q6_R}", "processed":"${Q6_P}"},
-    	{"ref":"${Q7_R}", "processed":"${Q7_P}"},
-    	{"ref":"${Q8_R}", "processed":"${Q8_P}"},
-    	{"ref":"${Q9_R}", "processed":"${Q9_P}"},
-    	{"ref":"${TP}", "processed":"${TP}"}
-    ],
-    trainingUrls: [
-    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_M02S78.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M5232.wav"},
-    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F01S71.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F7D25.wav"},
-    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_M01S48.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M0202.wav"},
-    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_M02S67.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M4721.wav"},
-    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F01S93.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F9347.wav"},
-    	//TP
-    	{"ref":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F02S95.wav", "processed":"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F02S95.wav"},
-    ],
+    questionUrls: {{cfg.rating_urls}},
+    trainingUrls: {{cfg.training_urls}},
 
-    knownQuestionInTrainingUrl:"https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F02S95.wav",
+    knownQuestionInTrainingUrl:"{{cfg.training_trap_urls}}",
     knownQuestionInTrainingAns: "5",
     knownQuestionUrl:"${TP}",
     knownQuestionAns: "5",
 
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
-    allowedMaxHITsInProject:60,
+    allowedMaxHITsInProject:{{cfg.allowed_max_hit_in_project}},
 	allowedMaxContinuesSessionDurationInMinutes:45,
 	qualification:{
 		mother_tongue: ["english","en"],
@@ -892,11 +872,11 @@ function generate_rating_section(){
 
 				<p><b>Payment:</b></p>
 				<p>The result of this experiment is <b>very important for us and other scientist</b> working in this area. We have methods that analyse the consistency of your answers. We will use these methods to rank the submitted assignments according to quality.</p>
-				<p>For this experiment, we will pay a base reward of <b>$0.50/HIT</b> for every accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You will receive a bonus of:</p>
+				<p>For this experiment, we will pay a base reward of <b>${{cfg.hit_base_payment}}/HIT</b> for every accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You will receive a bonus of:</p>
 
 				<ul>
-				  <li>$0.10/HIT (for a total of <b>$0.60/HIT</b>) if you submit <b>more than 30 HITs</b> or</li>
-				  <li>$0.25/HIT (for a total of <b>$0.75/HIT</b>) if you submit <b>more than 30 HITs</b> <u>and</u> be in the <b>top 20% quality group</b>.</li>
+				  <li>${{cfg.quantity_bonus}}/HIT (for a total of <b>${{cfg.sum_quantity}}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs</b> or</li>
+				  <li>${{cfg.quality_bonus}}/HIT (for a total of <b>${{cfg.sum_quality }}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs</b> <u>and</u> be in the <b>top {{cfg.quality_top_percentage}}% quality group</b>.</li>
 				</ul>
 
 				<p>Bonuses will be assigned with in 7 days.</p>
