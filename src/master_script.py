@@ -120,18 +120,19 @@ class TrappingSamplesInStore(ClipsInAzureStorageAccount):
         for clip in clips:
             clipUrl = self.make_clip_url(clip)
             rating = 0
-            if '_bad_' in clip.lower():
+            if '_bad_' in clip.lower() or '_1_short' in clip.lower():
                 rating = 1
-            elif '_poor_' in clip.lower():
+            elif '_poor_' in clip.lower() or '_2_short' in clip.lower():
                 rating = 2
-            elif '_fair_' in clip.lower():
+            elif '_fair_' in clip.lower() or '_3_short' in clip.lower():
                 rating = 3
-            elif '_good_' in clip.lower():
+            elif '_good_' in clip.lower() or '_4_short' in clip.lower():
                 rating = 4
-            elif '_excellent_' in clip.lower():
+            elif '_excellent_' in clip.lower() or '_5_short' in clip.lower():
                 rating = 5
-
-            clipsList.append({'trapping_clips':clipUrl, 'trapping_ans':rating})
+            if rating == 0:
+                print(f"  TrappingSamplesInStore: could not extract correct rating for this trapping clip: {clip.lower()}")
+            clipsList.append({'trapping_clips': clipUrl, 'trapping_ans': rating})
 
         df = df.append(clipsList)
         return df
@@ -324,7 +325,9 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     else:
         trapclipsstore = TrappingSamplesInStore(cfg_trapping_store, 'TrappingQuestions')
         df_trap = await trapclipsstore.get_dataframe()
-
+    # trapping clips are required bit but enough clips are provided
+    if len(df_trap.index) < 2 and int(cfg_g['number_of_clips_per_session']) >0:
+        raise(f"Not enough trapping clips. Only {len(df_trap.index)} clip was provided")
     for index, row in df_trap.iterrows():
         trap_url = row['trapping_clips']
         trap_ans = row['trapping_ans']
@@ -599,7 +602,7 @@ async def main(cfg, test_method, args):
         create_analyzer_cfg_dcr_ccr(cfg, dcr_ccr_cfg_template_path, output_cfg_file)
 
 if __name__ == '__main__':
-    print("Welcome to the Master script for ACR test.")
+    print("Welcome to the Master script for P808 Toolkit.")
     parser = argparse.ArgumentParser(description='Master script to prepare the ACR test')
     parser.add_argument("--project", help="Name of the project", required=True)
     parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=True)
