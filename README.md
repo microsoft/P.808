@@ -12,6 +12,14 @@ A technical description of the implementation and validation is given in this pa
 * [An Open Source Implementation of ITU-T Recommendation P.808 with Validation.](https://arxiv.org/pdf/2005.08138.pdf)
 Babak Naderi, Ross Cutler, 2020.
 
+In addition, an implementation of the ITU-T Rec. P.835 for the crowdsourcing approach is also provided based on
+the recommendations given in the ITU-T Rec. P.808. For more information about the ITU-T Rec. P.835 please read:
+
+[ITU-T Recommendation P.835, _Subjective test methodology for evaluating speech communication systems that include noise suppression algorithm ._](https://www.itu.int/rec/T-REC-P.835/en) 
+Geneva: International Telecommunication Union, 2003.
+
+
+  
 ## Getting Started
 * [Preparation](docs/preparation.md)
 * [Running the Test on Amazon Mechanical Turk](docs/running_test_mturk.md)
@@ -51,12 +59,20 @@ The datasets used in this project are licensed as follows:
 * Following clips are taken from [PTDB-TUG: Pitch Tracking Database from Graz University of Technology](https://www.spsc.tugraz.at/databases-and-tools/ptdb-tug-pitch-tracking-database-from-graz-university-of-technology.html); License: http://opendatacommons.org/licenses/odbl/1.0/ 
     * `src/environment test/script/clips/*`
     * `src/P808Template/assets/clips/signal_level.wav`
-* Following clips are created by adding noise to above-mentioned clips; License [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode) ?
+* Following clips are taken from [Noisy speech database for training speech enhancement algorithms and TTS models](http://hdl.handle.net/10283/2791)
+    * `p835_reference_conditions/source/NSD/*`
+* Following clips are taken from [NOIZEUS](https://ecs.utdallas.edu/loizou/speech/noizeus/)
+    * `p835_reference_conditions/source/noizeus_ref/*`    
+* Following clips are created by adding noise (or other degradation) to above-mentioned clips; License [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode)
     * `src/environment test/script/clips_snr/*`
     * `src/environment test/assets/jnd_noise/*`
     * `src/P808Template/assets/clips/environment_test/*`
     * `src/trapping/source/*`
-
+    * `p835_reference_conditions/trapping clips/*`
+    * `p835_reference_conditions/degraded_*/*`
+* Following clips are created by degrading the source signals from ITU-T Rec. P.501; License of [source signals](p835_reference_conditions/3gpp_p501_FB/itu_license_text_from_P501.txt)
+    * `p835_reference_conditions/3gpp_p501_FB/*`
+    
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a

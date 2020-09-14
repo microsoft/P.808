@@ -2,7 +2,8 @@
  
  # Configure for `create_trapping_stimuli.py`
  
- This describes the configuration for the `create_trapping_stimuli` script. A sample configuration file can be found in `configurations\trapping.cfg`.
+ This describes the configuration for the `create_trapping_stimuli` script. A sample configuration file can be found in
+  `configurations\trapping.cfg` or `configurations\trapping_p835.cfg` (for P.835 method).
  The `create_trapping_stimuli` script creates the trapping clips based on the section 6.3.8 of the ITU-T P.808 [1] and [2].
   
  ## `[trappings]`
@@ -14,7 +15,9 @@
  `source` directory to create the trapping clips.
  * `output`: generated trapping clips will be stored here.
  
- `message_file_prefix:ACR_`: specify prefix of audio clips available in `source` directory which should be used.
+ `message_file_prefix:ACR_`: specify prefix of audio clips available in `source` directory which should be used. 
+ Use `ACR_` for the P.808 tests and `p835_score_` for the P.835 tests. The speech level of clips started by `adj_*` are
+ adjusted to -26dBov.
   
  **One** of the following options should be used:
  

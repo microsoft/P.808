@@ -64,7 +64,7 @@ def outliers_z_score(votes):
     v = v[x < threshold]
     return v
 
-
+#p835
 def check_if_session_accepted(data):
     """
     Check if the session can be acceptd given the criteria in config and the calculations
@@ -90,7 +90,7 @@ def check_if_session_accepted(data):
         data['Reject'] = ""
     return accept
 
-
+#p835
 def check_if_session_should_be_used(data):
     """
     Check if the session should be used given the criteria in config
@@ -105,7 +105,7 @@ def check_if_session_should_be_used(data):
         return True
     return False
 
-
+# p835
 def check_audio_played(row, method):
     """
     check if all audios for questions played until the end
@@ -119,6 +119,10 @@ def check_audio_played(row, method):
             for q_name in question_names:
                 if int(row[f'answer.audio_n_finish_{q_name}']) > 0:
                     question_played += 1
+        elif method == 'p835':
+            for q_name in question_names:
+                if int(row[f'answer.audio_n_finish_{q_name}{question_name_suffix}_audio']) > 0:
+                    question_played += 1
         else:
             for q_name in question_names:
                 if int(row[f'answer.audio_n_finish_q_a{q_name[1:]}']) > 0 and int(row[f'answer.audio_n_finish_q_b{q_name[1:]}']) > 0:
@@ -127,7 +131,7 @@ def check_audio_played(row, method):
         return False
     return question_played == len(question_names)
 
-
+# p835
 def check_tps(row, method):
     """
     Check if the trapping clips questions are answered correctly
@@ -137,22 +141,26 @@ def check_tps(row, method):
     """
     correct_tps = 0
     tp_url = row[config['trapping']['url_found_in']]
-    if method == 'acr':
+    if method in ['acr', 'p835']:
         tp_correct_ans = int(float(row[config['trapping']['ans_found_in']]))
     else:
         tp_correct_ans = 0
     try:
+        suffix = ''
+        if method == 'p835':
+            # only look at the ovrl for tps.
+            suffix = "_ovrl"
         for q_name in question_names:
             if tp_url in row[f'answer.{q_name}_url']:
                 # found a trapping clips question
-                if int(row[f'answer.{q_name}']) == tp_correct_ans:
+                if int(row[f'answer.{q_name}{suffix}']) == tp_correct_ans:
                     correct_tps = 1
                     return correct_tps
     except:
         pass
     return correct_tps
 
-
+#p835
 def check_variance(row):
     """
     Check how is variance of ratings in the session (if the worker just clicked samething)
@@ -166,7 +174,7 @@ def check_variance(row):
         if row[config['trapping']['url_found_in']] in row[f'answer.{q_name}_url']:
             continue
         try:
-            r.append(int(row[f'answer.{q_name}']))
+            r.append(int(row[f'answer.{q_name}{question_name_suffix}']))
         except:
             pass
     try:
@@ -176,8 +184,8 @@ def check_variance(row):
         pass
     return -1
 
-
-def check_gold_question(row):
+#p835
+def check_gold_question(method, row):
     """
     Check if the gold_question is answered correctly
     :param row:
@@ -197,10 +205,14 @@ def check_gold_question(row):
         else:
             return -1
         gq_var = int(config['gold_question']['variance'])
+        suffix = ''
+        if method == 'p835':
+            # only look at the ovrl for tps.
+            suffix = "_ovrl"
         for q_name in question_names:
             if gq_url in row[f'answer.{q_name}_url']:
                 # found a gold standard question
-                if int(row[f'answer.{q_name}']) in range(gq_correct_ans-gq_var, gq_correct_ans+gq_var+1):
+                if int(row[f'answer.{q_name}{suffix}']) in range(gq_correct_ans-gq_var, gq_correct_ans+gq_var+1):
                     correct_gq = 1
                     return correct_gq
     except:
@@ -253,7 +265,7 @@ def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played):
         answer_is_correct = True
     return answer_is_correct
 
-
+# p835
 def data_cleaning(filename, method):
    """
    Data screening process
@@ -277,6 +289,7 @@ def data_cleaning(filename, method):
     # Input.math, Answer.Math,Answer.audio_n_play_math1
     worker_list = []
     use_sessions = []
+    count_sig_bak = 0
     for row in reader:
         correct_cmp_ans = 0
         setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
@@ -310,7 +323,7 @@ def data_cleaning(filename, method):
         d['correct_tps'] = check_tps(row, method)
         # step5. check gold_standard, just for acr
         if method == 'acr':
-            d['correct_gold_question'] = check_gold_question(row)
+            d['correct_gold_question'] = check_gold_question(method, row)
         # step6. check variance in a session rating
         d['variance_in_ratings'] = check_variance(row)
 
@@ -324,6 +337,8 @@ def data_cleaning(filename, method):
         if check_if_session_should_be_used(d):
             d['accept_and_use'] = 1
             use_sessions.append(row)
+            if method == 'p835' and row['answer.p835_order'] == 'sig_bak':
+                count_sig_bak += 1
         else:
             d['accept_and_use'] = 0
 
@@ -345,9 +360,11 @@ def data_cleaning(filename, method):
     save_approve_rejected_ones_for_gui(worker_list, accept_reject_gui_file)
     print(f"   {len(accept_and_use_sessions)} answers are good to be used further")
     print(f"   Data cleaning report is saved in: {report_file}")
+    if method == 'p835':
+        print(f"   percentage of 'sig_bak':  {round(count_sig_bak/len(accept_and_use_sessions),4)*100} %")
     return worker_list, use_sessions
 
-
+#p835
 def evaluate_maximum_hits(data):
     df = pd.DataFrame(data)
     small_df = df[['worker_id']].copy()
@@ -451,7 +468,7 @@ def filter_answer_by_status_and_workers(answer_df, all_time_worker_id_in, new_wo
         frames.append(d2)
         return pd.concat(frames)
 
-
+#p835
 def calc_quantity_bonuses(answer_list, conf, path):
     """
     Calculate the quantity bonuses given the configurations
@@ -499,7 +516,7 @@ def calc_quantity_bonuses(answer_list, conf, path):
         print(f'   Quantity bonuses report is saved in: {path}')
     return merged
 
-
+#p835
 def calc_quality_bonuses(quantity_bonus_result, answer_list, overall_mos, conf, path, n_workers, test_method, use_condition_level):
     """
     Calculate the bonuses given the configurations
@@ -513,11 +530,7 @@ def calc_quality_bonuses(quantity_bonus_result, answer_list, overall_mos, conf, 
     :return:
     """
     print('Calculate the quality bonuses...')
-    mos_name = "MOS"
-    if test_method =='ccr':
-        mos_name = "CMOS"
-    elif test_method =='dcr':
-        mos_name = "DMOS"
+    mos_name = method_to_mos[f"{test_method}{question_name_suffix}"]
 
     eligible_list = []
     df = pd.DataFrame(answer_list)
@@ -605,6 +618,19 @@ def filename_to_condition(f_name):
 
     return file_to_condition_map[f_name]
 
+method_to_mos={
+    "acr": 'MOS',
+    "ccr": 'CMOS',
+    "dcr": 'DMOS',
+    "p835_bak": 'MOS_BAK',
+    "p835_sig": 'MOS_SIG',
+    "p835_ovrl": 'MOS_OVRL'
+}
+
+question_names = []
+question_name_suffix = ''
+p835_suffixes = ['_bak', '_sig', '_ovrl']
+
 
 def transform(test_method, sessions, agrregate_on_condition):
     """
@@ -615,12 +641,10 @@ def transform(test_method, sessions, agrregate_on_condition):
     """
     data_per_file = {}
     global max_found_per_file
+    global file_to_condition_map
+    file_to_condition_map ={}
     data_per_condition = {}
-    mos_name = "MOS"
-    if test_method =='ccr':
-        mos_name = "CMOS"
-    elif test_method =='dcr':
-        mos_name = "DMOS"
+    mos_name = method_to_mos[f"{test_method}{question_name_suffix}"]
 
     for session in sessions:
         for question in question_names:
@@ -628,7 +652,7 @@ def transform(test_method, sessions, agrregate_on_condition):
             if session[config['trapping']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             # is it a gold clips
-            if test_method == 'acr' and session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
+            if test_method in ['acr','p835'] and session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             short_file_name = session[f'answer.{question}_url'].rsplit('/', 1)[-1]
             file_name = session[f'answer.{question}_url']
@@ -636,15 +660,14 @@ def transform(test_method, sessions, agrregate_on_condition):
                 data_per_file[file_name] = []
             votes = data_per_file[file_name]
             try:
-                votes.append(int(session[f'answer.{question}']))
+                votes.append(int(session[f'answer.{question}{question_name_suffix}']))
             except:
                 pass
 
     # convert the format: one row per file
     group_per_file = []
     for key in data_per_file.keys():
-        #tmp = initiate_file_row({})
-        tmp = {}
+        tmp = dict()
         votes = data_per_file[key]
         vote_counter = 1
 
@@ -678,11 +701,11 @@ def transform(test_method, sessions, agrregate_on_condition):
         # tmp[mos_name] = abs(statistics.mean(votes))
         tmp[mos_name] = statistics.mean(votes)
         if tmp['n'] > 1:
-            tmp['std'] = statistics.stdev(votes)
-            tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
+            tmp[f'std{question_name_suffix}'] = statistics.stdev(votes)
+            tmp[f'95%CI{question_name_suffix}'] = (1.96 * tmp[f'std{question_name_suffix}']) / math.sqrt(tmp['n'])
         else:
-            tmp['std'] = None
-            tmp['95%CI'] = None
+            tmp[f'std{question_name_suffix}'] = None
+            tmp[f'95%CI{question_name_suffix}'] = None
         if tmp['n'] > max_found_per_file:
             max_found_per_file = tmp['n']
         group_per_file.append(tmp)
@@ -704,29 +727,29 @@ def transform(test_method, sessions, agrregate_on_condition):
             else:
                 tmp[mos_name] = None
             if tmp['n'] > 1:
-                tmp['std'] = statistics.stdev(votes)
-                tmp['95%CI'] = (1.96 * tmp['std']) / math.sqrt(tmp['n'])
+                tmp[f'std{question_name_suffix}'] = statistics.stdev(votes)
+                tmp[f'95%CI{question_name_suffix}'] = (1.96 * tmp[f'std{question_name_suffix}']) / math.sqrt(tmp['n'])
             else:
-                tmp['std'] = None
-                tmp['95%CI'] = None
+                tmp[f'std{question_name_suffix}'] = None
+                tmp[f'95%CI{question_name_suffix}'] = None
 
             group_per_condition.append(tmp)
 
     return group_per_file, group_per_condition
 
-
+# p835
 def create_headers_for_per_file_report(test_method, condition_keys):
     """
     add default values in the dict
     :param d:
     :return:
     """
-    mos_name = "MOS"
-    if test_method == 'dcr':
-        mos_name = "DMOS"
-    elif test_method == 'ccr':
-        mos_name = "CMOS"
-    header = ['file_url', 'n', mos_name, 'std', '95%CI','short_file_name'] + condition_keys
+    mos_name = method_to_mos[f"{test_method}{question_name_suffix}"]
+    if test_method == "p835":
+        header = ['file_url', 'n', mos_name, f'std{question_name_suffix}', f'95%CI{question_name_suffix}',
+                  'short_file_name'] + condition_keys
+    else:
+        header = ['file_url', 'n', mos_name, 'std', '95%CI', 'short_file_name'] + condition_keys
     max_votes = max_found_per_file
     if max_votes == -1:
         max_votes = int(config['general']['expected_votes_per_file'])
@@ -737,6 +760,11 @@ def create_headers_for_per_file_report(test_method, condition_keys):
 
 
 def stats(input_file):
+    """
+    calc the statistics considering the time worker spend
+    :param input_file:
+    :return:
+    """
     df = pd.read_csv(input_file, low_memory=False)
     median_time_in_sec = df["WorkTimeInSeconds"].median()
     payment_text = df['Reward'].values[0]
@@ -748,43 +776,87 @@ def stats(input_file):
 
 
 def calc_correlation(cs, lab):
+    """
+    calc the spearman's correlation
+    :param cs:
+    :param lab:
+    :return:
+    """
     rho, pval = spearmanr(cs, lab)
     return rho
 
 
 def number_of_uniqe_workers(answers):
+    """
+    return numbe rof unique workers
+    :param answers:
+    :return:
+    """
     df = pd.DataFrame(answers)
     df.drop_duplicates('worker_id', keep='first', inplace=True)
     return len(df)
 
-question_names = []
-
 
 def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus):
-
+    """
+    main method for calculating the results
+    :param config:
+    :param test_method:
+    :param answer_path:
+    :param list_of_req:
+    :param quality_bonus:
+    :return:
+    """
+    global question_name_suffix
+    if test_method == 'p835':
+        question_name_suffix = p835_suffixes[2]
+        suffixes = p835_suffixes
+    else:
+        suffixes = ['']
     full_data, accepted_sessions = data_cleaning(answer_path, test_method)
     n_workers = number_of_uniqe_workers(full_data)
     print(f"{n_workers} workers participated in this batch.")
     stats(answer_path)
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
     if len(accepted_sessions) > 1:
-        print("Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip")
-        use_condition_level = config.has_option('general', 'condition_pattern')
-        votes_per_file, vote_per_condition = transform(test_method, accepted_sessions,
-                                                       config.has_option('general', 'condition_pattern'))
-        votes_per_file_path = os.path.splitext(answer_path)[0] + '_votes_per_clip.csv'
-        votes_per_cond_path = os.path.splitext(answer_path)[0] + '_votes_per_cond.csv'
+        condition_set = []
+        for suffix in suffixes:
+            question_name_suffix = suffix
+            print("Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip")
+            use_condition_level = config.has_option('general', 'condition_pattern')
+            votes_per_file, vote_per_condition = transform(test_method, accepted_sessions,
+                                                           config.has_option('general', 'condition_pattern'))
 
-        condition_keys = []
-        if config.has_option('general', 'condition_pattern'):
-            condition_keys = config['general']['condition_keys'].split(',')
-            condition_keys.append('Unknown')
-        headers = create_headers_for_per_file_report(test_method, condition_keys)
-        write_dict_as_csv(votes_per_file, votes_per_file_path, headers=headers)
-        print(f'   Votes per files are saved in: {votes_per_file_path}')
-        if use_condition_level:
-            write_dict_as_csv(vote_per_condition, votes_per_cond_path)
-            print(f'   Votes per files are saved in: {votes_per_cond_path}')
+            votes_per_file_path = os.path.splitext(answer_path)[0] + f'_votes_per_clip{question_name_suffix}.csv'
+            votes_per_cond_path = os.path.splitext(answer_path)[0] + f'_votes_per_cond{question_name_suffix}.csv'
+
+            condition_keys = []
+            if config.has_option('general', 'condition_pattern'):
+                condition_keys = config['general']['condition_keys'].split(',')
+                votes_per_file = sorted(votes_per_file, key=lambda i: i[condition_keys[0]])
+                condition_keys.append('Unknown')
+            headers = create_headers_for_per_file_report(test_method, condition_keys)
+            write_dict_as_csv(votes_per_file, votes_per_file_path, headers=headers)
+            print(f'   Votes per files are saved in: {votes_per_file_path}')
+            if use_condition_level:
+                vote_per_condition = sorted(vote_per_condition, key=lambda i: i['condition_name'])
+                write_dict_as_csv(vote_per_condition, votes_per_cond_path)
+                print(f'   Votes per files are saved in: {votes_per_cond_path}')
+                condition_set.append(pd.DataFrame(vote_per_condition))
+
+        if use_condition_level and len(suffixes) > 1:
+            # aggregate multiple conditions into one file for p.835
+            full_set_conditions = None
+            for df in condition_set:
+                if full_set_conditions is None:
+                    full_set_conditions = df
+                else:
+                    df = df.drop(columns='n')
+                    full_set_conditions = pd.merge(full_set_conditions, df, left_on='condition_name', right_on='condition_name')
+            votes_per_all_cond_path = os.path.splitext(answer_path)[0] + f'_votes_per_cond_all.csv'
+            full_set_conditions.to_csv(votes_per_all_cond_path, index=False,
+                                       columns=['condition_name', 'n', 'MOS_BAK', 'MOS_SIG', 'MOS_OVRL', 'std_bak',
+                                                'std_sig', 'std_ovrl', '95%CI_bak', '95%CI_sig', '95%CI_ovrl'])
 
         bonus_file = os.path.splitext(answer_path)[0] + '_quantity_bonus_report.csv'
         quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
@@ -801,15 +873,13 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
                                  n_workers, test_method, use_condition_level)
 
 
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Utility script to evaluate answers to the acr batch')
     # Configuration: read it from mturk.cfg
     parser.add_argument("--cfg", required=True,
                         help="Contains the configurations see acr_result_parser.cfg as an example")
     parser.add_argument("--method", required=True,
-                        help="one of the test methods: 'acr', 'dcr', or 'ccr'")
+                        help="one of the test methods: 'acr', 'dcr', 'ccr', or 'p835'")
     parser.add_argument("--answers", required=True,
                         help="Answers csv file, path relative to current directory")
 
@@ -823,9 +893,9 @@ if __name__ == '__main__':
     parser.add_argument('--quality_bonus', help="Quality bonus will be calculated. Just use it with your final download"
                                                 " of answers and when the project is completed", action="store_true")
     args = parser.parse_args()
-    methods = ['acr', 'dcr', 'ccr']
+    methods = ['acr', 'dcr', 'ccr', 'p835']
     test_method = args.method.lower()
-    assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr'"
+    assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', or 'p835'"
 
     cfg_path = args.cfg
     assert os.path.exists(cfg_path), f"No configuration file at [{cfg_path}]"
@@ -844,7 +914,6 @@ if __name__ == '__main__':
 
     np.seterr(divide='ignore', invalid='ignore')
     question_names = [f"q{i}" for i in range(1, int(config['general']['number_of_questions_in_rating']) + 1)]
-
     # start
     analyze_results(config, test_method,  answer_path, list_of_req, args.quality_bonus)
 

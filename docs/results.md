@@ -8,13 +8,15 @@ the method used to create the Batch).
 1. Modify `condition_pattern` in your result parser config file i.e.`YOUR_PROJECT_NAME_ccr_result_parser.cfg` which was 
 created in the first step ([preparation](preparation.md)).
 
-    **Note**: In case there is possible to have a condition level aggregation in your dataset, uncomment the `condition_pattern`.
+    **Note**: In case there is possible to have a condition level aggregation in your dataset, uncomment the 
+    `condition_pattern` and `condition_keys`.
     
-    **Note**: The `condition_pattern` specifies which part of the clip file name refers to the condition name/number that they are
+    **Note**: The `condition_pattern` specifies which part of the clip URL refers to the condition name/number that they are
     representing. Clips with the same value on that position, are considered to belong to the same condition and votes 
-    assigned to them will be aggregated to create the `per_condition` report.
-     
-    
+    assigned to them will be aggregated to create the `per_condition` report. Example: Assuming `D501_C03_M2_S02.wav` is 
+    a file name,and `03` is the condition name. The pattern should be set to `.*_c(?P<condition_num>\d{1,2})_.*.wav` , 
+    and the `condition_keys` to `condition_num`.
+   
 
 1. Run `result_parser.py` 
         
@@ -28,7 +30,7 @@ created in the first step ([preparation](preparation.md)).
         --quality_bonus
     ```
     * `--cfg` use the configuration file generated for your project in the [preparation](preparation.md) step here (i.e.`YOUR_PROJECT_NAME_ccr_result_parser.cfg`).
-    * `--method` could be either `acr`, `dcr`, or `ccr`.
+    * `--method` could be either `acr`, `dcr`, `ccr` or `p835`.
     * `--quantity_bonus` could be `all`, or `submitted`. It specify which assignments should be considered when calculating
     the amount of quantity bonus (everything i.e. `all` or just the assignments with status submitted i.e. `submitted`).
     
@@ -48,6 +50,15 @@ created in the first step ([preparation](preparation.md)).
     On the loading time of Rating Section in the HIT APP order or processed and reference clips are randomized, but the sign
     of vote is always corrected to answer the above-mentioned question. 
     
+    Note for **P835** method:
+    * for each of the `Signal`, `Background` and `Overall` quality scales, aggregated ratings will be stored in a separate csv file 
+    with corresponding [postfix] (i.e.`sig`, `bak`, and `ovrl`): 
+        * `[downloaded_batch_result]_votes_per_clip_[postfix].csv`: Aggregated result per clip, including MOS, standard deviations, and 95% Confidence Intervals.   
+        * `[downloaded_batch_result]_votes_per_cond_[postfix].csv`: Aggregated result per condition.
+    
+    * In addition a summary in the condition level will be provided for all three scales in `[downloaded_batch_result]_votes_per_cond_all`.
+        
+        
 ## Approve/Reject submissions
 
 Depending to how you create the HITs (using the AMT website or script) you should use the same method for approving/rejecting
