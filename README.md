@@ -33,7 +33,7 @@ For bug reports and issues with this code, please see the
 
 ## Contact
 
-Contact [dns_challenge@microsoft.com](dns_challenge@microsoft.com) or [Vishak Gopal](vishak.gopal@microsoft.com), [Ross Cutler] (rcutler@microsoft.com) with any questions.
+Contact [Vishak Gopal](vishak.gopal@microsoft.com) or [Ross Cutler](rcutler@microsoft.com) with any questions.
 
 ## License
 ### Code License
