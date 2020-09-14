@@ -132,7 +132,8 @@ class TrappingSamplesInStore(ClipsInAzureStorageAccount):
                 rating = 5
             if rating == 0:
                 print(f"  TrappingSamplesInStore: could not extract correct rating for this trapping clip: {clip.lower()}")
-            clipsList.append({'trapping_clips': clipUrl, 'trapping_ans': rating})
+            else:
+                clipsList.append({'trapping_clips': clipUrl, 'trapping_ans': rating})
 
         df = df.append(clipsList)
         return df
@@ -326,7 +327,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
         trapclipsstore = TrappingSamplesInStore(cfg_trapping_store, 'TrappingQuestions')
         df_trap = await trapclipsstore.get_dataframe()
     # trapping clips are required bit but enough clips are provided
-    if len(df_trap.index) < 2 and int(cfg_g['number_of_clips_per_session']) >0:
+    if len(df_trap.index) < 2 and int(cfg_g['number_of_clips_per_session']) > 0:
         raise(f"Not enough trapping clips. Only {len(df_trap.index)} clip was provided")
     for index, row in df_trap.iterrows():
         trap_url = row['trapping_clips']
@@ -400,7 +401,9 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     else:
         trapclipsstore = TrappingSamplesInStore(cfg_trapping_store, 'TrappingQuestions')
         df_trap = await trapclipsstore.get_dataframe()
-
+    # trapping clips are required bit but enough clips are provided
+    if len(df_trap.index) < 2 and int(cfg_g['number_of_clips_per_session']) > 0:
+        raise (f"Not enough trapping clips. Only {len(df_trap.index)} clip was provided")
     for index, row in df_trap.iterrows():
         trap_url = row['trapping_clips']
         trap_ans = row['trapping_ans']
