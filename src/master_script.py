@@ -473,7 +473,6 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     print(f"  [{out_path}] is created")
 
 
-# TODO: Just a stub, implement this
 async def create_hit_app_p831(cfg, template_path, out_path, training_path, trap_path, cfg_g, cfg_trapping_store):
     """
     Create the p831.html file corresponding to this project
@@ -483,6 +482,70 @@ async def create_hit_app_p831(cfg, template_path, out_path, training_path, trap_
     :return:
     """
     print("Start creating custom p831.html")
+    df_trap = pd.DataFrame()
+    if trap_path and os.path.exists(trap_path):
+        df_trap = pd.read_csv(trap_path, nrows=1)
+    else:
+        trapclipsstore = TrappingSamplesInStore(cfg_trapping_store, 'TrappingQuestions')
+        df_trap = await trapclipsstore.get_dataframe()
+    # trapping clips are required bit but enough clips are provided
+    if len(df_trap.index) < 1 and int(cfg_g['number_of_clips_per_session']) > 0:
+        raise(f"Not enough trapping clips. Only {len(df_trap.index)} clip was provided")
+    for index, row in df_trap.iterrows():
+        trap_url = row['trapping_clips']
+        trap_ans = row['trapping_ans']
+
+    config = {}
+    config['cookie_name'] = cfg['cookie_name']
+    config['qual_cookie_name'] = cfg['qual_cookie_name']
+    config['allowed_max_hit_in_project'] = cfg['allowed_max_hit_in_project']
+    config['training_trap_urls'] = trap_url
+    config['training_trap_ans'] = trap_ans
+
+    config['hit_base_payment'] = cfg['hit_base_payment']
+    config['quantity_hits_more_than'] = cfg['quantity_hits_more_than']
+    config['quantity_bonus'] = cfg['quantity_bonus']
+    config['quality_top_percentage'] = cfg['quality_top_percentage']
+    config['quality_bonus'] = float(cfg['quality_bonus']) + float(cfg['quantity_bonus'])
+    config['sum_quantity'] = float(cfg['quantity_bonus']) + float(cfg['hit_base_payment'])
+    config['sum_quality'] = config['quality_bonus'] + float(cfg['hit_base_payment'])
+
+    df_train = pd.read_csv(training_path)
+    train = []
+    for index, row in df_train.iterrows():
+        train.append(row['training_clips'])
+    train.append(trap_url)
+    config['training_urls'] = train
+
+    # rating urls
+    rating_urls = []
+    n_clips = int(cfg_g['number_of_clips_per_session'])
+    n_traps = int(cfg_g['number_of_trapping_per_session'])
+    n_gold_clips = int(cfg_g['number_of_gold_clips_per_session'])
+
+    for i in range(0, n_clips ):
+        rating_urls.append('${Q'+str(i)+'}')
+    if n_traps > 1:
+        raise Exception("more than 1 trapping clips question is not supported.")
+    if n_traps == 1:
+        rating_urls.append('${TP}')
+
+    if  n_gold_clips > 1:
+        raise Exception("more than 1 gold question is not supported.")
+    if n_gold_clips == 1:
+        rating_urls.append('${gold_clips}')
+
+    config['rating_urls'] = rating_urls
+
+    with open(template_path, 'r') as file:
+        content = file.read()
+        file.seek(0)
+    t = Template(content)
+    html = t.render(cfg=config)
+
+    with open(out_path, 'w') as file:
+        file.write(html)
+    print(f"  [{out_path}] is created")
 
 
 async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, general):
