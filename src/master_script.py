@@ -249,6 +249,18 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path):
     print(f"  [{out_path}] is created")
 
 
+def create_analyzer_cfg_p831(cfg, template_path, out_path):
+    """
+    create cfg file to be used by analyzer script (p831 method)
+    :param cfg:
+    :param template_path:
+    :param out_path:
+    :return:
+    """
+    print("Start creating config file for result_parser")
+    raise NotImplementedError
+
+
 async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cfg_g):
     """
     Create the hit_app (html file) corresponding to this project for ccr and dcr
@@ -503,7 +515,7 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
         df_clips = pd.DataFrame({'rating_clips':rating_clips})
     
     df_general = pd.read_csv(general)
-    if test_method in ["acr", "p835"]:
+    if test_method in ["acr", "p835", "p831"]:
         if gold and os.path.exists(gold):
             df_gold = pd.read_csv(gold)
         else:
@@ -615,8 +627,8 @@ async def main(cfg, test_method, args):
         await create_hit_app_p835(cfg['p835_html'], template_path, output_html_file, args.training_clips,
                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
     elif test_method == 'p831':
-        # TODO
-        pass
+        await create_hit_app_p831(cfg['p831_html'], template_path, output_html_file, args.training_clips,
+                                 args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
     else:
         await create_hit_app_ccr_dcr(cfg['dcr_ccr_html'], template_path, output_html_file, args.training_clips,
                                cfg['create_input'])
@@ -628,8 +640,7 @@ async def main(cfg, test_method, args):
     elif test_method == 'p835':
         create_analyzer_cfg_p835(cfg, p835_cfg_template_path, output_cfg_file)
     elif test_method == 'p831':
-        # TODO
-        pass
+        create_analyzer_cfg_p831(cfg, p831_cfg_template_path, output_cfg_file)
     else:
         create_analyzer_cfg_dcr_ccr(cfg, dcr_ccr_cfg_template_path, output_cfg_file)
 
