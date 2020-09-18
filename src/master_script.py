@@ -258,7 +258,29 @@ def create_analyzer_cfg_p831(cfg, template_path, out_path):
     :return:
     """
     print("Start creating config file for result_parser")
-    raise NotImplementedError
+    config = {}
+
+    config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + \
+                      int(cfg['create_input']['number_of_trapping_per_session']) + \
+                      int(cfg['create_input']['number_of_gold_clips_per_session'])
+
+    config['max_allowed_hits'] = cfg['acr_html']['allowed_max_hit_in_project']
+
+    config['quantity_hits_more_than'] = cfg['acr_html']['quantity_hits_more_than']
+    config['quantity_bonus'] = cfg['acr_html']['quantity_bonus']
+    config['quality_top_percentage'] = cfg['acr_html']['quality_top_percentage']
+    config['quality_bonus'] = cfg['acr_html']['quality_bonus']
+
+    with open(template_path, 'r') as file:
+        content = file.read()
+        file.seek(0)
+    t = Template(content)
+    cfg_file = t.render(cfg=config)
+
+    with open(out_path, 'w') as file:
+        file.write(cfg_file)
+        file.close()
+    print(f"  [{out_path}] is created")
 
 
 async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cfg_g):
