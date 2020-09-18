@@ -461,6 +461,18 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     print(f"  [{out_path}] is created")
 
 
+# TODO: Just a stub, implement this
+async def create_hit_app_p831(cfg, template_path, out_path, training_path, trap_path, cfg_g, cfg_trapping_store):
+    """
+    Create the p831.html file corresponding to this project
+    :param cfg:
+    :param template_path:
+    :param out_path:
+    :return:
+    """
+    print("Start creating custom p831.html")
+
+
 async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, general):
     """
     Merge different input files into one dataframe
@@ -547,8 +559,9 @@ async def main(cfg, test_method, args):
                                           'assets_master_script/acr_result_parser_template.cfg')
 
     #   for p831
-    p831_template_path = '' # TODO
-    p831_cfg_template_path = '' # TODO
+    p831_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_template.html')
+    p831_cfg_template_path = os.path.join(os.path.dirname(__file__), 
+                                          'assets_master_script/acr_result_parser_template.cfg') # TODO: Figure out if this is the correct cfg template to use
 
     template_path = ''
 
