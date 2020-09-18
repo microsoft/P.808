@@ -545,6 +545,11 @@ async def main(cfg, test_method, args):
     #p835_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P835_template_one_audio.html')
     p835_cfg_template_path = os.path.join(os.path.dirname(__file__),
                                           'assets_master_script/acr_result_parser_template.cfg')
+
+    #   for p831
+    p831_template_path = '' # TODO
+    p831_cfg_template_path = '' # TODO
+
     template_path = ''
 
     assert os.path.exists(general_path), f"No csv file containing general infos in {general_path}"
@@ -567,6 +572,11 @@ async def main(cfg, test_method, args):
         assert os.path.exists(p835_template_path), f"No html template file found  in {p835_template_path}"
         assert os.path.exists(p835_cfg_template_path), f"No cfg template  found  in {p835_cfg_template_path}"
         template_path = p835_template_path
+
+    if test_method == "p831":
+        assert os.path.exists(p831_template_path), f"No html template file found  in {p831_template_path}"
+        assert os.path.exists(p831_cfg_template_path), f"No cfg template  found  in {p831_cfg_template_path}"
+        template_path = p831_template_path
 
     # create output folder
     output_dir = args.project
@@ -591,6 +601,9 @@ async def main(cfg, test_method, args):
     elif test_method == 'p835':
         await create_hit_app_p835(cfg['p835_html'], template_path, output_html_file, args.training_clips,
                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
+    elif test_method == 'p831':
+        # TODO
+        pass
     else:
         await create_hit_app_ccr_dcr(cfg['dcr_ccr_html'], template_path, output_html_file, args.training_clips,
                                cfg['create_input'])
@@ -601,6 +614,9 @@ async def main(cfg, test_method, args):
         create_analyzer_cfg_acr(cfg, acr_cfg_template_path, output_cfg_file)
     elif test_method == 'p835':
         create_analyzer_cfg_p835(cfg, p835_cfg_template_path, output_cfg_file)
+    elif test_method == 'p831':
+        # TODO
+        pass
     else:
         create_analyzer_cfg_dcr_ccr(cfg, dcr_ccr_cfg_template_path, output_cfg_file)
 
@@ -610,7 +626,7 @@ if __name__ == '__main__':
     parser.add_argument("--project", help="Name of the project", required=True)
     parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=True)
     parser.add_argument("--method", required=True,
-                        help="one of the test methods: 'acr', 'dcr', or 'ccr'")
+                        help="one of the test methods: 'acr', 'dcr', 'ccr', 'p835', or 'p831'")
     parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
                                         "case of ccr/dcr it should also contain a column for 'references'")
     parser.add_argument("--gold_clips", help="A csv containing urls of all gold clips in column 'gold_clips' and their "
@@ -622,9 +638,9 @@ if __name__ == '__main__':
     # check input arguments
     args = parser.parse_args()
 
-    methods = ['acr', 'dcr', 'ccr', 'p835']
+    methods = ['acr', 'dcr', 'ccr', 'p835', 'p831']
     test_method = args.method.lower()
-    assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835'"
+    assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835', 'p831'"
     assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
     assert os.path.exists(args.training_clips), f"No csv file containing training clips in {args.training_clips}"
 
@@ -639,7 +655,7 @@ if __name__ == '__main__':
     else:
         assert True, "Neither clips file not cloud store provided for rating clips"
 
-    if test_method in ["acr", "p835"]:
+    if test_method in ['acr', 'p835', 'p831']:
         if args.gold_clips:
             assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
         elif cfg.has_option('GoldenSample', 'Path'):
