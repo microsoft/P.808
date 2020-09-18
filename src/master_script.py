@@ -326,10 +326,10 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     else:
         trapclipsstore = TrappingSamplesInStore(cfg_trapping_store, 'TrappingQuestions')
         df_trap = await trapclipsstore.get_dataframe()
-    # trapping clips are required bit but enough clips are provided
-    if len(df_trap.index) < 2 and int(cfg_g['number_of_clips_per_session']) > 0:
-        raise(f"Not enough trapping clips. Only {len(df_trap.index)} clip was provided")
-    for index, row in df_trap.iterrows():
+    # trapping clips are required, at list 1 clip should be available here
+    if len(df_trap.index) < 1 and int(cfg_g['number_of_clips_per_session']) > 0:
+        raise (f"At least one trapping clip is required")
+    for index, row in df_trap.head(n=1).iterrows():
         trap_url = row['trapping_clips']
         trap_ans = row['trapping_ans']
 
@@ -401,10 +401,10 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     else:
         trapclipsstore = TrappingSamplesInStore(cfg_trapping_store, 'TrappingQuestions')
         df_trap = await trapclipsstore.get_dataframe()
-    # trapping clips are required bit but enough clips are provided
-    if len(df_trap.index) < 2 and int(cfg_g['number_of_clips_per_session']) > 0:
-        raise (f"Not enough trapping clips. Only {len(df_trap.index)} clip was provided")
-    for index, row in df_trap.iterrows():
+    # trapping clips are required, at list 1 clip should be available here
+    if len(df_trap.index) < 1 and int(cfg_g['number_of_clips_per_session']) > 0:
+        raise (f"At least one trapping clip is required")
+    for index, row in df_trap.head(n=1).iterrows():
         trap_url = row['trapping_clips']
         trap_ans = row['trapping_ans']
 
