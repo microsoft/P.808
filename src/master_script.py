@@ -549,12 +549,12 @@ async def main(cfg, test_method, args):
     #   for p831-acr
     p831_acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_ACR_template.html')
     p831_acr_cfg_template_path = os.path.join(os.path.dirname(__file__), 
-                                          'assets_master_script/acr_result_parser_template.cfg') # TODO: Figure out if this is the correct cfg template to use
+                                          'assets_master_script/acr_result_parser_template.cfg')
 
     #   for p831-dcr
     p831_dcr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_DCR_template.html')
     p831_dcr_cfg_template_path = os.path.join(os.path.dirname(__file__),
-                                          'assets_master_script/dcr_ccr_result_parser_template.cfg') # TODO: Figure out if this is the correct cfg template to use
+                                          'assets_master_script/dcr_ccr_result_parser_template.cfg')
 
     is_p831 = args.p831
     template_path = ''
