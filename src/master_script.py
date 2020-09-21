@@ -547,13 +547,14 @@ async def main(cfg, test_method, args):
                                           'assets_master_script/acr_result_parser_template.cfg')
 
     #   for p831-acr
-    p831_acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_template.html')
+    p831_acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_ACR_template.html')
     p831_acr_cfg_template_path = os.path.join(os.path.dirname(__file__), 
                                           'assets_master_script/acr_result_parser_template.cfg') # TODO: Figure out if this is the correct cfg template to use
 
     #   for p831-dcr
-    p831_dcr_template_path = '' # TODO
-    p831_dcr_cfg_template_path = '' # TODO
+    p831_dcr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_DCR_template.html')
+    p831_dcr_cfg_template_path = os.path.join(os.path.dirname(__file__),
+                                          'assets_master_script/dcr_ccr_result_parser_template.cfg') # TODO: Figure out if this is the correct cfg template to use
 
     is_p831 = args.p831
     template_path = ''
@@ -608,11 +609,11 @@ async def main(cfg, test_method, args):
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831 else f"{args.project}_{test_method}.html"
     output_html_file = os.path.join(output_dir, output_file_name)
     if is_p831 and test_method == 'acr':
-        await create_hit_app_acr(cfg['acr_html'], template_path, output_html_file, args.training_clips,
+        await create_hit_app_acr(cfg['p831_html'], template_path, output_html_file, args.training_clips,
                            args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
     elif is_p831 and test_method == 'dcr':
-        # TODO
-        pass
+        await create_hit_app_ccr_dcr(cfg['p831_html'], template_path, output_html_file, args.training_clips,
+                               cfg['create_input'])
     elif test_method == 'acr':
         await create_hit_app_acr(cfg['acr_html'], template_path, output_html_file, args.training_clips,
                            args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
@@ -624,12 +625,12 @@ async def main(cfg, test_method, args):
                                cfg['create_input'])
 
     # create a config file for analyzer
-    output_cfg_file = os.path.join(output_dir, f"{args.project}_{test_method}_result_parser.cfg")
+    output_cfg_file_name = f"{args.project}_p831_{test_method}_result_parser.cfg" if is_p831 else f"{args.project}_{test_method}_result_parser.cfg"
+    output_cfg_file = os.path.join(output_dir, output_cfg_file_name)
     if is_p831 and test_method == 'acr':
         create_analyzer_cfg_acr(cfg, p831_acr_cfg_template_path, output_cfg_file)
     elif is_p831 and test_method == 'dcr':
-        # TODO
-        pass
+        create_analyzer_cfg_dcr_ccr(cfg, p831_dcr_cfg_template_path, output_cfg_file)
     elif test_method == 'acr':
         create_analyzer_cfg_acr(cfg, acr_cfg_template_path, output_cfg_file)
     elif test_method == 'p835':
