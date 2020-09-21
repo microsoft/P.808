@@ -645,7 +645,7 @@ if __name__ == '__main__':
     parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=True)
     parser.add_argument("--method", required=True,
                         help="one of the test methods: 'acr', 'dcr', 'ccr', or 'p835'")
-    parser.add_argument("--p831", action='store_true')
+    parser.add_argument("--p831", action='store_true', help="Use the question set of P.831 instead of P.808")
     parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
                                         "case of ccr/dcr it should also contain a column for 'references'")
     parser.add_argument("--gold_clips", help="A csv containing urls of all gold clips in column 'gold_clips' and their "
