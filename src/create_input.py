@@ -28,7 +28,7 @@ def validate_inputs(cfg, df, method):
     required_columns_acr = ['rating_clips', 'math', 'pair_a', 'pair_b', 'trapping_clips', 'trapping_ans']
     # tps are always the references.
     required_columns_ccr = ['rating_clips', 'references', 'math', 'pair_a', 'pair_b', 'trapping_clips']
-    if method in ['acr', 'p835', 'p831']:
+    if method in ['acr', 'p835']:
         req = required_columns_acr
     else:
         req = required_columns_ccr
@@ -38,7 +38,7 @@ def validate_inputs(cfg, df, method):
 
     # check optionals
     #   gold_clips
-    if method in ['acr', 'p835', 'p831'] and 'number_of_gold_clips_per_session' in cfg and int(cfg['number_of_gold_clips_per_session'])>0:
+    if method in ['acr', 'p835'] and 'number_of_gold_clips_per_session' in cfg and int(cfg['number_of_gold_clips_per_session'])>0:
         assert 'gold_clips' in columns, f"No column found with 'gold_clips' in input file"
         assert 'gold_clips_ans' in columns, f"No column found with 'gold_clips_ans' in input file " \
             f"(required since v.1.0)"
@@ -226,14 +226,14 @@ def create_input_for_mturk(cfg, df, method, output_path):
     :param df:  row input, see validate_inputs for details
     :param output_path: path to output file
     """
-    if method in ['acr', 'p835', 'p831']:
+    if method in ['acr', 'p835']:
         create_input_for_acr(cfg, df, output_path)
     else:
         create_input_for_dcrccr(cfg, df, output_path)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Create input.csv for ACR, DCR, CCR, P835, or P831 test. ')
+    parser = argparse.ArgumentParser(description='Create input.csv for ACR, DCR, CCR, or P835 test. ')
     # Configuration: read it from trapping clips.cfg
     parser.add_argument("--row_input", required=True,
                         help="All urls depending to the test method, for ACR: 'rating_clips', 'math', 'pair_a', "
@@ -243,7 +243,7 @@ if __name__ == '__main__':
                         help="explains the test")
 
     parser.add_argument("--method", default="acr", required=True,
-                        help="one of the test methods: acr, dcr, ccr, p835, or p831")
+                        help="one of the test methods: acr, dcr, ccr, or p835")
     args = parser.parse_args()
 
     #row_input = join(dirname(__file__), args.row_input)
@@ -254,9 +254,9 @@ if __name__ == '__main__':
     cfg_path = args.cfg
     assert os.path.exists(cfg_path), f"No file in {cfg_path}]"
 
-    methods = ["acr", "dcr", "ccr", "p835", "p831"]
+    methods = ["acr", "dcr", "ccr", "p835"]
     exp_method = args.method.lower()
-    assert exp_method in methods, f"{exp_method} is not a supported method, select from: acr, dcr, ccr, p835 or p831."
+    assert exp_method in methods, f"{exp_method} is not a supported method, select from: acr, dcr, ccr, or p835."
 
     cfg = CP.ConfigParser()
     cfg._interpolation = CP.ExtendedInterpolation()
