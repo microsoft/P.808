@@ -256,7 +256,7 @@ if __name__ == '__main__':
 
     methods = ["acr", "dcr", "ccr", "p835"]
     exp_method = args.method.lower()
-    assert exp_method in methods, f"{exp_method} is not a supported method, select from: acr, dcr, ccr, or p835."
+    assert exp_method in methods, f"{exp_method} is not a supported method, select from: acr, dcr, ccr or p835."
 
     cfg = CP.ConfigParser()
     cfg._interpolation = CP.ExtendedInterpolation()
