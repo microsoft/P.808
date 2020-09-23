@@ -545,6 +545,18 @@ async def main(cfg, test_method, args):
     #p835_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P835_template_one_audio.html')
     p835_cfg_template_path = os.path.join(os.path.dirname(__file__),
                                           'assets_master_script/acr_result_parser_template.cfg')
+
+    #   for p831-acr
+    p831_acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_ACR_template.html')
+    p831_acr_cfg_template_path = os.path.join(os.path.dirname(__file__), 
+                                          'assets_master_script/acr_result_parser_template.cfg')
+
+    #   for p831-dcr
+    p831_dcr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_DCR_template.html')
+    p831_dcr_cfg_template_path = os.path.join(os.path.dirname(__file__),
+                                          'assets_master_script/dcr_ccr_result_parser_template.cfg')
+
+    is_p831 = args.p831
     template_path = ''
 
     assert os.path.exists(general_path), f"No csv file containing general infos in {general_path}"
@@ -568,6 +580,16 @@ async def main(cfg, test_method, args):
         assert os.path.exists(p835_cfg_template_path), f"No cfg template  found  in {p835_cfg_template_path}"
         template_path = p835_template_path
 
+    if is_p831 and test_method == "acr":
+        assert os.path.exists(p831_acr_template_path), f"No html template file found  in {p831_acr_template_path}"
+        assert os.path.exists(p831_acr_cfg_template_path), f"No cfg template  found  in {p831_acr_cfg_template_path}"
+        template_path = p831_acr_template_path
+
+    if is_p831 and test_method == "dcr":
+        assert os.path.exists(p831_dcr_template_path), f"No html template file found  in {p831_dcr_template_path}"
+        assert os.path.exists(p831_dcr_cfg_template_path), f"No cfg template  found  in {p831_dcr_cfg_template_path}"
+        template_path = p831_dcr_template_path
+
     # create output folder
     output_dir = args.project
     if not os.path.exists(output_dir):
@@ -584,8 +606,15 @@ async def main(cfg, test_method, args):
     ca.create_input_for_mturk(cfg['create_input'], df, test_method, output_csv_file)
 
     # create hit_app
-    output_html_file = os.path.join(output_dir, f"{args.project}_{test_method}.html")
-    if test_method == 'acr':
+    output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831 else f"{args.project}_{test_method}.html"
+    output_html_file = os.path.join(output_dir, output_file_name)
+    if is_p831 and test_method == 'acr':
+        await create_hit_app_acr(cfg['p831_html'], template_path, output_html_file, args.training_clips,
+                           args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
+    elif is_p831 and test_method == 'dcr':
+        await create_hit_app_ccr_dcr(cfg['p831_html'], template_path, output_html_file, args.training_clips,
+                               cfg['create_input'])
+    elif test_method == 'acr':
         await create_hit_app_acr(cfg['acr_html'], template_path, output_html_file, args.training_clips,
                            args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
     elif test_method == 'p835':
@@ -596,8 +625,13 @@ async def main(cfg, test_method, args):
                                cfg['create_input'])
 
     # create a config file for analyzer
-    output_cfg_file = os.path.join(output_dir, f"{args.project}_{test_method}_result_parser.cfg")
-    if test_method == 'acr':
+    output_cfg_file_name = f"{args.project}_p831_{test_method}_result_parser.cfg" if is_p831 else f"{args.project}_{test_method}_result_parser.cfg"
+    output_cfg_file = os.path.join(output_dir, output_cfg_file_name)
+    if is_p831 and test_method == 'acr':
+        create_analyzer_cfg_acr(cfg, p831_acr_cfg_template_path, output_cfg_file)
+    elif is_p831 and test_method == 'dcr':
+        create_analyzer_cfg_dcr_ccr(cfg, p831_dcr_cfg_template_path, output_cfg_file)
+    elif test_method == 'acr':
         create_analyzer_cfg_acr(cfg, acr_cfg_template_path, output_cfg_file)
     elif test_method == 'p835':
         create_analyzer_cfg_p835(cfg, p835_cfg_template_path, output_cfg_file)
@@ -610,7 +644,8 @@ if __name__ == '__main__':
     parser.add_argument("--project", help="Name of the project", required=True)
     parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=True)
     parser.add_argument("--method", required=True,
-                        help="one of the test methods: 'acr', 'dcr', or 'ccr'")
+                        help="one of the test methods: 'acr', 'dcr', 'ccr', or 'p835'")
+    parser.add_argument("--p831", action='store_true', help="Use the question set of P.831")
     parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
                                         "case of ccr/dcr it should also contain a column for 'references'")
     parser.add_argument("--gold_clips", help="A csv containing urls of all gold clips in column 'gold_clips' and their "
@@ -625,6 +660,11 @@ if __name__ == '__main__':
     methods = ['acr', 'dcr', 'ccr', 'p835']
     test_method = args.method.lower()
     assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835'"
+
+    p831_methods = ['acr', 'dcr']
+    if args.p831:
+        assert test_method in p831_methods, f"This method is not supported with p831, please choose one of {p831_methods}"
+
     assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
     assert os.path.exists(args.training_clips), f"No csv file containing training clips in {args.training_clips}"
 
@@ -639,7 +679,7 @@ if __name__ == '__main__':
     else:
         assert True, "Neither clips file not cloud store provided for rating clips"
 
-    if test_method in ["acr", "p835"]:
+    if test_method in ['acr', 'p835']:
         if args.gold_clips:
             assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
         elif cfg.has_option('GoldenSample', 'Path'):

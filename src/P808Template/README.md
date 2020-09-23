@@ -56,7 +56,6 @@ template for your project. In case you want to change the advanced details, chec
 The implementation of Degradation Category Rating listening test as specified in the Annex D of ITU-T P.800.
 The template has same structure as ACR_Template.
 
-
 ## CCR_Template
 The implementation of Comparison Category Rating (CCR) listening test as specified in the Annex E of ITU-T P.800.
 The template has same structure as ACR_Template. 
@@ -64,3 +63,11 @@ The template has same structure as ACR_Template.
 ## P835_template
 The implementation of the ITU-T Rec. P.835 recommendation. An extension of it for only one time listening are given on 
 P835_template_one_audio.html.
+
+## P831_ACR_template
+The implementation of the ITU-T Rec. P.831 recommendation using Absolute Category Rating.
+The template has the same structure as ACR_template.
+
+## P831_DCR_template
+The implementation of the ITU-T Rec. P.831 recommendation using Degradation Category Rating.
+The template has the same structure as ACR_template.
