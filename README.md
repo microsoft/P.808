@@ -38,7 +38,7 @@ If you use this tool in your research please cite it with the following referenc
   journal={Proc. Interspeech},
   year={2020}
 }
-'''
+```
 
 ## Getting Started
 * [Preparation](docs/preparation.md)
