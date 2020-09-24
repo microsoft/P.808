@@ -27,7 +27,19 @@ A technical description of the implementation and validation is given in this pa
 
 * [An Open Source Implementation of ITU-T Recommendation P.808 with Validation.](https://arxiv.org/pdf/2005.08138.pdf)
 Babak Naderi, Ross Cutler, 2020.
-  
+
+## Citation
+If you use this tool in your research please cite it with the following reference:
+
+```BibTex
+@article{naderi2020,
+  title={An Open source Implementation of ITU-T Recommendation P. 808 with Validation},
+  author={Naderi, Babak and Cutler, Ross},
+  journal={Proc. Interspeech},
+  year={2020}
+}
+'''
+
 ## Getting Started
 * [Preparation](docs/preparation.md)
 * [Running the Test on Amazon Mechanical Turk](docs/running_test_mturk.md)
