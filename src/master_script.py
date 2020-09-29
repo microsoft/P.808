@@ -147,15 +147,15 @@ class PairComparisonSamplesInStore(ClipsInAzureStorageAccount):
         df = pd.DataFrame({'pair_a':pair_a_clips, 'pair_b':pair_b_clips})
         return df
 
-
+"""
 def create_analyzer_cfg_acr(cfg, template_path, out_path):
-    """
+    
     create cfg file to be used by analyzer script (acr method)
     :param cfg:
     :param template_path:
     :param out_path:
     :return:
-    """
+    
     print("Start creating config file for result_parser")
     config = {}
 
@@ -180,12 +180,14 @@ def create_analyzer_cfg_acr(cfg, template_path, out_path):
         file.write(cfg_file)
         file.close()
     print(f"  [{out_path}] is created")
+"""
 
 
-def create_analyzer_cfg_p835(cfg, template_path, out_path):
+def create_analyzer_cfg_general(cfg, cfg_section_name, template_path, out_path):
     """
-    create cfg file to be used by analyzer script (p835 method)
+    create cfg file to be used by analyzer script (acr, p835, and p831s7 method)
     :param cfg:
+    :param cfg_section_name: 'acr_html', 'p835_html', 'p831s7_html'
     :param template_path:
     :param out_path:
     :return:
@@ -197,12 +199,12 @@ def create_analyzer_cfg_p835(cfg, template_path, out_path):
                       int(cfg['create_input']['number_of_trapping_per_session']) + \
                       int(cfg['create_input']['number_of_gold_clips_per_session'])
 
-    config['max_allowed_hits'] = cfg['p835_html']['allowed_max_hit_in_project']
+    config['max_allowed_hits'] = cfg[cfg_section_name]['allowed_max_hit_in_project']
 
-    config['quantity_hits_more_than'] = cfg['p835_html']['quantity_hits_more_than']
-    config['quantity_bonus'] = cfg['p835_html']['quantity_bonus']
-    config['quality_top_percentage'] = cfg['p835_html']['quality_top_percentage']
-    config['quality_bonus'] = cfg['p835_html']['quality_bonus']
+    config['quantity_hits_more_than'] = cfg[cfg_section_name]['quantity_hits_more_than']
+    config['quantity_bonus'] = cfg[cfg_section_name]['quantity_bonus']
+    config['quality_top_percentage'] = cfg[cfg_section_name]['quality_top_percentage']
+    config['quality_bonus'] = cfg[cfg_section_name]['quality_bonus']
 
     with open(template_path, 'r') as file:
         content = file.read()
@@ -368,7 +370,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     if n_traps == 1:
         rating_urls.append('${TP}')
 
-    if  n_gold_clips > 1:
+    if n_gold_clips > 1:
         raise Exception("more than 1 gold question is not supported.")
     if n_gold_clips == 1:
         rating_urls.append('${gold_clips}')
@@ -388,7 +390,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
 
 async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_path, cfg_g, cfg_trapping_store):
     """
-    Create the p835.html file corresponding to this project
+    Create the p835.html/P831s7 file corresponding to this project
     :param cfg:
     :param template_path:
     :param out_path:
@@ -436,14 +438,14 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     n_traps = int(cfg_g['number_of_trapping_per_session'])
     n_gold_clips = int(cfg_g['number_of_gold_clips_per_session'])
 
-    for i in range(0, n_clips ):
+    for i in range(0, n_clips):
         rating_urls.append('${Q'+str(i)+'}')
     if n_traps > 1:
         raise Exception("more than 1 trapping clips question is not supported.")
     if n_traps == 1:
         rating_urls.append('${TP}')
 
-    if  n_gold_clips > 1:
+    if n_gold_clips > 1:
         raise Exception("more than 1 gold question is not supported.")
     if n_gold_clips == 1:
         rating_urls.append('${gold_clips}')
@@ -491,7 +493,7 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
         df_clips = pd.DataFrame({'rating_clips':rating_clips})
     
     df_general = pd.read_csv(general)
-    if test_method in ["acr", "p835"]:
+    if test_method in ["acr", "p835", "p831s7"]:
         if gold and os.path.exists(gold):
             df_gold = pd.read_csv(gold)
         else:
@@ -530,6 +532,7 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
 async def main(cfg, test_method, args):
     # check assets
     general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
+
     #   for acr
     acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/ACR_template.html')
     acr_cfg_template_path = os.path.join(os.path.dirname(__file__),
@@ -542,9 +545,10 @@ async def main(cfg, test_method, args):
                                              'assets_master_script/dcr_ccr_result_parser_template.cfg')
     #   for  p835
     p835_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P835_template.html')
-    #p835_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P835_template_one_audio.html')
-    p835_cfg_template_path = os.path.join(os.path.dirname(__file__),
-                                          'assets_master_script/acr_result_parser_template.cfg')
+
+    # for p831s7
+    p831s7_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831s7_template.html')
+
 
     #   for p831-acr
     p831_acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_ACR_template.html')
@@ -577,8 +581,13 @@ async def main(cfg, test_method, args):
 
     if test_method == "p835":
         assert os.path.exists(p835_template_path), f"No html template file found  in {p835_template_path}"
-        assert os.path.exists(p835_cfg_template_path), f"No cfg template  found  in {p835_cfg_template_path}"
+        assert os.path.exists(acr_cfg_template_path), f"No cfg template  found  in {acr_cfg_template_path}"
         template_path = p835_template_path
+
+    if test_method == "p831s7":
+        assert os.path.exists(p831s7_template_path), f"No html template file found  in {p831s7_template_path}"
+        assert os.path.exists(acr_cfg_template_path), f"No cfg template  found  in {acr_cfg_template_path}"
+        template_path = p831s7_template_path
 
     if is_p831 and test_method == "acr":
         assert os.path.exists(p831_acr_template_path), f"No html template file found  in {p831_acr_template_path}"
@@ -617,8 +626,9 @@ async def main(cfg, test_method, args):
     elif test_method == 'acr':
         await create_hit_app_acr(cfg['acr_html'], template_path, output_html_file, args.training_clips,
                            args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
-    elif test_method == 'p835':
-        await create_hit_app_p835(cfg['p835_html'], template_path, output_html_file, args.training_clips,
+    elif test_method in ['p835', 'p831s7'] :
+        cfg_part = cfg['p835_html'] if test_method == 'acr'else cfg['p831s7_html']
+        await create_hit_app_p835(cfg_part, template_path, output_html_file, args.training_clips,
                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
     else:
         await create_hit_app_ccr_dcr(cfg['dcr_ccr_html'], template_path, output_html_file, args.training_clips,
@@ -628,13 +638,11 @@ async def main(cfg, test_method, args):
     output_cfg_file_name = f"{args.project}_p831_{test_method}_result_parser.cfg" if is_p831 else f"{args.project}_{test_method}_result_parser.cfg"
     output_cfg_file = os.path.join(output_dir, output_cfg_file_name)
     if is_p831 and test_method == 'acr':
-        create_analyzer_cfg_acr(cfg, p831_acr_cfg_template_path, output_cfg_file)
+        create_analyzer_cfg_general(cfg, 'acr_html', p831_acr_cfg_template_path, output_cfg_file)
     elif is_p831 and test_method == 'dcr':
         create_analyzer_cfg_dcr_ccr(cfg, p831_dcr_cfg_template_path, output_cfg_file)
-    elif test_method == 'acr':
-        create_analyzer_cfg_acr(cfg, acr_cfg_template_path, output_cfg_file)
-    elif test_method == 'p835':
-        create_analyzer_cfg_p835(cfg, p835_cfg_template_path, output_cfg_file)
+    elif test_method in ['acr', 'p835', 'p831s7']:
+        create_analyzer_cfg_general(cfg, f'{test_method}_html', acr_cfg_template_path, output_cfg_file)
     else:
         create_analyzer_cfg_dcr_ccr(cfg, dcr_ccr_cfg_template_path, output_cfg_file)
 
@@ -657,9 +665,9 @@ if __name__ == '__main__':
     # check input arguments
     args = parser.parse_args()
 
-    methods = ['acr', 'dcr', 'ccr', 'p835']
+    methods = ['acr', 'dcr', 'ccr', 'p835', 'p831s7']
     test_method = args.method.lower()
-    assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835'"
+    assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835', 'p831s7'"
 
     p831_methods = ['acr', 'dcr']
     if args.p831:
@@ -679,7 +687,7 @@ if __name__ == '__main__':
     else:
         assert True, "Neither clips file not cloud store provided for rating clips"
 
-    if test_method in ['acr', 'p835']:
+    if test_method in ['acr', 'p835', 'p831s7']:
         if args.gold_clips:
             assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
         elif cfg.has_option('GoldenSample', 'Path'):
