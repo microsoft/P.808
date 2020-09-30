@@ -64,6 +64,7 @@ def outliers_z_score(votes):
     v = v[x < threshold]
     return v
 
+
 #p835
 def check_if_session_accepted(data):
     """
@@ -90,6 +91,7 @@ def check_if_session_accepted(data):
         data['Reject'] = ""
     return accept
 
+
 #p835
 def check_if_session_should_be_used(data):
     """
@@ -105,6 +107,7 @@ def check_if_session_should_be_used(data):
         return True
     return False
 
+
 # p835
 def check_audio_played(row, method):
     """
@@ -119,7 +122,7 @@ def check_audio_played(row, method):
             for q_name in question_names:
                 if int(row[f'answer.audio_n_finish_{q_name}']) > 0:
                     question_played += 1
-        elif method == 'p835':
+        elif method in ['p835', 'p831s7']:
             for q_name in question_names:
                 if int(row[f'answer.audio_n_finish_{q_name}{question_name_suffix}_audio']) > 0:
                     question_played += 1
@@ -131,6 +134,7 @@ def check_audio_played(row, method):
         return False
     return question_played == len(question_names)
 
+
 # p835
 def check_tps(row, method):
     """
@@ -141,13 +145,13 @@ def check_tps(row, method):
     """
     correct_tps = 0
     tp_url = row[config['trapping']['url_found_in']]
-    if method in ['acr', 'p835']:
+    if method in ['acr', 'p835', 'p831s7']:
         tp_correct_ans = int(float(row[config['trapping']['ans_found_in']]))
     else:
         tp_correct_ans = 0
     try:
         suffix = ''
-        if method == 'p835':
+        if method in ['p835', 'p831s7']:
             # only look at the ovrl for tps.
             suffix = "_ovrl"
         for q_name in question_names:
@@ -159,6 +163,7 @@ def check_tps(row, method):
     except:
         pass
     return correct_tps
+
 
 #p835
 def check_variance(row):
@@ -184,6 +189,7 @@ def check_variance(row):
         pass
     return -1
 
+
 #p835
 def check_gold_question(method, row):
     """
@@ -206,7 +212,7 @@ def check_gold_question(method, row):
             return -1
         gq_var = int(config['gold_question']['variance'])
         suffix = ''
-        if method == 'p835':
+        if method in ['p835', 'p831s7']:
             # only look at the ovrl for tps.
             suffix = "_ovrl"
         for q_name in question_names:
@@ -265,13 +271,14 @@ def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played):
         answer_is_correct = True
     return answer_is_correct
 
+
 # p835
 def data_cleaning(filename, method):
    """
    Data screening process
    :param filename:
    :param method: acr, dcr, or ccr
-   :return: 
+   :return:
    """
    print('Start by Data Cleaning...')
    with open(filename, encoding="utf8") as csvfile:
@@ -363,6 +370,7 @@ def data_cleaning(filename, method):
     if method == 'p835':
         print(f"   percentage of 'sig_bak':  {round(count_sig_bak/len(accept_and_use_sessions),4)*100} %")
     return worker_list, use_sessions
+
 
 #p835
 def evaluate_maximum_hits(data):
@@ -468,6 +476,7 @@ def filter_answer_by_status_and_workers(answer_df, all_time_worker_id_in, new_wo
         frames.append(d2)
         return pd.concat(frames)
 
+
 #p835
 def calc_quantity_bonuses(answer_list, conf, path):
     """
@@ -515,6 +524,7 @@ def calc_quantity_bonuses(answer_list, conf, path):
         merged.to_csv(path, index=False)
         print(f'   Quantity bonuses report is saved in: {path}')
     return merged
+
 
 #p835
 def calc_quality_bonuses(quantity_bonus_result, answer_list, overall_mos, conf, path, n_workers, test_method, use_condition_level):
@@ -610,7 +620,7 @@ def filename_to_condition(f_name):
         return file_to_condition_map[f_name]
     file_to_condition_map[f_name] = {'Unknown': 'NoCondition' }
     pattern = ''
-    if config.has_option('general','condition_pattern'):
+    if config.has_option('general', 'condition_pattern'):
         pattern = config['general']['condition_pattern']
     m = re.match(pattern, f_name)
     if m:
@@ -618,18 +628,28 @@ def filename_to_condition(f_name):
 
     return file_to_condition_map[f_name]
 
-method_to_mos={
+
+method_to_mos = {
     "acr": 'MOS',
     "ccr": 'CMOS',
     "dcr": 'DMOS',
     "p835_bak": 'MOS_BAK',
     "p835_sig": 'MOS_SIG',
-    "p835_ovrl": 'MOS_OVRL'
+    "p835_ovrl": 'MOS_OVRL',
+    "p831s7_echo": 'MOS_ECHO',
+    "p831s7_other": 'MOS_OTHER',
+    "p831s7_ovrl": 'MOS_OVRL'
 }
+
+p835_columns = ['condition_name', 'n', 'MOS_BAK', 'MOS_SIG', 'MOS_OVRL', 'std_bak', 'std_sig', 'std_ovrl',
+                '95%CI_bak', '95%CI_sig', '95%CI_ovrl']
+p831s7_columns = ['condition_name', 'n', 'MOS_ECHO', 'MOS_OTHER', 'MOS_OVRL', 'std_echo', 'std_other', 'std_ovrl',
+                '95%CI_echo', '95%CI_other', '95%CI_ovrl']
 
 question_names = []
 question_name_suffix = ''
 p835_suffixes = ['_bak', '_sig', '_ovrl']
+p831s7_suffixes = ['_echo', '_other', '_ovrl']
 
 
 def transform(test_method, sessions, agrregate_on_condition):
@@ -652,7 +672,7 @@ def transform(test_method, sessions, agrregate_on_condition):
             if session[config['trapping']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             # is it a gold clips
-            if test_method in ['acr','p835'] and session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
+            if test_method in ['acr', 'p835', 'p831s7'] and session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             short_file_name = session[f'answer.{question}_url'].rsplit('/', 1)[-1]
             file_name = session[f'answer.{question}_url']
@@ -737,6 +757,7 @@ def transform(test_method, sessions, agrregate_on_condition):
 
     return group_per_file, group_per_condition
 
+
 # p835
 def create_headers_for_per_file_report(test_method, condition_keys):
     """
@@ -745,7 +766,7 @@ def create_headers_for_per_file_report(test_method, condition_keys):
     :return:
     """
     mos_name = method_to_mos[f"{test_method}{question_name_suffix}"]
-    if test_method == "p835":
+    if test_method in ["p835", "p831s7"]:
         header = ['file_url', 'n', mos_name, f'std{question_name_suffix}', f'95%CI{question_name_suffix}',
                   'short_file_name'] + condition_keys
     else:
@@ -811,6 +832,9 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
     if test_method == 'p835':
         question_name_suffix = p835_suffixes[2]
         suffixes = p835_suffixes
+    elif test_method == 'p831s7':
+        question_name_suffix = p831s7_suffixes[2]
+        suffixes = p831s7_suffixes
     else:
         suffixes = ['']
     full_data, accepted_sessions = data_cleaning(answer_path, test_method)
@@ -854,9 +878,9 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
                     df = df.drop(columns='n')
                     full_set_conditions = pd.merge(full_set_conditions, df, left_on='condition_name', right_on='condition_name')
             votes_per_all_cond_path = os.path.splitext(answer_path)[0] + f'_votes_per_cond_all.csv'
+            column_names = p835_columns if test_method == 'p835' else p831s7_columns
             full_set_conditions.to_csv(votes_per_all_cond_path, index=False,
-                                       columns=['condition_name', 'n', 'MOS_BAK', 'MOS_SIG', 'MOS_OVRL', 'std_bak',
-                                                'std_sig', 'std_ovrl', '95%CI_bak', '95%CI_sig', '95%CI_ovrl'])
+                                       columns=column_names)
 
         bonus_file = os.path.splitext(answer_path)[0] + '_quantity_bonus_report.csv'
         quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
@@ -879,7 +903,7 @@ if __name__ == '__main__':
     parser.add_argument("--cfg", required=True,
                         help="Contains the configurations see acr_result_parser.cfg as an example")
     parser.add_argument("--method", required=True,
-                        help="one of the test methods: 'acr', 'dcr', 'ccr', or 'p835'")
+                        help="one of the test methods: 'acr', 'dcr', 'ccr', 'p835', 'p831s7'")
     parser.add_argument("--answers", required=True,
                         help="Answers csv file, path relative to current directory")
 
@@ -893,7 +917,7 @@ if __name__ == '__main__':
     parser.add_argument('--quality_bonus', help="Quality bonus will be calculated. Just use it with your final download"
                                                 " of answers and when the project is completed", action="store_true")
     args = parser.parse_args()
-    methods = ['acr', 'dcr', 'ccr', 'p835']
+    methods = ['acr', 'dcr', 'ccr', 'p835', 'p831s7']
     test_method = args.method.lower()
     assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', or 'p835'"
 
