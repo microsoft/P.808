@@ -142,9 +142,14 @@ def check_tps(row, method):
     correct_tps = 0
     tp_url = row[config['trapping']['url_found_in']]
     if method in ['acr', 'p835']:
-        tp_correct_ans = int(float(row[config['trapping']['ans_found_in']]))
+        tp_correct_ans = [int(float(row[config['trapping']['ans_found_in']]))]
+    elif method == "dcr":
+        tp_correct_ans = [4, 5]
+    elif method == "ccr":
+        tp_correct_ans = [-1, 0, 1]
     else:
-        tp_correct_ans = 0
+        return -1
+
     try:
         suffix = ''
         if method == 'p835':
@@ -153,7 +158,7 @@ def check_tps(row, method):
         for q_name in question_names:
             if tp_url in row[f'answer.{q_name}_url']:
                 # found a trapping clips question
-                if int(row[f'answer.{q_name}{suffix}']) == tp_correct_ans:
+                if int(row[f'answer.{q_name}{suffix}']) in tp_correct_ans:
                     correct_tps = 1
                     return correct_tps
     except:
