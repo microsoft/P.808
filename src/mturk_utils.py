@@ -26,12 +26,12 @@ def send_message(client, cfg):
     :return:
     """
 
-    worker_ids = cfg['worker_ids'].replace(' ','').split(',')
+    worker_ids = cfg['worker_ids'].replace(' ', '').split(',')
     # in each call it is possible to send up to 100 messages
     worker_pack_size = 100
     chunked_worker_ids = [worker_ids[i:i + worker_pack_size] for i in range(0, len(worker_ids), worker_pack_size)]
-    count = 1;
-    success_messages = 0;
+    count = 1
+    success_messages = 0
     failed_group=[]
     for woker_group in chunked_worker_ids:
         response = client.notify_workers(
@@ -46,7 +46,38 @@ def send_message(client, cfg):
             failed_group.extend(woker_group)
             print(f"Group {count}: sending message... Failed")
         count += 1
-    print (f"{success_messages} emails sent successfully")
+    print(f"{success_messages} emails sent successfully")
+
+
+def extend_hits(client, file_path):
+    """
+        Extending the given HIT by increasing the maximum number of assignments of an existing HIT.
+        :param client: boto3 client object for communicating to MTurk
+        :param file_path: list of HITs to be extended with number of extra assigned per HIT
+    """
+    with open(file_path, mode='r') as hit_list:
+        reader = csv.DictReader(hit_list)
+        line_count = 0
+        success = 0
+        failed = 0
+        for row in reader:
+            try:
+                if line_count == 0:
+                    assert 'HITId' in row, f"No column found with name 'HITId' in [{hit_list}]"
+                    assert 'n_extended_assignments' in row, f"No column found with name 'n_extended_assignments' " \
+                        f"in [{hit_list}]"
+
+                response = client.create_additional_assignments_for_hit(
+                    HITId=row["HITId"],
+                    NumberOfAdditionalAssignments=row["n_extended_assignments"]
+                )
+                success = success + 1
+            except Exception as e:
+                print(f'Error HIT: {row["HITId"]} could not be extended by {row["n_extended_assignments"]}.'
+                      f' msg:{str(e)}')
+                failed = failed +1
+                pass
+        print(f'{success} HITs are extended, {failed} are failed to extend.')
 
 
 def assign_bonus(client, bonus_list_path):
@@ -553,6 +584,11 @@ if __name__ == '__main__':
                             "Input csv file (columns: workerId, qualification_name, value). "
                              "Path relative to current working directory")
 
+    parser.add_argument("--extend_hits", type=str,
+                        help="Extends hits for the given number of extra assignments. Path to a csv file "
+                             "(Columns: HITId, nExtraAssignments). Path relative to current working "
+                             "directory")
+
     args = parser.parse_args()
 
     #cfgpath = os.path.join(os.path.dirname(__file__), args.cfg)
@@ -634,3 +670,8 @@ if __name__ == '__main__':
         input_path = args.assign_qualification_type
         assert os.path.exists(input_path), f"No configuration file as [{input_path}]"
         assign_qualification_to_workers(client,input_path)
+
+    if args.extend_hits is not None:
+        hit_list = args.extend_hits
+        assert os.path.exists(hit_list), f"No input file found in [{hit_list}]"
+        extend_hits(client, hit_list)
