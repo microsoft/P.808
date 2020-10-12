@@ -352,7 +352,9 @@ def data_cleaning(filename, method):
 
     approved_file = os.path.splitext(filename)[0] + '_accept.csv'
     rejected_file = os.path.splitext(filename)[0] + '_rejection.csv'
+
     accept_reject_gui_file = os.path.splitext(filename)[0] + '_accept_reject_gui.csv'
+    extending_hits_file = os.path.splitext(filename)[0] + '_extending.csv'
 
     # reject hits when the user performed more than the limit
     worker_list = evaluate_maximum_hits(worker_list)
@@ -363,6 +365,8 @@ def data_cleaning(filename, method):
     save_approved_ones(worker_list, approved_file)
     save_rejected_ones(worker_list, rejected_file)
     save_approve_rejected_ones_for_gui(worker_list, accept_reject_gui_file)
+    save_hits_to_be_extended(worker_list, extending_hits_file)
+
     print(f"   {len(accept_and_use_sessions)} answers are good to be used further")
     print(f"   Data cleaning report is saved in: {report_file}")
     if method == 'p835':
@@ -445,8 +449,23 @@ def save_rejected_ones(data, path):
         print(f'    overall {c_rejected} answers are rejected, from them {df.shape[0]} were in submitted status')
     small_df = df[['assignment']].copy()
     small_df.rename(columns={'assignment': 'assignmentId'}, inplace=True)
-    small_df = small_df.assign(feedback=config['acceptance_criteria']['rejection_feedback'])
+    small_df = small_df.assign(feedback= config['acceptance_criteria']['rejection_feedback'])
     small_df.to_csv(path, index=False)
+
+
+def save_hits_to_be_extended(data, path):
+    """
+    Save the list of HITs that are accepted but not to be used. The list can be used to extend those hits
+    :param data:
+    :param path:
+    :return:
+    """
+    df = pd.DataFrame(data)
+    df = df[(df.accept == 1) & (df.accept_and_use == 0)]
+    small_df = df[['HITId']].copy()
+    grouped = small_df.groupby(['HITId']).size().reset_index(name='counts')
+    grouped.rename(columns={'counts': 'n_extended_assignments'}, inplace=True)
+    grouped.to_csv(path, index=False)
 
 
 def filter_answer_by_status_and_workers(answer_df, all_time_worker_id_in, new_woker_id_in, status_in):
