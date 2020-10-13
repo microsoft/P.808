@@ -15,7 +15,7 @@ import csv
 import xml.etree.ElementTree as ET
 import re
 import random
-import datetime
+import botocore
 
 
 def send_message(client, cfg):
@@ -77,11 +77,11 @@ def extend_hits(client, file_path):
                     UniqueRequestToken=f'extend_hits_{row["HITId"]}_{row["n_extended_assignments"]}'
                 )
                 success = success + 1
-            except Exception as e:
-                print(f'Error HIT: {row["HITId"]} could not be extended by {row["n_extended_assignments"]}.'
-                      f' msg:{str(e)}')
+            except Exception as ex:
+                print(f'   - Error HIT: {row["HITId"]} can not be extended by {row["n_extended_assignments"]}.'
+                      f' msg:{str(ex)}')
                 failed = failed + 1
-                pass
+        print(f' ')
         print(f'{success} HITs are extended, {failed} are failed to extend.')
         print(f' ')
         print(f'Use "python mturk_utils.py --cfg YOUR_CFG --extended_hits_status {file_path}" to see the status of new assignments.')
