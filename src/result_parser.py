@@ -21,6 +21,7 @@ from scipy.stats import spearmanr
 import time
 import itertools
 import configparser as CP
+import collections
 
 max_found_per_file = -1
 
@@ -624,7 +625,7 @@ def write_dict_as_csv(dic_to_write, file_name, *args, **kwargs):
 file_to_condition_map = {}
 
 
-def filename_to_condition(f_name):
+def conv_filename_to_condition(f_name):
     """
     extract the condition name from filename given the mask in the config
     :param f_name:
@@ -654,6 +655,7 @@ method_to_mos={
 question_names = []
 question_name_suffix = ''
 p835_suffixes = ['_bak', '_sig', '_ovrl']
+create_per_worker = True
 
 
 def transform(test_method, sessions, agrregate_on_condition):
@@ -668,15 +670,19 @@ def transform(test_method, sessions, agrregate_on_condition):
     global file_to_condition_map
     file_to_condition_map ={}
     data_per_condition = {}
+    data_per_worker =[]
     mos_name = method_to_mos[f"{test_method}{question_name_suffix}"]
 
     for session in sessions:
+        found_gold_question = False
         for question in question_names:
             # is it a trapping clips question
             if session[config['trapping']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             # is it a gold clips
-            if test_method in ['acr','p835'] and session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
+            if test_method in ['acr', 'p835'] and not found_gold_question and\
+                    session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
+                found_gold_question = True
                 continue
             short_file_name = session[f'answer.{question}_url'].rsplit('/', 1)[-1]
             file_name = session[f'answer.{question}_url']
@@ -685,9 +691,17 @@ def transform(test_method, sessions, agrregate_on_condition):
             votes = data_per_file[file_name]
             try:
                 votes.append(int(session[f'answer.{question}{question_name_suffix}']))
-            except:
-                pass
+                cond =conv_filename_to_condition(file_name)
+                tmp = {'workerid': session['workerid'],
+                        'file':file_name,
+                       'short_file_name': file_name.rsplit('/', 1)[-1],
+                        'vote': int(session[f'answer.{question}{question_name_suffix}'])}
 
+                tmp.update(cond)
+                data_per_worker.append(tmp)
+            except Exception as err:
+                print(err)
+                pass
     # convert the format: one row per file
     group_per_file = []
     for key in data_per_file.keys():
@@ -696,11 +710,13 @@ def transform(test_method, sessions, agrregate_on_condition):
         vote_counter = 1
 
         # extra step:: add votes to the per-condition dict
-        tmp = filename_to_condition(key)
+        tmp_n = conv_filename_to_condition(key)
         if agrregate_on_condition:
             condition_keys = config['general']['condition_keys'].split(',')
             condition_keys.append('Unknown')
-            condition_dict = {k: tmp[k] for k in tmp.keys() & condition_keys}
+            condition_dict = {k: tmp_n[k] for k in tmp_n.keys() & condition_keys}
+            tmp = condition_dict.copy()
+            condition_dict = collections.OrderedDict(sorted(condition_dict.items()))
             for num_combinations in range(len(condition_dict)):
                 combinations = list(itertools.combinations(condition_dict.values(), num_combinations + 1))
                 for combination in combinations:
@@ -759,7 +775,7 @@ def transform(test_method, sessions, agrregate_on_condition):
 
             group_per_condition.append(tmp)
 
-    return group_per_file, group_per_condition
+    return group_per_file, group_per_condition, data_per_worker
 
 # p835
 def create_headers_for_per_file_report(test_method, condition_keys):
@@ -848,7 +864,7 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
             question_name_suffix = suffix
             print("Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip")
             use_condition_level = config.has_option('general', 'condition_pattern')
-            votes_per_file, vote_per_condition = transform(test_method, accepted_sessions,
+            votes_per_file, vote_per_condition, data_per_worker = transform(test_method, accepted_sessions,
                                                            config.has_option('general', 'condition_pattern'))
 
             votes_per_file_path = os.path.splitext(answer_path)[0] + f'_votes_per_clip{question_name_suffix}.csv'
@@ -867,7 +883,8 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
                 write_dict_as_csv(vote_per_condition, votes_per_cond_path)
                 print(f'   Votes per files are saved in: {votes_per_cond_path}')
                 condition_set.append(pd.DataFrame(vote_per_condition))
-
+            if create_per_worker:
+                write_dict_as_csv(data_per_worker, os.path.splitext(answer_path)[0] + f'_votes_per_worker_{question_name_suffix}.csv')
         if use_condition_level and len(suffixes) > 1:
             # aggregate multiple conditions into one file for p.835
             full_set_conditions = None
