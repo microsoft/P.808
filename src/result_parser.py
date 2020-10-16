@@ -393,6 +393,7 @@ def evaluate_maximum_hits(data):
                 d['accept'] = 0
                 d['Reject'] += f"More than allowed limit of {config['acceptance_criteria']['allowedMaxHITsInProject']}"
                 d['accept_and_use'] = 0
+                d['Approve'] = ''
             else:
                 cheater_workers_work_count[d['worker_id']] += 1
         result.append(d)
