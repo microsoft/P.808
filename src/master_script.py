@@ -15,6 +15,8 @@ import create_input as ca
 from azure.storage.blob import BlockBlobService, PageBlobService, AppendBlobService
 from azure.storage.file import FileService
 import asyncio
+import base64
+import datetime
 
 class ClipsInAzureStorageAccount(object):
     def __init__(self, config, alg):
@@ -92,6 +94,7 @@ class ClipsInAzureStorageAccount(object):
             source_url = self.store_service.make_blob_url(self.container, filename)
         return source_url
 
+
 class GoldSamplesInStore(ClipsInAzureStorageAccount):
     def __init__(self, config, alg):
         super().__init__(config, alg)
@@ -111,6 +114,7 @@ class GoldSamplesInStore(ClipsInAzureStorageAccount):
 
         df = df.append(clipsList)
         return df
+
 
 class TrappingSamplesInStore(ClipsInAzureStorageAccount):
     async def get_dataframe(self):
@@ -249,7 +253,7 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path):
     print(f"  [{out_path}] is created")
 
 
-async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cfg_g):
+async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cfg_g, general_cfg):
     """
     Create the hit_app (html file) corresponding to this project for ccr and dcr
     :param cfg:
@@ -272,6 +276,7 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     config['sum_quantity'] = float(cfg['quantity_bonus']) + float(cfg['hit_base_payment'])
     config['sum_quality'] = config['quality_bonus'] + float(cfg['hit_base_payment'])
 
+    config = {**config, **general_cfg}
     # rating urls
     rating_urls = []
     n_clips = int(cfg_g['number_of_clips_per_session'])
@@ -311,7 +316,8 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     print(f"  [{out_path}] is created")
 
 
-async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_path, cfg_g, cfg_trapping_store):
+async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_path, cfg_g, cfg_trapping_store,
+                             general_cfg):
     """
     Create the ACR.html file corresponding to this project
     :param cfg:
@@ -347,6 +353,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     config['quality_bonus'] = float(cfg['quality_bonus']) + float(cfg['quantity_bonus'])
     config['sum_quantity'] = float(cfg['quantity_bonus']) + float(cfg['hit_base_payment'])
     config['sum_quality'] = config['quality_bonus'] + float(cfg['hit_base_payment'])
+    config = {**config, **general_cfg}
 
     df_train = pd.read_csv(training_path)
     train = []
@@ -386,7 +393,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     print(f"  [{out_path}] is created")
 
 
-async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_path, cfg_g, cfg_trapping_store):
+async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_path, cfg_g, cfg_trapping_store, general_cfg):
     """
     Create the p835.html file corresponding to this project
     :param cfg:
@@ -422,6 +429,7 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     config['quality_bonus'] = float(cfg['quality_bonus']) + float(cfg['quantity_bonus'])
     config['sum_quantity'] = float(cfg['quantity_bonus']) + float(cfg['hit_base_payment'])
     config['sum_quality'] = config['quality_bonus'] + float(cfg['hit_base_payment'])
+    config = {**config, **general_cfg}
 
     df_train = pd.read_csv(training_path)
     train = []
@@ -527,6 +535,22 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
     return result
 
 
+def prepare_basic_cfg(df):
+    config = {}
+    only_cfgs = df[['pair_a', 'pair_b']].copy()
+    only_cfgs.dropna(subset=["pair_a"], inplace=True)
+    base64_urls = []
+    for index, row in only_cfgs.iterrows():
+        a = int((row["pair_a"].rsplit('/', 1)[-1])[:2])
+        b = int((row["pair_b"].rsplit('/', 1)[-1])[:2])
+        url = row["pair_a"] if a > b else row["pair_b"]
+        base64_urls.append(base64.b64encode(url.encode('ascii')).decode('ascii'))
+    config["cmp_correct_answers"] = base64_urls
+    config["cmp_max_n_feedback"] = 10
+    config["cmp_pass_threshold"] = 2
+    return config
+
+
 async def main(cfg, test_method, args):
     # check assets
     general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
@@ -605,24 +629,26 @@ async def main(cfg, test_method, args):
     output_csv_file = os.path.join(output_dir, args.project+'_publish_batch.csv')
     ca.create_input_for_mturk(cfg['create_input'], df, test_method, output_csv_file)
 
+    # create general config
+    general_cfg = prepare_basic_cfg(df)
     # create hit_app
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831 else f"{args.project}_{test_method}.html"
     output_html_file = os.path.join(output_dir, output_file_name)
     if is_p831 and test_method == 'acr':
         await create_hit_app_acr(cfg['p831_html'], template_path, output_html_file, args.training_clips,
-                           args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
+                           args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
     elif is_p831 and test_method == 'dcr':
         await create_hit_app_ccr_dcr(cfg['p831_html'], template_path, output_html_file, args.training_clips,
-                               cfg['create_input'])
+                               cfg['create_input'], general_cfg)
     elif test_method == 'acr':
         await create_hit_app_acr(cfg['acr_html'], template_path, output_html_file, args.training_clips,
-                           args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
+                           args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
     elif test_method == 'p835':
         await create_hit_app_p835(cfg['p835_html'], template_path, output_html_file, args.training_clips,
-                                 args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'])
+                                 args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
     else:
         await create_hit_app_ccr_dcr(cfg['dcr_ccr_html'], template_path, output_html_file, args.training_clips,
-                               cfg['create_input'])
+                               cfg['create_input'], general_cfg)
 
     # create a config file for analyzer
     output_cfg_file_name = f"{args.project}_p831_{test_method}_result_parser.cfg" if is_p831 else f"{args.project}_{test_method}_result_parser.cfg"

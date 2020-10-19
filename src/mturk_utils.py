@@ -15,6 +15,7 @@ import csv
 import xml.etree.ElementTree as ET
 import re
 import random
+import botocore
 
 
 def send_message(client, cfg):
@@ -26,12 +27,12 @@ def send_message(client, cfg):
     :return:
     """
 
-    worker_ids = cfg['worker_ids'].replace(' ','').split(',')
+    worker_ids = cfg['worker_ids'].replace(' ', '').split(',')
     # in each call it is possible to send up to 100 messages
     worker_pack_size = 100
     chunked_worker_ids = [worker_ids[i:i + worker_pack_size] for i in range(0, len(worker_ids), worker_pack_size)]
-    count = 1;
-    success_messages = 0;
+    count = 1
+    success_messages = 0
     failed_group=[]
     for woker_group in chunked_worker_ids:
         response = client.notify_workers(
@@ -46,7 +47,79 @@ def send_message(client, cfg):
             failed_group.extend(woker_group)
             print(f"Group {count}: sending message... Failed")
         count += 1
-    print (f"{success_messages} emails sent successfully")
+    print(f"{success_messages} emails sent successfully")
+
+
+def extend_hits(client, file_path):
+    """
+        Extending the given HIT by increasing the maximum number of assignments of an existing HIT.
+        :param client: boto3 client object for communicating to MTurk
+        :param file_path: list of HITs to be extended with number of extra assigned per HIT
+    """
+    with open(file_path, mode='r') as hit_list:
+        reader = csv.DictReader(hit_list)
+        line_count = 0
+        success = 0
+        failed = 0
+        for row in reader:
+            try:
+                if line_count == 0:
+                    assert 'HITId' in row, f"No column found with name 'HITId' in [{hit_list}]"
+                    assert 'n_extended_assignments' in row, f"No column found with name 'n_extended_assignments' " \
+                        f"in [{hit_list}]"
+                else:
+                    line_count =  line_count +1
+
+
+                response = client.create_additional_assignments_for_hit(
+                    HITId=row["HITId"],
+                    NumberOfAdditionalAssignments=int(row["n_extended_assignments"]),
+                    UniqueRequestToken=f'extend_hits_{row["HITId"]}_{row["n_extended_assignments"]}'
+                )
+                success = success + 1
+            except Exception as ex:
+                print(f'   - Error HIT: {row["HITId"]} can not be extended by {row["n_extended_assignments"]}.'
+                      f' msg:{str(ex)}')
+                failed = failed + 1
+        print(f' ')
+        print(f'{success} HITs are extended, {failed} are failed to extend.')
+        print(f' ')
+        print(f'Use "python mturk_utils.py --cfg YOUR_CFG --extended_hits_status {file_path}" to see the status of new assignments.')
+
+
+def extended_hits_report(client, file_path):
+    """
+        Create a report on how many assignments are pending.
+        :param client: boto3 client object for communicating to MTurk
+        :param file_path: list of HITs to be extended with number of extra assigned per HIT
+    """
+    with open(file_path, mode='r') as hit_list:
+        reader = csv.DictReader(hit_list)
+        pending = 0
+        available = 0
+        line_count = 0
+        requested = 0
+        print('Start creating a report...')
+        for row in reader:
+            try:
+                if line_count == 0:
+                    assert 'HITId' in row, f"No column found with name 'HITId' in [{hit_list}]"
+                    assert 'n_extended_assignments' in row, f"No column found with name 'n_extended_assignments' " \
+                        f"in [{hit_list}]"
+                else:
+                    line_count = line_count + 1
+                response = client.get_hit(
+                    HITId=row["HITId"]
+                )
+                pending = pending + response["HIT"]["NumberOfAssignmentsPending"]
+                available = available + response["HIT"]["NumberOfAssignmentsAvailable"]
+                requested = requested + int(row["n_extended_assignments"])
+            except Exception as e:
+                print(f'Error HIT: cannot get the status of {row["HITId"]}.'
+                      f' msg:{str(e)}')
+                pass
+        print(f'From {requested} extended assignments, {available} are available for workers, and {pending} are pending.'
+              f' {requested-(available+pending)} should be completed (assuming all extensions were successful). ')
 
 
 def assign_bonus(client, bonus_list_path):
@@ -553,6 +626,14 @@ if __name__ == '__main__':
                             "Input csv file (columns: workerId, qualification_name, value). "
                              "Path relative to current working directory")
 
+    parser.add_argument("--extend_hits", type=str,
+                        help="Extends hits for the given number of extra assignments. Path to a csv file "
+                             "(Columns: HITId, nExtraAssignments). Path relative to current working "
+                             "directory")
+    parser.add_argument("--extended_hits_status", type=str,
+                        help="Get status of assignments that are generated by the extended HITs. Expect the path to the"
+                             "csv file used with '--extend_hits' command.")
+
     args = parser.parse_args()
 
     #cfgpath = os.path.join(os.path.dirname(__file__), args.cfg)
@@ -634,3 +715,13 @@ if __name__ == '__main__':
         input_path = args.assign_qualification_type
         assert os.path.exists(input_path), f"No configuration file as [{input_path}]"
         assign_qualification_to_workers(client,input_path)
+
+    if args.extend_hits is not None:
+        hit_list = args.extend_hits
+        assert os.path.exists(hit_list), f"No input file found in [{hit_list}]"
+        extend_hits(client, hit_list)
+
+    if args.extended_hits_status is not None:
+        hit_list = args.extended_hits_status
+        assert os.path.exists(hit_list), f"No input file found in [{hit_list}]"
+        extended_hits_report(client, hit_list)
