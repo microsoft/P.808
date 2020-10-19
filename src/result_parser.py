@@ -328,7 +328,7 @@ def data_cleaning(filename, method):
         # step 4. check tps
         d['correct_tps'] = check_tps(row, method)
         # step5. check gold_standard, just for acr
-        if method == 'acr':
+        if method in ['acr','p835']:
             d['correct_gold_question'] = check_gold_question(method, row)
         # step6. check variance in a session rating
         d['variance_in_ratings'] = check_variance(row)
@@ -644,7 +644,15 @@ def conv_filename_to_condition(f_name):
 
     return file_to_condition_map[f_name]
 
-method_to_mos={
+
+def dict_value_to_key(d, value):
+    for k, v in d.items():
+        if v == value:
+            return k
+    return None
+
+
+method_to_mos = {
     "acr": 'MOS',
     "ccr": 'CMOS',
     "dcr": 'DMOS',
@@ -705,6 +713,7 @@ def transform(test_method, sessions, agrregate_on_condition):
                 pass
     # convert the format: one row per file
     group_per_file = []
+    condition_detail = {}
     for key in data_per_file.keys():
         tmp = dict()
         votes = data_per_file[key]
@@ -724,7 +733,14 @@ def transform(test_method, sessions, agrregate_on_condition):
                     condition = '____'.join(combination).strip('_')
                     if condition not in data_per_condition:
                         data_per_condition[condition]=[]
+                        pattern_dic ={dict_value_to_key(condition_dict, v): v for v in combination}
+                        for k in condition_dict.keys():
+                            if k not in pattern_dic:
+                                pattern_dic[k] = ""
+                        condition_detail[condition] = pattern_dic
+
                     data_per_condition[condition].extend(votes)
+
         else:
             condition = 'Overall'
             if condition not in data_per_condition:
@@ -760,7 +776,7 @@ def transform(test_method, sessions, agrregate_on_condition):
             votes = data_per_condition[key]
             # apply z-score outlier detection
             # votes = outliers_z_score(votes)
-
+            tmp = {**tmp, **condition_detail[key]}
             tmp['n'] = len(votes)
             if tmp['n'] > 0:
                 # tmp[mos_name] = abs(statistics.mean(votes))
