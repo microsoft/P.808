@@ -327,7 +327,7 @@ def data_cleaning(filename, method):
         # step 4. check tps
         d['correct_tps'] = check_tps(row, method)
         # step5. check gold_standard, just for acr
-        if method == 'acr':
+        if method in['acr', 'p835']:
             d['correct_gold_question'] = check_gold_question(method, row)
         # step6. check variance in a session rating
         d['variance_in_ratings'] = check_variance(row)
