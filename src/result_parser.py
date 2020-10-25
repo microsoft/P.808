@@ -876,7 +876,7 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
     if test_method == 'p835':
         question_name_suffix = p835_suffixes[2]
         suffixes = p835_suffixes
-     elif test_method == 'p831s7':
+    elif test_method == 'p831s7':
         question_name_suffix = p831s7_suffixes[2]
         suffixes = p831s7_suffixes
     else:
