@@ -71,7 +71,7 @@ General configuration file:
  - randomizeRatingQuestions: boolean whether the questions in the rating section should be randomized on loading time.
  - allowedMaxHITsInProject: How many HITs each worker is allowed to answer in this project
  - allowedMaxContinuesSessionDurationInMinutes: how log is the maximum continue session. A break of 10min will be forced
-
+ -num1..5 :s0..4
 */
 var config ={
 	cookieName:"{{cfg.cookie_name}}",
@@ -98,11 +98,11 @@ var config ={
 		ld_in: ["in-ear", "over-ear"],
 		working_area: "N",
 		hearing: "normal",
- 		num1: "289",
-        num2: "246",
-        num3: "626",
-        num4: "802",
-        num5: "913"
+ 		num1: "Mjg5",
+        num2: "MjQ2",
+        num3: "NjI2",
+        num4: "ODAy",
+        num5: "OTEz"
 	},
 	cmp_correct_answers: {{cfg.cmp_correct_answers}},
 	cmp_max_n_feedback : {{cfg.cmp_max_n_feedback}},
@@ -279,15 +279,15 @@ function validateQualificationAnswer(){
 	working_area_checked= $("input[name='7_working_area']:checked").val() =="N"
 	hearing_self_report_check=$("input[name='8_hearing']:checked").val() == "normal"
 	count_correct_ht=0;
-	if ($("input[name='num1']").val().trim()==config.qualification.num1)
+	if (checkQualNumCorrect($("input[name='num1']").val().trim(),config.qualification.num1))
 		count_correct_ht ++;
-	if ($("input[name='num2']").val().trim()==config.qualification.num2)
+	if (checkQualNumCorrect($("input[name='num2']").val().trim()==config.qualification.num2))
 		count_correct_ht ++;
-	if ($("input[name='num3']").val().trim()==config.qualification.num3)
+	if (checkQualNumCorrect($("input[name='num3']").val().trim()==config.qualification.num3))
 		count_correct_ht ++;
-	if ($("input[name='num4']").val().trim()==config.qualification.num4)
+	if (checkQualNumCorrect($("input[name='num4']").val().trim()==config.qualification.num4))
 		count_correct_ht ++;
-	if ($("input[name='num5']").val().trim()==config.qualification.num5)
+	if (checkQualNumCorrect($("input[name='num5']").val().trim()==config.qualification.num5))
 		count_correct_ht ++;
 	console.log("count_correct_ht:"+count_correct_ht);
 	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check &&
@@ -364,6 +364,11 @@ function addBrowserInfo(debug){
 
 }
 
+//-------- check qual num online
+function checkQualNumCorrect(given_ans, correct_hash){
+	ans_b64 = btoa(given_ans);
+	return ans_b64 == correct_hash;
+}
 // ------------------------ online check cmp
 
 /*

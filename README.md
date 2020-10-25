@@ -8,20 +8,12 @@ in Amazon Mechanical Turk (AMT) crowdsourcing platform, according to the ITU-T R
 * Includes implementation of the ITU-T Rec. P.835 for the crowdsourcing approach is also provided based on the recommendations given in the ITU-T Rec. P.808.
 * Includes implementation of the ITU-T Rec. P.831 for the crowdsourcing approach is also provided based on the recommendations given in the ITU-T Rec. P.808.
 
-For more information about the ITU-T Rec. P.808 please read:
+Relevant ITU-T Recommendations are :
+* [ITU-T Recommendation P.808, _Subjective evaluation of speech quality with a crowdsourcing approach._](https://www.itu.int/rec/T-REC-P.808/en) Geneva: International Telecommunication Union, 2018.
 
-[ITU-T Recommendation P.808, _Subjective evaluation of speech quality with a crowdsourcing approach._](https://www.itu.int/rec/T-REC-P.808/en) 
-Geneva: International Telecommunication Union, 2018.
+* [ITU-T Recommendation P.835, _Subjective test methodology for evaluating speech communication systems that include noise suppression algorithm._](https://www.itu.int/rec/T-REC-P.835/en) Geneva: International Telecommunication Union, 2003.
 
-For more information about the ITU-T Rec. P.835 please read:
-
-[ITU-T Recommendation P.835, _Subjective test methodology for evaluating speech communication systems that include noise suppression algorithm._](https://www.itu.int/rec/T-REC-P.835/en) 
-Geneva: International Telecommunication Union, 2003.
-
-For more information about ITU-T Rec. P.831 please read:
-
-[ITU-T Recommendation P.831 _Subjective performance evaluation of network echo cancellers._](https://www.itu.int/rec/T-REC-P.831/en)
-Geneva: International Telecommunication Union, 1998.
+* [ITU-T Recommendation P.831 _Subjective performance evaluation of network echo cancellers._](https://www.itu.int/rec/T-REC-P.831/en) Geneva: International Telecommunication Union, 1998.
 
 A technical description of the implementation and validation is given in this paper:
 
