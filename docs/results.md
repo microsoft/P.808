@@ -42,7 +42,8 @@ created in the first step ([preparation](preparation.md)).
     * `[downloaded_batch_result]_votes_per_clip.csv`: Aggregated result per clip, including MOS, standard deviations, and 95% Confidence Intervals.  
     * `[downloaded_batch_result]_votes_per_cond.csv`: Aggregated result per condition.
     * `[downloaded_batch_result]_quantity_bonus_report.csv`: List of workers who are eligible for quantity bonus with the amount of bonus (to be used with the mturk_utils.py).
-    * `[downloaded_batch_result]_quality_bonus_report.csv`: List of workers who are eligible for quality bonus with the amount of bonus (to be used with the mturk_utils.py).     
+    * `[downloaded_batch_result]_quality_bonus_report.csv`: List of workers who are eligible for quality bonus with the amount of bonus (to be used with the mturk_utils.py).
+    * `[downloaded_batch_result]_extending.csv`: List of HITIds with number of assignment per each which are needed to reach a specific number of votes per clip.   
     
     Note:
     * Votes in CCR test and the `CMOS` values should be interpreted as answer to following questions: The Quality of 
@@ -93,4 +94,33 @@ submission.
         --cfg mturk.cfg ^
         --send_bonus [downloaded_batch_result]_*_bonus_report.csv
     ```
-   
+ ## Extending HITs
+ 
+ In case you want to reach the intended number of votes per clips, you may use the following procedure:
+ 
+ 1. During **Approve/Reject submission** process, select _Republish rejected assignment(s) for other Workers to complete_.
+ 2. Run the following script with `[downloaded_batch_result]_extending.csv`: 
+ 
+     ```bash
+    cd src
+    python mturk_utils.py ^
+        --cfg mturk.cfg ^
+        --extend_hits [downloaded_batch_result]_extending.csv
+    ```
+    **Note:** 
+    
+    * Extending HITs is only possible with the above API call. As a result, new assignments will be created by API call.
+    Assignments create by API call are not visible in the website. From the report printed by script you can see how many 
+    assignments are created. In addition, you can see in your account that some amount of funds are hold for liability.
+    However, when the assignments are finished and submitted by workers, you can review/download them in website.
+    Until then, you may use following script call to check the status of those assignments:
+    
+        ```bash
+        cd src
+        python mturk_utils.py ^
+            --cfg mturk.cfg ^
+            --extended_hits_status [downloaded_batch_result]_extending.csv
+        ```  
+    * From AMT website: _HITs created with fewer than 10 assignments cannot be extended to have 10 or more assignments.
+     Attempting to add assignments in a way that brings the total number of assignments for a HIT from fewer than 10 assignments
+      to 10 or more assignments will result in an `AWS.MechanicalTurk.InvalidMaximumAssignmentsIncrease exception.`_ 

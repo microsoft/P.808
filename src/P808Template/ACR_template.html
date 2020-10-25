@@ -103,13 +103,19 @@ var config ={
         num3: "626",
         num4: "802",
         num5: "913"
-	}
+	},
+	cmp_correct_answers: {{cfg.cmp_correct_answers}},
+	cmp_max_n_feedback : {{cfg.cmp_max_n_feedback}},
+	cmp_pass_threshold: {{cfg.cmp_pass_threshold}}
 }
 
 // if performing of this assignment is already counted
 var hitCounterIncreased = false;
 // record the errors happened in the page
 var generalErrorLog= "";
+
+// how many times a feedback was given to the workers,
+var n_cmp_feedbacks = 0;
 
 const Hide_HIT_REASON = Object.freeze({"MAX_ACHIVED":1, "QUALIFICATON":2})
 /*
@@ -172,6 +178,7 @@ $(function() {
 		// for qualification section
 		initializeQualification();
 		initializeActivePageMonitoring();
+		cmp_check_on_load();
 	}catch(err){
 		console.error(err);
 		recordError(err.name,err.message);
@@ -356,6 +363,75 @@ function addBrowserInfo(debug){
 	console.log(info);
 
 }
+
+// ------------------------ online check cmp
+
+/*
+ check if the answer to a CMP question is correct.
+*/
+function isCMPAnsCorrect(selected_url){
+	// for backward compatibility
+	if (!config.hasOwnProperty("correct_cmp_answers"))
+		return true;
+	b64 = btoa(selected_url);
+	return config["correct_cmp_answers"].includes(b64);
+}
+
+// add this to onload of page
+function cmp_check_on_load(){
+	$('#setup').find(':input').filter(':visible').each(function(){
+	  $(this).on('change', validateCMPSection);
+	});
+}
+
+/*
+	Validate the answers give to the cmps in the setup section and provide an adequate feedback
+*/
+function validateCMPSection(){
+	// 1. check if all questions are answered
+	cmp_answers= [];
+	for (i = 1; i < 5; i++) {
+		ans = $("input[name='cmp{0}']:checked".f(i)).val();
+	  	if (!ans)
+	  		return;
+	  	cmp_answers.push(ans);
+	}
+	math_ans = $('#Math').val();
+	if (!math_ans)
+	  	return;
+
+		// 2. check math question
+	// do not check math question now
+	// 3. check cmps
+	correct_ans = 0 ;
+	for (i = 0; i < 4; i++) {
+		if (cmp_answers[i] == "o")
+			continue;
+		url = $('span[id="CMP{0}_{1}"]'.f(i+1, cmp_answers[i].toUpperCase())).attr("data-src");
+		if (config["cmp_correct_answers"].includes(btoa(url)))
+			correct_ans ++;
+	}
+	// 4. shows the message if needed
+	if (correct_ans >= config["cmp_correct_answers"])
+		// valid response in cmp
+		return;
+	if (n_cmp_feedbacks <  config["cmp_max_n_feedback"]){
+		n_cmp_feedbacks++;
+		msg = "Please check your answers in the Setup section again. Make sure to do your task in a quite environment with headset and use both earpods.";
+		last_time_msg = " It is the last time you see this feedback."
+		if (n_cmp_feedbacks ==config["cmp_max_n_feedback"])
+			alert(msg+last_time_msg);
+		else
+			alert(msg);
+	}
+	// 4.2 remove the listener
+	if (n_cmp_feedbacks >=  config["cmp_max_n_feedback"]){
+		$('#setup').find(':input').filter(':visible').each(function(){
+	  		$(this).off('change');
+		});
+	}
+}
+
 //--------------- Utilities -----------------
 
 /*
