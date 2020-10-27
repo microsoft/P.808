@@ -943,4 +943,3 @@ if __name__ == '__main__':
     question_names = [f"q{i}" for i in range(1, int(config['general']['number_of_questions_in_rating']) + 1)]
     # start
     analyze_results(config, test_method,  answer_path, list_of_req, args.quality_bonus)
-
