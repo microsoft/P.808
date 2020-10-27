@@ -21,6 +21,7 @@ from scipy.stats import spearmanr
 import time
 import itertools
 import configparser as CP
+import collections
 
 max_found_per_file = -1
 
@@ -64,7 +65,6 @@ def outliers_z_score(votes):
     v = v[x < threshold]
     return v
 
-
 #p835
 def check_if_session_accepted(data):
     """
@@ -91,7 +91,6 @@ def check_if_session_accepted(data):
         data['Reject'] = ""
     return accept
 
-
 #p835
 def check_if_session_should_be_used(data):
     """
@@ -106,7 +105,6 @@ def check_if_session_should_be_used(data):
              int(config['accept_and_use']['correct_cmp_bigger_equal'])):
         return True
     return False
-
 
 # p835
 def check_audio_played(row, method):
@@ -134,7 +132,6 @@ def check_audio_played(row, method):
         return False
     return question_played == len(question_names)
 
-
 # p835
 def check_tps(row, method):
     """
@@ -146,9 +143,14 @@ def check_tps(row, method):
     correct_tps = 0
     tp_url = row[config['trapping']['url_found_in']]
     if method in ['acr', 'p835', 'p831s7']:
-        tp_correct_ans = int(float(row[config['trapping']['ans_found_in']]))
+        tp_correct_ans = [int(float(row[config['trapping']['ans_found_in']]))]
+    elif method == "dcr":
+        tp_correct_ans = [4, 5]
+    elif method == "ccr":
+        tp_correct_ans = [-1, 0, 1]
     else:
-        tp_correct_ans = 0
+        return -1
+
     try:
         suffix = ''
         if method == 'p835':
@@ -159,13 +161,12 @@ def check_tps(row, method):
         for q_name in question_names:
             if tp_url in row[f'answer.{q_name}_url']:
                 # found a trapping clips question
-                if int(row[f'answer.{q_name}{suffix}']) == tp_correct_ans:
+                if int(row[f'answer.{q_name}{suffix}']) in tp_correct_ans:
                     correct_tps = 1
                     return correct_tps
     except:
         pass
     return correct_tps
-
 
 #p835
 def check_variance(row):
@@ -190,7 +191,6 @@ def check_variance(row):
     except:
         pass
     return -1
-
 
 #p835
 def check_gold_question(method, row):
@@ -275,7 +275,6 @@ def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played):
         answer_is_correct = True
     return answer_is_correct
 
-
 # p835
 def data_cleaning(filename, method):
    """
@@ -333,7 +332,7 @@ def data_cleaning(filename, method):
         # step 4. check tps
         d['correct_tps'] = check_tps(row, method)
         # step5. check gold_standard, just for acr
-        if method == 'acr':
+        if method in ['acr','p835', 'p831s7']:
             d['correct_gold_question'] = check_gold_question(method, row)
         # step6. check variance in a session rating
         d['variance_in_ratings'] = check_variance(row)
@@ -358,7 +357,9 @@ def data_cleaning(filename, method):
 
     approved_file = os.path.splitext(filename)[0] + '_accept.csv'
     rejected_file = os.path.splitext(filename)[0] + '_rejection.csv'
+
     accept_reject_gui_file = os.path.splitext(filename)[0] + '_accept_reject_gui.csv'
+    extending_hits_file = os.path.splitext(filename)[0] + '_extending.csv'
 
     # reject hits when the user performed more than the limit
     worker_list = evaluate_maximum_hits(worker_list)
@@ -369,12 +370,13 @@ def data_cleaning(filename, method):
     save_approved_ones(worker_list, approved_file)
     save_rejected_ones(worker_list, rejected_file)
     save_approve_rejected_ones_for_gui(worker_list, accept_reject_gui_file)
+    save_hits_to_be_extended(worker_list, extending_hits_file)
+
     print(f"   {len(accept_and_use_sessions)} answers are good to be used further")
     print(f"   Data cleaning report is saved in: {report_file}")
     if method == 'p835':
         print(f"   percentage of 'sig_bak':  {round(count_sig_bak/len(accept_and_use_sessions),4)*100} %")
     return worker_list, use_sessions
-
 
 #p835
 def evaluate_maximum_hits(data):
@@ -395,6 +397,7 @@ def evaluate_maximum_hits(data):
                 d['accept'] = 0
                 d['Reject'] += f"More than allowed limit of {config['acceptance_criteria']['allowedMaxHITsInProject']}"
                 d['accept_and_use'] = 0
+                d['Approve'] = ''
             else:
                 cheater_workers_work_count[d['worker_id']] += 1
         result.append(d)
@@ -452,8 +455,23 @@ def save_rejected_ones(data, path):
         print(f'    overall {c_rejected} answers are rejected, from them {df.shape[0]} were in submitted status')
     small_df = df[['assignment']].copy()
     small_df.rename(columns={'assignment': 'assignmentId'}, inplace=True)
-    small_df = small_df.assign(feedback=config['acceptance_criteria']['rejection_feedback'])
+    small_df = small_df.assign(feedback= config['acceptance_criteria']['rejection_feedback'])
     small_df.to_csv(path, index=False)
+
+
+def save_hits_to_be_extended(data, path):
+    """
+    Save the list of HITs that are accepted but not to be used. The list can be used to extend those hits
+    :param data:
+    :param path:
+    :return:
+    """
+    df = pd.DataFrame(data)
+    df = df[(df.accept == 1) & (df.accept_and_use == 0)]
+    small_df = df[['HITId']].copy()
+    grouped = small_df.groupby(['HITId']).size().reset_index(name='counts')
+    grouped.rename(columns={'counts': 'n_extended_assignments'}, inplace=True)
+    grouped.to_csv(path, index=False)
 
 
 def filter_answer_by_status_and_workers(answer_df, all_time_worker_id_in, new_woker_id_in, status_in):
@@ -479,7 +497,6 @@ def filter_answer_by_status_and_workers(answer_df, all_time_worker_id_in, new_wo
         d2 = d2[d2['worker_id'].isin(new_woker_id_in)]
         frames.append(d2)
         return pd.concat(frames)
-
 
 #p835
 def calc_quantity_bonuses(answer_list, conf, path):
@@ -528,7 +545,6 @@ def calc_quantity_bonuses(answer_list, conf, path):
         merged.to_csv(path, index=False)
         print(f'   Quantity bonuses report is saved in: {path}')
     return merged
-
 
 #p835
 def calc_quality_bonuses(quantity_bonus_result, answer_list, overall_mos, conf, path, n_workers, test_method, use_condition_level):
@@ -614,7 +630,7 @@ def write_dict_as_csv(dic_to_write, file_name, *args, **kwargs):
 file_to_condition_map = {}
 
 
-def filename_to_condition(f_name):
+def conv_filename_to_condition(f_name):
     """
     extract the condition name from filename given the mask in the config
     :param f_name:
@@ -624,13 +640,20 @@ def filename_to_condition(f_name):
         return file_to_condition_map[f_name]
     file_to_condition_map[f_name] = {'Unknown': 'NoCondition' }
     pattern = ''
-    if config.has_option('general', 'condition_pattern'):
+    if config.has_option('general','condition_pattern'):
         pattern = config['general']['condition_pattern']
     m = re.match(pattern, f_name)
     if m:
         file_to_condition_map[f_name] = m.groupdict('')
 
     return file_to_condition_map[f_name]
+
+
+def dict_value_to_key(d, value):
+    for k, v in d.items():
+        if v == value:
+            return k
+    return None
 
 
 method_to_mos = {
@@ -653,7 +676,7 @@ question_names = []
 question_name_suffix = ''
 p835_suffixes = ['_bak', '_sig', '_ovrl']
 p831s7_suffixes = ['_echo', '_other']
-
+create_per_worker = True
 
 def transform(test_method, sessions, agrregate_on_condition):
     """
@@ -667,15 +690,19 @@ def transform(test_method, sessions, agrregate_on_condition):
     global file_to_condition_map
     file_to_condition_map ={}
     data_per_condition = {}
+    data_per_worker =[]
     mos_name = method_to_mos[f"{test_method}{question_name_suffix}"]
 
     for session in sessions:
+        found_gold_question = False
         for question in question_names:
             # is it a trapping clips question
             if session[config['trapping']['url_found_in']] == session[f'answer.{question}_url']:
                 continue
             # is it a gold clips
-            if test_method in ['acr', 'p835', 'p831s7'] and session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
+            if test_method in ['acr', 'p835', 'p831s7'] and not found_gold_question and\
+                    session[config['gold_question']['url_found_in']] == session[f'answer.{question}_url']:
+                found_gold_question = True
                 continue
             short_file_name = session[f'answer.{question}_url'].rsplit('/', 1)[-1]
             file_name = session[f'answer.{question}_url']
@@ -684,29 +711,47 @@ def transform(test_method, sessions, agrregate_on_condition):
             votes = data_per_file[file_name]
             try:
                 votes.append(int(session[f'answer.{question}{question_name_suffix}']))
-            except:
-                pass
+                cond =conv_filename_to_condition(file_name)
+                tmp = {'workerid': session['workerid'],
+                        'file':file_name,
+                       'short_file_name': file_name.rsplit('/', 1)[-1],
+                        'vote': int(session[f'answer.{question}{question_name_suffix}'])}
 
+                tmp.update(cond)
+                data_per_worker.append(tmp)
+            except Exception as err:
+                print(err)
+                pass
     # convert the format: one row per file
     group_per_file = []
+    condition_detail = {}
     for key in data_per_file.keys():
         tmp = dict()
         votes = data_per_file[key]
         vote_counter = 1
 
         # extra step:: add votes to the per-condition dict
-        tmp = filename_to_condition(key)
+        tmp_n = conv_filename_to_condition(key)
         if agrregate_on_condition:
             condition_keys = config['general']['condition_keys'].split(',')
             condition_keys.append('Unknown')
-            condition_dict = {k: tmp[k] for k in tmp.keys() & condition_keys}
+            condition_dict = {k: tmp_n[k] for k in tmp_n.keys() & condition_keys}
+            tmp = condition_dict.copy()
+            condition_dict = collections.OrderedDict(sorted(condition_dict.items()))
             for num_combinations in range(len(condition_dict)):
                 combinations = list(itertools.combinations(condition_dict.values(), num_combinations + 1))
                 for combination in combinations:
                     condition = '____'.join(combination).strip('_')
                     if condition not in data_per_condition:
                         data_per_condition[condition]=[]
+                        pattern_dic ={dict_value_to_key(condition_dict, v): v for v in combination}
+                        for k in condition_dict.keys():
+                            if k not in pattern_dic:
+                                pattern_dic[k] = ""
+                        condition_detail[condition] = pattern_dic
+
                     data_per_condition[condition].extend(votes)
+
         else:
             condition = 'Overall'
             if condition not in data_per_condition:
@@ -742,7 +787,7 @@ def transform(test_method, sessions, agrregate_on_condition):
             votes = data_per_condition[key]
             # apply z-score outlier detection
             # votes = outliers_z_score(votes)
-
+            tmp = {**tmp, **condition_detail[key]}
             tmp['n'] = len(votes)
             if tmp['n'] > 0:
                 # tmp[mos_name] = abs(statistics.mean(votes))
@@ -758,8 +803,7 @@ def transform(test_method, sessions, agrregate_on_condition):
 
             group_per_condition.append(tmp)
 
-    return group_per_file, group_per_condition
-
+    return group_per_file, group_per_condition, data_per_worker
 
 # p835
 def create_headers_for_per_file_report(test_method, condition_keys):
@@ -851,7 +895,7 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
             question_name_suffix = suffix
             print("Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip")
             use_condition_level = config.has_option('general', 'condition_pattern')
-            votes_per_file, vote_per_condition = transform(test_method, accepted_sessions,
+            votes_per_file, vote_per_condition, data_per_worker = transform(test_method, accepted_sessions,
                                                            config.has_option('general', 'condition_pattern'))
 
             votes_per_file_path = os.path.splitext(answer_path)[0] + f'_votes_per_clip{question_name_suffix}.csv'
@@ -870,7 +914,8 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
                 write_dict_as_csv(vote_per_condition, votes_per_cond_path)
                 print(f'   Votes per files are saved in: {votes_per_cond_path}')
                 condition_set.append(pd.DataFrame(vote_per_condition))
-
+            if create_per_worker:
+                write_dict_as_csv(data_per_worker, os.path.splitext(answer_path)[0] + f'_votes_per_worker_{question_name_suffix}.csv')
         if use_condition_level and len(suffixes) > 1:
             # aggregate multiple conditions into one file for p.835
             full_set_conditions = None
@@ -883,7 +928,8 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
             votes_per_all_cond_path = os.path.splitext(answer_path)[0] + f'_votes_per_cond_all.csv'
             column_names = p835_columns if test_method == 'p835' else p831s7_columns
             full_set_conditions.to_csv(votes_per_all_cond_path, index=False,
-                                       columns=column_names)
+                                       columns=['condition_name', 'n', 'MOS_BAK', 'MOS_SIG', 'MOS_OVRL', 'std_bak',
+                                                'std_sig', 'std_ovrl', '95%CI_bak', '95%CI_sig', '95%CI_ovrl'])
 
         bonus_file = os.path.splitext(answer_path)[0] + '_quantity_bonus_report.csv'
         quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
@@ -906,7 +952,7 @@ if __name__ == '__main__':
     parser.add_argument("--cfg", required=True,
                         help="Contains the configurations see acr_result_parser.cfg as an example")
     parser.add_argument("--method", required=True,
-                        help="one of the test methods: 'acr', 'dcr', 'ccr', 'p835', 'p831s7'")
+                        help="one of the test methods: 'acr', 'dcr', 'ccr', 'p835', or 'p831s7'")
     parser.add_argument("--answers", required=True,
                         help="Answers csv file, path relative to current directory")
 
