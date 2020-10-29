@@ -153,9 +153,11 @@ def check_tps(row, method):
 
     try:
         suffix = ''
-        if method in ['p835', 'p831s7']:
+        if method == 'p835':
             # only look at the ovrl for tps.
             suffix = "_ovrl"
+        if method == 'p831s7':
+            suffix = '_echo'
         for q_name in question_names:
             if tp_url in row[f'answer.{q_name}_url']:
                 # found a trapping clips question
@@ -212,9 +214,11 @@ def check_gold_question(method, row):
             return -1
         gq_var = int(config['gold_question']['variance'])
         suffix = ''
-        if method in ['p835', 'p831s7']:
+        if method == 'p835':
             # only look at the ovrl for tps.
             suffix = "_ovrl"
+        if method == 'p831s7':
+            suffix = '_echo'
         for q_name in question_names:
             if gq_url in row[f'answer.{q_name}_url']:
                 # found a gold standard question
@@ -660,20 +664,19 @@ method_to_mos = {
     "p835_sig": 'MOS_SIG',
     "p835_ovrl": 'MOS_OVRL',
     "p831s7_echo": 'MOS_ECHO',
-    "p831s7_other": 'MOS_OTHER',
-    "p831s7_ovrl": 'MOS_OVRL'
+    "p831s7_other": 'MOS_OTHER'
 }
 
 p835_columns = ['condition_name', 'n', 'MOS_BAK', 'MOS_SIG', 'MOS_OVRL', 'std_bak', 'std_sig', 'std_ovrl',
                 '95%CI_bak', '95%CI_sig', '95%CI_ovrl']
-p831s7_columns = ['condition_name', 'n', 'MOS_ECHO', 'MOS_OTHER', 'MOS_OVRL', 'std_echo', 'std_other', 'std_ovrl',
-                '95%CI_echo', '95%CI_other', '95%CI_ovrl']
+p831s7_columns = ['condition_name', 'n', 'MOS_ECHO', 'MOS_OTHER', 'std_echo', 'std_other',
+                '95%CI_echo', '95%CI_other']
+
 question_names = []
 question_name_suffix = ''
 p835_suffixes = ['_bak', '_sig', '_ovrl']
-p831s7_suffixes = ['_echo', '_other', '_ovrl']
+p831s7_suffixes = ['_echo', '_other']
 create_per_worker = True
-
 
 def transform(test_method, sessions, agrregate_on_condition):
     """
@@ -877,7 +880,7 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
         question_name_suffix = p835_suffixes[2]
         suffixes = p835_suffixes
     elif test_method == 'p831s7':
-        question_name_suffix = p831s7_suffixes[2]
+        question_name_suffix = p831s7_suffixes[1]
         suffixes = p831s7_suffixes
     else:
         suffixes = ['']
