@@ -189,9 +189,9 @@ def create_analyzer_cfg_acr(cfg, template_path, out_path):
 
 def create_analyzer_cfg_general(cfg, cfg_section_name, template_path, out_path):
     """
-    create cfg file to be used by analyzer script (acr, p835, and p831s7 method)
+    create cfg file to be used by analyzer script (acr, p835, and echo_impairment_test method)
     :param cfg:
-    :param cfg_section_name: 'acr_html', 'p835_html', 'p831s7_html'
+    :param cfg_section_name: 'acr_html', 'p835_html', 'echo_impairment_test_html'
     :param template_path:
     :param out_path:
     :return:
@@ -397,7 +397,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
 
 async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_path, cfg_g, cfg_trapping_store, general_cfg):
     """
-    Create the p835.html/P831s7 file corresponding to this project
+    Create the p835.html/echo_impairment_test file corresponding to this project
     :param cfg:
     :param template_path:
     :param out_path:
@@ -501,7 +501,7 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
         df_clips = pd.DataFrame({'rating_clips':rating_clips})
 
     df_general = pd.read_csv(general)
-    if test_method in ["acr", "p835", "p831s7"]:
+    if test_method in ["acr", "p835", "echo_impairment_test"]:
         if gold and os.path.exists(gold):
             df_gold = pd.read_csv(gold)
         else:
@@ -553,9 +553,15 @@ def prepare_basic_cfg(df):
     return config
 
 
-async def main(cfg, test_method, args):
-    # check assets
-    general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
+def get_path(test_method, is_p831):
+    """
+    check all the preequsites and see if all resources are available
+    :param test_method:
+    :param is_p831:
+    :return:
+    """
+    template_path = ''
+    cfg_path = ''
 
     #   for acr
     acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/ACR_template.html')
@@ -570,58 +576,70 @@ async def main(cfg, test_method, args):
     #   for  p835
     p835_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P835_template.html')
 
-    # for p831s7
-    p831s7_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831s7_template.html')
-
+    # for echo_impairment_test
+    echo_impairment_test_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_template.html')
 
     #   for p831-acr
     p831_acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_ACR_template.html')
     p831_acr_cfg_template_path = os.path.join(os.path.dirname(__file__),
-                                          'assets_master_script/acr_result_parser_template.cfg')
+                                              'assets_master_script/acr_result_parser_template.cfg')
 
     #   for p831-dcr
     p831_dcr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_DCR_template.html')
     p831_dcr_cfg_template_path = os.path.join(os.path.dirname(__file__),
-                                          'assets_master_script/dcr_ccr_result_parser_template.cfg')
-
-    is_p831 = args.p831
-    template_path = ''
-
-    assert os.path.exists(general_path), f"No csv file containing general infos in {general_path}"
+                                              'assets_master_script/dcr_ccr_result_parser_template.cfg')
     if test_method == "acr":
         assert os.path.exists(acr_template_path), f"No html template file found  in {acr_template_path}"
         assert os.path.exists(acr_cfg_template_path), f"No cfg template  found  in {acr_cfg_template_path}"
         template_path = acr_template_path
+        cfg_path = acr_cfg_template_path
 
     if test_method == "dcr":
         assert os.path.exists(dcr_template_path), f"No html template file found  in {dcr_template_path}"
         assert os.path.exists(dcr_ccr_cfg_template_path), f"No cfg template  found  in {dcr_ccr_cfg_template_path}"
         template_path = dcr_template_path
+        cfg_path = dcr_ccr_cfg_template_path
 
     if test_method == "ccr":
         assert os.path.exists(ccr_template_path), f"No html template file found  in {ccr_template_path}"
         assert os.path.exists(dcr_ccr_cfg_template_path), f"No cfg template  found  in {dcr_ccr_cfg_template_path}"
         template_path = ccr_template_path
+        cfg_path = dcr_ccr_cfg_template_path
 
     if test_method == "p835":
         assert os.path.exists(p835_template_path), f"No html template file found  in {p835_template_path}"
         assert os.path.exists(acr_cfg_template_path), f"No cfg template  found  in {acr_cfg_template_path}"
         template_path = p835_template_path
+        cfg_path = acr_cfg_template_path
 
-    if test_method == "p831s7":
-        assert os.path.exists(p831s7_template_path), f"No html template file found  in {p831s7_template_path}"
+    if test_method == "echo_impairment_test":
+        assert os.path.exists(echo_impairment_test_template_path), f"No html template file found  in {echo_impairment_test_template_path}"
         assert os.path.exists(acr_cfg_template_path), f"No cfg template  found  in {acr_cfg_template_path}"
-        template_path = p831s7_template_path
+        template_path = echo_impairment_test_template_path
+        cfg_path = acr_cfg_template_path
 
     if is_p831 and test_method == "acr":
         assert os.path.exists(p831_acr_template_path), f"No html template file found  in {p831_acr_template_path}"
         assert os.path.exists(p831_acr_cfg_template_path), f"No cfg template  found  in {p831_acr_cfg_template_path}"
         template_path = p831_acr_template_path
+        cfg_path = p831_acr_cfg_template_path
 
     if is_p831 and test_method == "dcr":
         assert os.path.exists(p831_dcr_template_path), f"No html template file found  in {p831_dcr_template_path}"
         assert os.path.exists(p831_dcr_cfg_template_path), f"No cfg template  found  in {p831_dcr_cfg_template_path}"
         template_path = p831_dcr_template_path
+        cfg_path = p831_dcr_cfg_template_path
+
+    return template_path, cfg_path
+
+
+async def main(cfg, test_method, args):
+    # check assets
+    general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
+    is_p831 = args.p831
+
+    assert os.path.exists(general_path), f"No csv file containing general infos in {general_path}"
+    template_path, cfg_path = get_path(test_method, is_p831)
 
     # create output folder
     output_dir = args.project
@@ -640,9 +658,11 @@ async def main(cfg, test_method, args):
 
     # create general config
     general_cfg = prepare_basic_cfg(df)
+
     # create hit_app
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831 else f"{args.project}_{test_method}.html"
     output_html_file = os.path.join(output_dir, output_file_name)
+
     if is_p831 and test_method == 'acr':
         await create_hit_app_acr(cfg['p831_html'], template_path, output_html_file, args.training_clips,
                            args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
@@ -652,8 +672,8 @@ async def main(cfg, test_method, args):
     elif test_method == 'acr':
         await create_hit_app_acr(cfg['acr_html'], template_path, output_html_file, args.training_clips,
                            args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
-    elif test_method in ['p835', 'p831s7'] :
-        cfg_part = cfg['p835_html'] if test_method == 'acr'else cfg['p831s7_html']
+    elif test_method in ['p835', 'echo_impairment_test'] :
+        cfg_part = cfg['p835_html'] if test_method == 'acr'else cfg['echo_impairment_test_html']
         await create_hit_app_p835(cfg_part, template_path, output_html_file, args.training_clips,
                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
     else:
@@ -663,14 +683,16 @@ async def main(cfg, test_method, args):
     # create a config file for analyzer
     output_cfg_file_name = f"{args.project}_p831_{test_method}_result_parser.cfg" if is_p831 else f"{args.project}_{test_method}_result_parser.cfg"
     output_cfg_file = os.path.join(output_dir, output_cfg_file_name)
+
     if is_p831 and test_method == 'acr':
-        create_analyzer_cfg_general(cfg, 'acr_html', p831_acr_cfg_template_path, output_cfg_file)
+        create_analyzer_cfg_general(cfg, 'acr_html', cfg_path, output_cfg_file)
     elif is_p831 and test_method == 'dcr':
-        create_analyzer_cfg_dcr_ccr(cfg, p831_dcr_cfg_template_path, output_cfg_file)
-    elif test_method in ['acr', 'p835', 'p831s7']:
-        create_analyzer_cfg_general(cfg, f'{test_method}_html', acr_cfg_template_path, output_cfg_file)
+        create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file)
+    elif test_method in ['acr', 'p835', 'echo_impairment_test']:
+        create_analyzer_cfg_general(cfg, f'{test_method}_html', cfg_path, output_cfg_file)
     else:
-        create_analyzer_cfg_dcr_ccr(cfg, dcr_ccr_cfg_template_path, output_cfg_file)
+        create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file)
+
 
 if __name__ == '__main__':
     print("Welcome to the Master script for P808 Toolkit.")
@@ -678,7 +700,7 @@ if __name__ == '__main__':
     parser.add_argument("--project", help="Name of the project", required=True)
     parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=True)
     parser.add_argument("--method", required=True,
-                        help="one of the test methods: 'acr', 'dcr', 'ccr', or 'p835'")
+                        help="one of the test methods: 'acr', 'dcr', 'ccr', or 'p835', 'echo_impairment_test'")
     parser.add_argument("--p831", action='store_true', help="Use the question set of P.831")
     parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
                                         "case of ccr/dcr it should also contain a column for 'references'")
@@ -691,9 +713,9 @@ if __name__ == '__main__':
     # check input arguments
     args = parser.parse_args()
 
-    methods = ['acr', 'dcr', 'ccr', 'p835', 'p831s7']
+    methods = ['acr', 'dcr', 'ccr', 'p835', 'echo_impairment_test']
     test_method = args.method.lower()
-    assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835', 'p831s7'"
+    assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835', 'echo_impairment_test'"
 
     p831_methods = ['acr', 'dcr']
     if args.p831:
@@ -713,7 +735,7 @@ if __name__ == '__main__':
     else:
         assert True, "Neither clips file not cloud store provided for rating clips"
 
-    if test_method in ['acr', 'p835', 'p831s7']:
+    if test_method in ['acr', 'p835', 'echo_impairment_test']:
         if args.gold_clips:
             assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
         elif cfg.has_option('GoldenSample', 'Path'):
