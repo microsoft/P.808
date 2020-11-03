@@ -85,27 +85,18 @@ var config ={
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
     debug:"true",
-    questionUrls: ['https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c01_ef03_s001.wav',
-    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c04_em02_s002.wav',
-    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c05_ef02_s004.wav',
-    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/tps/D401_c49_ef11_4.wav'],
+    questionUrls: {{cfg.rating_urls}},
+    trainingUrls: {{cfg.training_urls}},
 
-    trainingUrls: ['https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c24_ef03_s001.wav',
-    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c04_em02_s002.wav',
-    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c05_ef02_s004.wav',
-    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c06_em01_s003.wav',
-    'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/tps/D401_c49_ef11_4.wav'],
-
-    knownQuestionInTrainingUrl:"https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/tps/D401_c49_ef11_4.wav",
-    knownQuestionInTrainingAns: "4",
-    knownQuestionUrl:"https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/tps/D401_c49_ef11_4.wav",
-    knownQuestionAns: "4",
-    goldClipURL:"https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c01_ef03_s001.wav",
-    goldClipAns:"5",
+    knownQuestionInTrainingUrl:"{{cfg.training_trap_urls}}",
+    knownQuestionInTrainingAns: "{{cfg.training_trap_ans}}",
+    knownQuestionUrl:"${TP}",
+    knownQuestionAns: "${TP_ANS}",
+    goldClipURL:"${gold_clips}",
+    goldClipAns:"${gold_clips_ans}",
     randomizeTrainingQuestions:"true",
     randomizeRatingQuestions:"true",
-    //allowedMaxHITsInProject:{{cfg.allowed_max_hit_in_project}},
-     allowedMaxHITsInProject: 60,
+    allowedMaxHITsInProject:{{cfg.allowed_max_hit_in_project}},
 	allowedMaxContinuesSessionDurationInMinutes:45,
 	qualification:{
 		mother_tongue: ["english","en"],
@@ -136,19 +127,14 @@ $(function() {
 			console.log = function() {};
 		}
 		loadTextPlaceHolders();
-		// set the order of scales for p835
-		r =Math.random();
-		if (r<0.5)
-			$("#p835_order").val("sig_bak");
-		else
-			$("#p835_order").val("bak_sig");
+
 		generate_training_section();
 		generate_rating_section();
 		avoidAnsweringBeforeListeningThrough();
 		cookie_debug_status="";
 		// given cookie availability disable the qualification
 		qual_passed= readCookie(config['qualificationCookieName']);
-		
+
 
 		if (qual_passed!==null && qual_passed=="true"){
 			$('.qualificationFieldset').prop("disabled", true);
@@ -543,8 +529,7 @@ function playedAudioTraining(id){
 	input_id = id.substring(0, id.length - 6);
 	console.log("playedAudioTraining id:{0}, input_id:{1}".f(id,input_id ));
 
-
-	$('input[name^="'+input_id+'"]').off('change');
+	$('input[name="'+input_id+'"]').off('change');
 	const c = /t(\d+)_.*/;
 	ex = c.exec(id);
 	trainingQuestionNumber= ex[1];
@@ -557,8 +542,7 @@ function playedAudioTraining(id){
 	console.log($('span[id="'+id+'"]').attr("data-src"))
 	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionInTrainingUrl']){
 		console.log("was the trapping");
-		element = $('input[name^="'+input_id+'"]');
-		console.log(input_id);
+		element = $('input[name="'+input_id+'"]');
 		element.unbind('change');
 		element.on('change', onValueChangeForTpQuestionInTraining);
 	}
@@ -714,7 +698,7 @@ function onValueChangeForGoldQuestion(){
 		$('#gq_check').val(0);
 	else
 		$('#gq_check').val(-1);
-	console.log("gq_check {0}".f($('#gq_check').val()))
+	console.log($('#gq_check').val())
 }
 
 /*
@@ -726,7 +710,7 @@ function onValueChangeForTpQuestion(){
 		$('#tp_check').val(0);
 	else
 		$('#tp_check').val(-1);
-	console.log("tp_check "+$('#tp_check').val())
+	//console.log("gc_check"+$('#tp_check').val())
 }
 
 /*
@@ -746,7 +730,6 @@ function onValueChangeForTpQuestionInTraining(e){
 /*
 	Called when the audio in rating section by the given id is completely played.
 	Now user can rate the quality.
-	TODO: check TP and Goldquestions
 */
 function playedAudioQ(id){
 	// parallel session check
@@ -754,15 +737,15 @@ function playedAudioQ(id){
 	input_id = id.substring(0, id.length - 6);
 	// check if it was the trapping question
 	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionUrl']){
-		element = $('input[name^="'+input_id+'"]');
+		element = $('input[name="'+input_id+'"]');
 		element.unbind('change');
 		element.on('change', onValueChangeForTpQuestion);
 	}else if ($('span[id="'+id+'"]').attr("data-src") == config['goldClipURL']){
-		element = $('input[name^="'+input_id+'"]');
+		element = $('input[name="'+input_id+'"]');
 		element.unbind('change');
 		element.on('change', onValueChangeForGoldQuestion);
 	}else{
-		$('input[name^="'+input_id+'"]').off('change');
+		$('input[name="'+input_id+'"]').off('change');
 		// check if already this HIT is counted
 		if (!hitCounterIncreased){
 			updateCounterCookie(config['cookieName']+"_counter",1);
@@ -844,16 +827,16 @@ function shuffle(a) {
 	return a;
 }
 
-/* --- P.835 Specific methods ---*/
+/* --- P.831s7 Specific methods ---*/
 var currentElementForTrial = [];
 var elements = [[]];
-var question_lists =['q{0}_sig', 'q{0}_bak', 'q{0}_ovrl'];
+var question_lists =['q{0}_echo', 'q{0}_other'];
 var unansweredQuestions = new Set();
 
 // for training
 var currentElementForTrialTraining = [];
 var elementsTraining = [[]];
-var question_listsTraining =['t{0}_sig', 't{0}_bak', 't{0}_ovrl'];
+var question_listsTraining =['t{0}_echo', 't{0}_other'];
 var unansweredQuestionsTraining = new Set();
 
 /*
@@ -862,20 +845,20 @@ var unansweredQuestionsTraining = new Set();
 function generate_training_section(){
 	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#T{0}-panel" id="T{0}-tab" role="tab" aria-controls="T{0}" {2}>Trial {0}</a></li>';
 	acr_tab ='<div class="tab-pane fade {2}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"> <p></p> <div class="row"> <div class="col-sm-3"></div> <div class="col-sm-6"> <p style="margin-top:10px; text-align:center;">Listen to the following speech clip. </p> '+
-			'<p align="center"> <span class="baudio" id="t{0}_audio" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p>' +
-			'<div id="t{0}_sig" style ="display: block;"> <div style="margin:30px 10px;"> </div> <p>{3}/3. Attending <b>ONLY to the SPEECH SIGNAL</b>, select the category which best describes the sample you just heard.</p> <fieldset id="fieldset_t{0}_sig" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the SPEECH SIGNAL in this sample was</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_sig" value="5">Not distorted</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_sig" value="4">Slightly distorted</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_sig" value="3">Somewhat distorted</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_sig" value="2">Fairly distorted</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_sig" value="1"required="">Very distorted</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
-	'<div id="t{0}_bak" style ="display: none;"> <div style="margin:30px 10px;"> </div> <p>{4}/3. Attending <b>ONLY to the BACKGROUND</b>, select the category which best describes the sample you just heard.</p> <fieldset id="fieldset_t{0}_bak" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the BACKGROUND in this sample was</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_bak" value="5">Not noticeable</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_bak" value="4">Slightly noticeable</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_bak" value="3">Noticeable but not intrusive </label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_bak" value="2">Somewhat intrusive</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_bak" value="1"required="">Very intrusive</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
-	'<div id="t{0}_ovrl" style ="display: none;">  <div style="margin:30px 10px;"> </div> <p>3/3. Select the category which best describes the sample you just heard for purposes of everyday speech communication.</p> <fieldset id="fieldset_t{0}_ovrl" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the OVERALL SPEECH SAMPLE was</th><th  class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_ovrl" value="5">Excellent</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_ovrl" value="4">Good</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_ovrl" value="3">Fair</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_ovrl" value="2">Poor</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_ovrl" value="1"required="">Bad</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
+
+	'<div id="t{0}_echo" style ="display: block;"> <p align="center"> <span class="baudio" id="t{0}_echo_audio" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p> <div style="margin:30px 10px;"> </div> <p>1/2. How would you judge <b>the degradation from echo</b> of Person 1\'s voice?</p> <fieldset id="fieldset_t{0}_echo" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the ECHO of Person 1\'s voice in this audio sample was</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_echo" value="5">Imperceptible</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_echo" value="4">Perceptible but not annoying</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_echo" value="3">Slightly annoying</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_echo" value="2">Annoying</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_echo" value="1"required="">Very annoying</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
+	'<div id="t{0}_other" style ="display: none;"> <p align="center"> <span class="baudio" id="t{0}_other_audio" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p> <div style="margin:30px 10px;"> </div> <p>{3}/2. How would you judge <b>degradations</b> (missing audio, distortions, cut-outs) of Person 2\'s voice?</p> <fieldset id="fieldset_t{0}_other" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the DEGRADATIONS of Person 2\'s voice in this audio sample were</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_other" value="5">Imperceptible</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_other" value="4">Perceptible but not annoying</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_other" value="3">Slightly annoying</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_other" value="2">Annoying</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="t{0}_other" value="1"required="">Very annoying</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
+
 	'<div class="row" style="margin: 25px 0px;">	<div class="col-sm-4" style="text-align:center;"> <button type="button" class="btn btn-light btn-sm" onclick="prevQuestion({0}-1, true)" ><span class="glyphicon glyphicon-chevron-left"></span> </button> </div> <div class="col-sm-4" style="text-align:center;"> <div class="row" style="text-align:center;" id= "progress_T_{0}"></div></div> <div class="col-sm-4" style="text-align:center;"> <button type="button" id ="next_t{0}_button" class="btn btn-light btn-sm" onclick="nextQuestion({0}-1,true)"><span class="glyphicon glyphicon-chevron-right"></span></button> </div> </div> <p></p> </div> <div class="col-sm-3"></div> </div> </div>';
 
 	// set the order of scale
-	order = $("#p835_order").val();
-	order_num=[1,2];
-	if (order =="bak_sig"){
+	//order = $("#p835_order").val();
+	order_num=[2,3];
+	//if (order =="bak_sig"){
 		// swap the order
-		question_listsTraining =['t{0}_bak', 't{0}_sig', 't{0}_ovrl'];
-		order_num=[2, 1];
-	}
+	//	question_listsTraining =['t{0}_other', 't{0}_sig', 't{0}_ovrl'];
+	//	order_num=[2, 1];
+	//}
 
 	// this will show which url was shown by in which question as their orther will be randomized
 	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" />';
@@ -925,10 +908,8 @@ function generate_rating_section(){
 
 	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#Q{0}-panel" id="Q{0}-tab" role="tab" aria-controls="Q{0}" {2}>Trial {0}</a></li>';
 	acr_tab ='<div class="tab-pane fade {2}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"> <p></p> <div class="row"> <div class="col-sm-3"></div> <div class="col-sm-6"> <p style="margin-top:10px; text-align:center;">Listen to the following speech clip. </p> '+
-	'<p align="center"> <span class="baudio" id="q{0}_audio" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p>'+
-	'<div id="q{0}_sig" style ="display: block;"> <div style="margin:30px 10px;"> </div> <p>{3}/3. Attending <b>ONLY to the SPEECH SIGNAL</b>, select the category which best describes the sample you just heard.</p> <fieldset id="fieldset_q{0}_sig" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the SPEECH SIGNAL in this sample was</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_sig" value="5">Not distorted</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_sig" value="4">Slightly distorted</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_sig" value="3">Somewhat distorted</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_sig" value="2">Fairly distorted</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_sig" value="1"required="">Very distorted</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
-	'<div id="q{0}_bak" style ="display: none;"> <div style="margin:30px 10px;"> </div> <p>{4}/3. Attending <b>ONLY to the BACKGROUND</b>, select the category which best describes the sample you just heard.</p> <fieldset id="fieldset_q{0}_bak" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the BACKGROUND in this sample was</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_bak" value="5">Not noticeable</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_bak" value="4">Slightly noticeable</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_bak" value="3">Noticeable but not intrusive </label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_bak" value="2">Somewhat intrusive</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_bak" value="1"required="">Very intrusive</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
-	'<div id="q{0}_ovrl" style ="display: none;"> <div style="margin:30px 10px;"> </div> <p>3/3. Select the category which best describes the sample you just heard for purposes of everyday speech communication.</p> <fieldset id="fieldset_q{0}_ovrl" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the OVERALL SPEECH SAMPLE was</th><th  class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_ovrl" value="5">Excellent</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_ovrl" value="4">Good</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_ovrl" value="3">Fair</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_ovrl" value="2">Poor</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_ovrl" value="1"required="">Bad</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
+	'<div id="q{0}_echo" style ="display: block;"> <p align="center"> <span class="baudio" id="q{0}_echo_audio" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> <div style="margin:30px 10px;"> </div> <p>1/2. How would you judge <b>the degradation from echo</b> of Person 1\'s voice?</p> <fieldset id="fieldset_q{0}_echo" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the ECHO of Person 1\'s voice in this audio sample was</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_echo" value="5">Imperceptible</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_echo" value="4">Perceptible but not annoying</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_echo" value="3">Slightly annoying</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_echo" value="2">Annoying</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_echo" value="1"required="">Very annoying</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
+	'<div id="q{0}_other" style ="display: none;"> <p align="center"> <span class="baudio" id="q{0}_other_audio" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> <div style="margin:30px 10px;"> </div> <p>{3}/2. How would you judge <b>degradations</b> (missing audio, distortions, cut-outs) of Person 2\'s voice? </p> <fieldset id="fieldset_q{0}_other" title=""> <table class="table md scale" cellspacing="0" cellpadding="0"> <thead> <tr><th >the DEGRADATIONS of Person 2\'s voice in this audio sample were</th><th class="c" >Score</th></tr> </thead> <tbody> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_other" value="5">Imperceptible</label></div></td><td class="c">5</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_other" value="4">Perceptible but not annoying</label></div></td><td class="c">4</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_other" value="3">Slightly annoying</label></div></td><td class="c">3</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_other" value="2">Annoying</label></div></td><td class="c">2</td></tr> <tr><td><div class="radio" ><label ><input type="radio" name="q{0}_other" value="1"required="">Very annoying</label></div></td><td class="c">1</td></tr> </tbody> </table> </fieldset> </div>'+
 	'<div class="row" style="margin: 25px 0px;">	<div class="col-sm-4" style="text-align:center;"> <button type="button" class="btn btn-light btn-sm" onclick="prevQuestion({0}-1, false)" ><span class="glyphicon glyphicon-chevron-left"></span> </button> </div> <div class="col-sm-4" style="text-align:center;"> <div class="row" style="text-align:center;" id= "progress_{0}"></div></div> <div class="col-sm-4" style="text-align:center;"> <button type="button" id ="next_q{0}_button" class="btn btn-light btn-sm" onclick="nextQuestion({0}-1, false)"><span class="glyphicon glyphicon-chevron-right"></span></button> </div> </div> <p></p> </div> <div class="col-sm-3"></div> </div> </div>';
 
 	// this will show which url was shown in which question as their order will be randomized
@@ -940,13 +921,13 @@ function generate_rating_section(){
 	}
 
 	// set the order of scale
-	order = $("#p835_order").val();
-	order_num=[1,2];
-	if (order =="bak_sig"){
+	//order = $("#p835_order").val();
+	order_num=[2,3];
+	//if (order =="bak_sig"){
 		// swap the order
-		question_lists =['q{0}_bak', 'q{0}_sig', 'q{0}_ovrl'];
-		order_num=[2, 1];
-	}
+	//	question_lists =['q{0}_other', 'q{0}_sig', 'q{0}_ovrl'];
+	//	order_num=[2, 1];
+	//}
 
 	elements = new Array(urls.length);
 	currentElementForTrial = new Array(urls.length);
@@ -1077,7 +1058,6 @@ function nextQuestion(trial_num, isTraining){
 }
 
 function isTpQuestionInTraining(id){
-	console.log("+++++:"+id);
 	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionInTrainingUrl'])
 		return true;
 	return false;
@@ -1090,27 +1070,18 @@ function onRating(event){
 	isTraining = event.data.isTraining;
 	if (isTraining){
 		tmp_name = question_listsTraining[num].f(trial_num+1);
-		const c = /t(\d+)_.*/;
-		ex = c.exec(tmp_name);
-		q_name ="t{0}".f(ex[1]);
-		console.log(q_name);
-		if (isTpQuestionInTraining(q_name+"_audio")){
+		if (isTpQuestionInTraining(tmp_name+"_audio")){
 			// check if the answer is false then the onRating should not proceed
 			if ($( this).val()  != config['knownQuestionInTrainingAns']){
 				return;
 			}
 		}
-		name = "audio_n_finish_"+q_name+"_audio";
-		console.log(name);
+		name = "audio_n_finish_"+question_listsTraining[currentElementForTrialTraining[trial_num]].f(trial_num+1)+"_audio";
 		if ($('input[name='+name+']').val()==0)
 			return;
 		hideAllElementsOnlyNumT(trial_num, num);
 	}else {
-		const c = /q(\d+)_.*/;
-		ex = c.exec(question_lists[currentElementForTrial[trial_num]].f(trial_num+1));
-		q_name ="q{0}".f(ex[1]);
-		name = "audio_n_finish_"+q_name+"_audio";
-		console.log(name);
+		name = "audio_n_finish_"+question_lists[currentElementForTrial[trial_num]].f(trial_num+1)+"_audio";
 		if ($('input[name='+name+']').val()==0)
 			return;
 		hideAllElementsOnlyNumR(trial_num, num);
@@ -1142,10 +1113,10 @@ function questionName2Text(qName){
 	const matchObj = RE_DATE.exec(qName);
 	const template = "Trial {0}: {1}";
 	question = "";
-	if (matchObj[2]=="sig")
-		question = "Speech Signal Quality";
-	else if (matchObj[2]=="bak")
-		question = "Background Quality";
+	if (matchObj[2]=="echo")
+		question = "Echo Degradation";
+	else if (matchObj[2]=="other")
+		question = "Other Degradations";
 	else
 		question = "Overall Quality";
 
@@ -1185,7 +1156,6 @@ function questionName2Text(qName){
 					<li><b>Training (every <b class="training_time"> 0 </b> hour):</b> <b class="question_number_training"> 0 </b> questions, same as "Ratings" but appears just once a day</li>
 					<li><b>Rating:</b> Listen to <b class="question_number"> 0 </b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
 				</ul>
-				<p>Note that not all of the speech in these audio files is in English.</p>
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
 				<p><b>Rules:</b></p>
 				<ul>
@@ -1562,16 +1532,17 @@ function questionName2Text(qName){
 			<div  class="panel-collapse collapse in" id="trainingS">
 				<div class="panel-body">
 					<p>The training section is identical to the Rating section, only with specific audio samples to familiarize you with the rating tasks:</p>
-				<p>In this experiment you will be rating the quality of sound samples involving speech in background noise. Each trial will include 1 audio sample which contains one or mroe sentences in a noisy background. Within each trial you will give three ratings asked in three questions all regarding to the same audio sample.</p>
-				<p>You will be instructed to provide following ratings in each trial:</p>
+					<p>In each trial you will be rating the audio quality of a conversation between <b>Person 1</b> and <b>Person 2</b> (see the figure below). The two persons will be speaking in parallel. You will hear one voice from one side of the headset and the other voice from the other side, with Person 1's voice coming from the left side and Person 2's voice from the right side. In some cases, you may hear an echo of Person 1's voice alongside Person 2's voice, in other cases you may hear Person 2's voice degraded or missing altogether.</p>
+					<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/p831s7-alt.png" alt="scale" class="center" style='width: 50%' >
+				<p>You will be instructed to provide following ratings in each trial all regarding to the same audio sample:</p>
 				<ul>
-					<li> attend only to <b>the speech signal</b> and rate how distorted the speech signal sounds to you.</li>
-					<li> attend only to <b>the background</b> and rate how noticeable or intrusive the background sounds to you.</li>
-					<li> attend to the <b>entire sample (both the speech signal and the background)</b> and rate your opinion of the OVERALL QUALITY of the sample for purposes of everyday speech communication.</li>
-				</ul>
-				<p><b>Note:</b> The order of questions may change from one HIT to the other.</p>
+					<li> attend to <b>Echo of Person 1's voice</b> and rate how noticeable or annoying it was.</li>
+					<li> attend to <b>Degradations of Person 2's voice</b> (completely missing audio, distortions or cut-outs).</li>
 
-				<p>Please provide your rating for the following <b class="question_number_training"> 0 </b> trials. For each rating in a trial, please listen to the audio sample again and give your opinion on the corresponding scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				</ul>
+				<p><b>Note:</b> The gender of person 1 and 2 may be different than what you see in the above figure.</p>
+
+				<p>Please provide your rating for the following <b class="question_number_training"> 0 </b> trials. For each rating in a trial, you should listen to the audio sample <b>again </b>and give your opinion on the corresponding scale. <b>Note</b> that the scale will be activated when the audio sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="trainingTabs"> 	</ul>
@@ -1585,7 +1556,7 @@ function questionName2Text(qName){
 				<li class="next" onclick="showNextQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button">Next trial<span aria-hidden="true">&rarr;</span></a></li>
 			  </ul>
 			</nav>
-			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>Next Trial</b> to answer all <b class="question_number_training"> 0 </b> questions.</div>
+			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>Next Trial</b> to answer all <b class="question_number_training"> 0 </b> trials.</div>
 			</div>
 			</div>
 		</div>
@@ -1605,7 +1576,6 @@ function questionName2Text(qName){
 <input id="any_parallel_session" name="any_parallel_session" type="hidden" value="false" />
 
 
-<input id="p835_order" name="p835_order" type="hidden" value="bak_sig" />
 <!--- Rating task -->
 
 <section class="container" id="rating_section">
@@ -1614,16 +1584,18 @@ function questionName2Text(qName){
 				<h3 class="panel-title">Ratings</h3>
 			</div>
 			<div class="panel-body">
-				<p>In this experiment you will be rating the quality of sound samples involving speech in background noise. Each trial will include 1 audio sample which contains one or mroe sentences in a noisy background. Within each trial you will give three ratings asked in three questions all regarding to the same audio sample.</p>
-				<p>You will be instructed to provide following ratings in each trial:</p>
+				<p>In each trial you will be rating the audio quality of a conversation between <b>Person 1</b> and <b>Person 2</b> (see the figure below). The two persons will be speaking in parallel. You will hear one voice from one side of the headset and the other voice from the other side, with Person 1's voice coming from the left side and Person 2's voice from the right side. In some cases, you may hear an echo of Person 1's voice alongside Person 2's voice, in other cases you may hear Person 2's voice degraded or missing altogether.</p>
+				<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/p831s7-alt.png" alt="scale" class="center" style='width: 50%' >
+				<p>You will be instructed to provide following ratings in each trial all regarding to the same audio sample:</p>
 				<ul>
-					<li> attend only to <b>the speech signal</b> and rate how distorted the speech signal sounds to you.</li>
-					<li> attend only to <b>the background</b> and rate how noticeable or intrusive the background sounds to you.</li>
-					<li> attend to the <b>entire sample (both the speech signal and the background)</b> and rate your opinion of the OVERALL QUALITY of the sample for purposes of everyday speech communication.</li>
-				</ul>
-				<p><b>Note:</b> The order of questions may change from one HIT to the other.</p>
+					<li> attend to <b>Echo of Person 1's voice</b> and rate how noticeable or annoying it was.</li>
+					<li> attend to <b>Degradations of Person 2's voice</b> (completely missing audio, distortions or cut-outs).</li>
 
-				<p>Please provide your rating for the following <b class="question_number"> 0 </b> trials. For each rating in a trial, please listen to the audio sample again and give your opinion on the corresponding scale. <b>Note</b> that the scale will be activated when the speech sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				</ul>
+				<p><b>Note:</b> The gender of person 1 and 2 may be different than what you see in the above figure.</p>
+
+				<p>Please provide your rating for the following <b class="question_number"> 0 </b> trials. For each rating in a trial, please listen to the audio sample <b>again </b>and give your opinion on the corresponding scale. <b>Note</b> that the scale will be activated when the audio sample played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+
 
 
  				<!-- will be generated -->
@@ -1646,7 +1618,7 @@ function questionName2Text(qName){
 
 <section class="container" id="thanks">
 	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
-	<p>Note: The submit button will be activated when you answer all questions in this HIT. Make sure to answer to all 3 questions in each trial. <a id="myLink" href="#" onclick="help_which_questions_remain();return false;">Click here to see which questions in the "Rating" section are not answered? .</p>
+	<p>Note: The submit button works only if you answer to all questions. Make sure to answer to all 3 questions in each trial. <a id="myLink" href="#" onclick="help_which_questions_remain();return false;">Click here to see which questions in the "Rating" section are not answered? .</p>
 </section>
 
 <section class="container" id="max_allowed_HITs_reached" hidden>
