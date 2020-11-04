@@ -79,7 +79,7 @@ var config ={
 	qualificationValidFor:43200,
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
-    debug:"true",
+    debug:"false",
     questionUrls: {{cfg.rating_urls}},
     trainingUrls: {{cfg.training_urls}},
 
@@ -281,15 +281,15 @@ function validateQualificationAnswer(){
 	count_correct_ht=0;
 	if (checkQualNumCorrect($("input[name='num1']").val().trim(),config.qualification.num1))
 		count_correct_ht ++;
-	if (checkQualNumCorrect($("input[name='num2']").val().trim()==config.qualification.num2))
+	if (checkQualNumCorrect($("input[name='num2']").val().trim(),config.qualification.num2))
 		count_correct_ht ++;
-	if (checkQualNumCorrect($("input[name='num3']").val().trim()==config.qualification.num3))
+	if (checkQualNumCorrect($("input[name='num3']").val().trim(),config.qualification.num3))
 		count_correct_ht ++;
-	if (checkQualNumCorrect($("input[name='num4']").val().trim()==config.qualification.num4))
+	if (checkQualNumCorrect($("input[name='num4']").val().trim(),config.qualification.num4))
 		count_correct_ht ++;
-	if (checkQualNumCorrect($("input[name='num5']").val().trim()==config.qualification.num5))
+	if (checkQualNumCorrect($("input[name='num5']").val().trim(),config.qualification.num5))
 		count_correct_ht ++;
-	console.log("count_correct_ht:"+count_correct_ht);
+	//console.log("count_correct_ht:"+count_correct_ht);
 	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check &&
 		count_correct_ht>= 3;
 	console.log(passed);
@@ -366,8 +366,7 @@ function addBrowserInfo(debug){
 
 //-------- check qual num online
 function checkQualNumCorrect(given_ans, correct_hash){
-	ans_b64 = btoa(given_ans);
-	return ans_b64 == correct_hash;
+	return btoa(given_ans) == correct_hash;
 }
 // ------------------------ online check cmp
 
@@ -1155,11 +1154,7 @@ function generate_rating_section(){
 
 	   <fieldset class="qualificationFieldset"><label>9.&nbsp;Please adjust the level of your computer to a comfortable level so that you hear the following audio sample very well.</label>
 
-			<p align="center">
-
-				<span class="baudio" id="volume" data-src="https://l_level.wav" >&nbsp;</span>
-
-			</p>
+				<p align="center"> <span class="baudio" id="volume" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/signal_level.wav" >&nbsp;</span> </p>
 
 
 			<div class="alert alert-warning" role="alert">
