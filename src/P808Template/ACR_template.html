@@ -98,11 +98,11 @@ var config ={
 		ld_in: ["in-ear", "over-ear"],
 		working_area: "N",
 		hearing: "normal",
- 		num1: "Mjg5",
-        num2: "MjQ2",
-        num3: "NjI2",
-        num4: "ODAy",
-        num5: "OTEz"
+ 		num1: "{{cfg.num1_ans}}",
+        num2: "{{cfg.num2_ans}}",
+        num3: "{{cfg.num3_ans}}",
+        num4: "{{cfg.num4_ans}}",
+        num5: "{{cfg.num5_ans}}"
 	},
 	cmp_correct_answers: {{cfg.cmp_correct_answers}},
 	cmp_max_n_feedback : {{cfg.cmp_max_n_feedback}},
@@ -421,12 +421,14 @@ function validateCMPSection(){
 		return;
 	if (n_cmp_feedbacks <  config["cmp_max_n_feedback"]){
 		n_cmp_feedbacks++;
-		msg = "Please check your answers in the Setup section again. Make sure to do your task in a quite environment with headset and use both earpods.";
-		last_time_msg = " It is the last time you see this feedback."
+		msg = "Based on your answers, your environment is NOT quite enough or your setup is NOT good enough. Please make sure to do your task in a quite environment with headset and use both earpods. Try the Setup section again.";
+		last_time_msg = " It is the last time you see this feedback.";
+		makeAllCMPsUnChecked();
 		if (n_cmp_feedbacks ==config["cmp_max_n_feedback"])
 			alert(msg+last_time_msg);
 		else
 			alert(msg);
+
 	}
 	// 4.2 remove the listener
 	if (n_cmp_feedbacks >=  config["cmp_max_n_feedback"]){
@@ -434,6 +436,19 @@ function validateCMPSection(){
 	  		$(this).off('change');
 		});
 	}
+}
+
+function makeAllCMPsUnChecked(){
+	// remove the listeners
+	$('#setup').find(':input').filter(':visible').each(function(){
+	  		$(this).off('change');
+	});
+	// uncheck radio <buttons></buttons>
+	for (i = 1; i < 5; i++) {
+		$("input[name='cmp{0}']:checked".f(i)).prop('checked', false);
+	}
+	// add the listeners
+	cmp_check_on_load()
 }
 
 //--------------- Utilities -----------------
@@ -1169,32 +1184,32 @@ function generate_rating_section(){
 			<div class="row" style="margin: 30px;">
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n1" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s0.wav" >&nbsp;</span>
+						<span class="baudio" id="n1" title="" data-src="{{cfg.num1_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num1" required="" class="nospace" autocomplete="off">
 				</div>
 
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n2" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s1.wav" >&nbsp;</span>
+						<span class="baudio" id="n2" title="" data-src="{{cfg.num2_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num2" required="" class="nospace" autocomplete="off">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row"style="text-align:center;">
-						<span class="baudio" id="n3" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s2.wav" >&nbsp;</span>
+						<span class="baudio" id="n3" title="" data-src="{{cfg.num3_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num3" required="" class="nospace" autocomplete="off">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row"style="text-align:center;">
-						<span class="baudio" id="n4" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s3.wav" >&nbsp;</span>
+						<span class="baudio" id="n4" title="" data-src="{{cfg.num4_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num4" required="" class="nospace" autocomplete="off">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n5" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s4.wav" >&nbsp;</span>
+						<span class="baudio" id="n5" title="" data-src="{{cfg.num5_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num5" required="" class="nospace" autocomplete="off">
 				</div>

@@ -336,7 +336,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
         df_trap = await trapclipsstore.get_dataframe()
     # trapping clips are required, at list 1 clip should be available here
     if len(df_trap.index) < 1 and int(cfg_g['number_of_clips_per_session']) > 0:
-        raise (f"At least one trapping clip is required")
+        raise ("At least one trapping clip is required")
     for index, row in df_trap.head(n=1).iterrows():
         trap_url = row['trapping_clips']
         trap_ans = row['trapping_ans']
@@ -547,8 +547,31 @@ def prepare_basic_cfg(df):
         b = int((row["pair_b"].rsplit('/', 1)[-1])[:2])
         url = row["pair_a"] if a > b else row["pair_b"]
         base64_urls.append(base64.b64encode(url.encode('ascii')).decode('ascii'))
+
+    # randomly select numbers for hearing test
+    clear_sample_url = "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s0.wav"
+    clear_sample_ans = "289"
+
+    only_hearing_test = df[['hearing_test_url', 'hearing_test_ans']].copy()
+    only_hearing_test.dropna(subset=["hearing_test_url"], inplace=True)
+    sample = only_hearing_test.sample(n=4)
+    sample = sample.append({"hearing_test_url": clear_sample_url,
+                            "hearing_test_ans": clear_sample_ans}, ignore_index=True)
+    sample["hearing_test_ans"] = sample["hearing_test_ans"].apply(lambda x: str(int(x)))
+    i = 2
+    for index, row in sample.iterrows():
+        ans = row["hearing_test_ans"]
+        if ans == clear_sample_ans:
+            index = 1
+        else:
+            index = i
+            i += 1
+        config[f"num{index}_url"] = row["hearing_test_url"]
+        config[f"num{index}_ans"] = base64.b64encode(ans.encode('ascii')).decode('ascii')
+
+    # set environment test
     config["cmp_correct_answers"] = base64_urls
-    config["cmp_max_n_feedback"] = 10
+    config["cmp_max_n_feedback"] = 3
     config["cmp_pass_threshold"] = 2
     return config
 
@@ -672,8 +695,8 @@ async def main(cfg, test_method, args):
     elif test_method == 'acr':
         await create_hit_app_acr(cfg['acr_html'], template_path, output_html_file, args.training_clips,
                            args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
-    elif test_method in ['p835', 'echo_impairment_test'] :
-        cfg_part = cfg['p835_html'] if test_method == 'acr'else cfg['echo_impairment_test_html']
+    elif test_method in ['p835', 'echo_impairment_test']:
+        cfg_part = cfg['p835_html'] if test_method == 'p835'else cfg['echo_impairment_test_html']
         await create_hit_app_p835(cfg_part, template_path, output_html_file, args.training_clips,
                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
     else:
