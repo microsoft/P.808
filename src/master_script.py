@@ -281,6 +281,7 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     config['cookie_name'] = cfg['cookie_name']
     config['qual_cookie_name'] = cfg['qual_cookie_name']
     config['allowed_max_hit_in_project'] = cfg['allowed_max_hit_in_project']
+    config['contact_email'] = cfg["contact_email"] if "contact_email" in cfg else "ic3ai@outlook.com"
 
     config['hit_base_payment'] = cfg['hit_base_payment']
     config['quantity_hits_more_than'] = cfg['quantity_hits_more_than']
@@ -359,6 +360,8 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     config['allowed_max_hit_in_project'] = cfg['allowed_max_hit_in_project']
     config['training_trap_urls'] = trap_url
     config['training_trap_ans'] = trap_ans
+    config['contact_email'] = cfg["contact_email"] if "contact_email" in cfg else "ic3ai@outlook.com"
+
 
     config['hit_base_payment'] = cfg['hit_base_payment']
     config['quantity_hits_more_than'] = cfg['quantity_hits_more_than']
@@ -435,6 +438,7 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     config['allowed_max_hit_in_project'] = cfg['allowed_max_hit_in_project']
     config['training_trap_urls'] = trap_url
     config['training_trap_ans'] = trap_ans
+    config['contact_email'] = cfg["contact_email"] if "contact_email" in cfg else "ic3ai@outlook.com"
 
     config['hit_base_payment'] = cfg['hit_base_payment']
     config['quantity_hits_more_than'] = cfg['quantity_hits_more_than']
