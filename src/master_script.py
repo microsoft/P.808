@@ -186,8 +186,20 @@ def create_analyzer_cfg_acr(cfg, template_path, out_path):
     print(f"  [{out_path}] is created")
 """
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
-def create_analyzer_cfg_general(cfg, cfg_section_name, template_path, out_path):
+
+
+def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path):
     """
     create cfg file to be used by analyzer script (acr, p835, and echo_impairment_test method)
     :param cfg:
@@ -203,12 +215,12 @@ def create_analyzer_cfg_general(cfg, cfg_section_name, template_path, out_path):
                       int(cfg['create_input']['number_of_trapping_per_session']) + \
                       int(cfg['create_input']['number_of_gold_clips_per_session'])
 
-    config['max_allowed_hits'] = cfg[cfg_section_name]['allowed_max_hit_in_project']
+    config['max_allowed_hits'] = cfg_section['allowed_max_hit_in_project']
 
-    config['quantity_hits_more_than'] = cfg[cfg_section_name]['quantity_hits_more_than']
-    config['quantity_bonus'] = cfg[cfg_section_name]['quantity_bonus']
-    config['quality_top_percentage'] = cfg[cfg_section_name]['quality_top_percentage']
-    config['quality_bonus'] = cfg[cfg_section_name]['quality_bonus']
+    config['quantity_hits_more_than'] = cfg_section['quantity_hits_more_than']
+    config['quantity_bonus'] = cfg_section['quantity_bonus']
+    config['quality_top_percentage'] = cfg_section['quality_top_percentage']
+    config['quality_bonus'] = cfg_section['quality_bonus']
 
     with open(template_path, 'r') as file:
         content = file.read()
@@ -498,7 +510,7 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
             print('length of urls for store [{0}] is [{1}]'.format(model, len(await enhancedClip.clip_names)))
             rating_clips = rating_clips + eclips_urls
 
-        df_clips = pd.DataFrame({'rating_clips':rating_clips})
+        df_clips = pd.DataFrame({'rating_clips': rating_clips})
 
     df_general = pd.read_csv(general)
     if test_method in ["acr", "p835", "echo_impairment_test"]:
@@ -664,6 +676,22 @@ async def main(cfg, test_method, args):
     assert os.path.exists(general_path), f"No csv file containing general infos in {general_path}"
     template_path, cfg_path = get_path(test_method, is_p831)
 
+    cfg_hit_app = None
+    if "hit_app_html" in cfg:
+        cfg_hit_app = cfg["hit_app_html"]
+    else:
+        print("\nWARNING: Your configuration file is outdated. Consider to use the new version.\n")
+        if is_p831:
+            cfg_hit_app = cfg['p831_html']
+        elif test_method == 'acr':
+            cfg_hit_app = cfg['acr_html']
+        elif test_method == 'p835':
+            cfg_hit_app = cfg['p835_html']
+        elif test_method == 'echo_impairment_test':
+            cfg_hit_app = cfg['echo_impairment_test_html']
+        else:
+            cfg_hit_app = cfg['dcr_ccr_html']
+
     # create output folder
     output_dir = args.project
     if not os.path.exists(output_dir):
@@ -677,7 +705,12 @@ async def main(cfg, test_method, args):
     print('... validation is finished.')
 
     output_csv_file = os.path.join(output_dir, args.project+'_publish_batch.csv')
-    ca.create_input_for_mturk(cfg['create_input'], df, test_method, output_csv_file)
+    n_HITs = ca.create_input_for_mturk(cfg['create_input'], df, test_method, output_csv_file)
+
+    # check settings of quantity bonus
+    if not (int(cfg_hit_app["quantity_hits_more_than"]) in range(int(n_HITs/2),  int(n_HITs*2/3))):
+        print("\nWARNING: it seems that 'quantity_hits_more_than' not set properly. Consider to use a number in"
+                              f" the range of [{int(n_HITs/2)}, {int(n_HITs*2/3)}].\n")
 
     # create general config
     general_cfg = prepare_basic_cfg(df)
@@ -687,32 +720,31 @@ async def main(cfg, test_method, args):
     output_html_file = os.path.join(output_dir, output_file_name)
 
     if is_p831 and test_method == 'acr':
-        await create_hit_app_acr(cfg['p831_html'], template_path, output_html_file, args.training_clips,
-                           args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
-    elif is_p831 and test_method == 'dcr':
-        await create_hit_app_ccr_dcr(cfg['p831_html'], template_path, output_html_file, args.training_clips,
-                               cfg['create_input'], general_cfg)
-    elif test_method == 'acr':
-        await create_hit_app_acr(cfg['acr_html'], template_path, output_html_file, args.training_clips,
-                           args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
-    elif test_method in ['p835', 'echo_impairment_test']:
-        cfg_part = cfg['p835_html'] if test_method == 'p835'else cfg['echo_impairment_test_html']
-        await create_hit_app_p835(cfg_part, template_path, output_html_file, args.training_clips,
+        await create_hit_app_acr(cfg_hit_app, template_path, output_html_file, args.training_clips,
                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
+    elif is_p831 and test_method == 'dcr':
+        await create_hit_app_ccr_dcr(cfg_hit_app, template_path, output_html_file, args.training_clips,
+                                     cfg['create_input'], general_cfg)
+    elif test_method == 'acr':
+        await create_hit_app_acr(cfg_hit_app, template_path, output_html_file, args.training_clips,
+                                 args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
+    elif test_method in ['p835', 'echo_impairment_test']:
+        await create_hit_app_p835(cfg_hit_app, template_path, output_html_file, args.training_clips,
+                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
     else:
-        await create_hit_app_ccr_dcr(cfg['dcr_ccr_html'], template_path, output_html_file, args.training_clips,
-                               cfg['create_input'], general_cfg)
+        await create_hit_app_ccr_dcr(cfg_hit_app, template_path, output_html_file, args.training_clips,
+                                     cfg['create_input'], general_cfg)
 
     # create a config file for analyzer
     output_cfg_file_name = f"{args.project}_p831_{test_method}_result_parser.cfg" if is_p831 else f"{args.project}_{test_method}_result_parser.cfg"
     output_cfg_file = os.path.join(output_dir, output_cfg_file_name)
 
     if is_p831 and test_method == 'acr':
-        create_analyzer_cfg_general(cfg, 'acr_html', cfg_path, output_cfg_file)
+        create_analyzer_cfg_general(cfg, cfg_hit_app, cfg_path, output_cfg_file)
     elif is_p831 and test_method == 'dcr':
         create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file)
     elif test_method in ['acr', 'p835', 'echo_impairment_test']:
-        create_analyzer_cfg_general(cfg, f'{test_method}_html', cfg_path, output_cfg_file)
+        create_analyzer_cfg_general(cfg, cfg_hit_app, cfg_path, output_cfg_file)
     else:
         create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file)
 
