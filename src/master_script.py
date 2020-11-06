@@ -142,6 +142,7 @@ class TrappingSamplesInStore(ClipsInAzureStorageAccount):
         df = df.append(clipsList)
         return df
 
+
 class PairComparisonSamplesInStore(ClipsInAzureStorageAccount):
     async def get_dataframe(self):
         clips = await self.clip_names
@@ -185,19 +186,6 @@ def create_analyzer_cfg_acr(cfg, template_path, out_path):
         file.close()
     print(f"  [{out_path}] is created")
 """
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-
 
 def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path):
     """
@@ -575,7 +563,7 @@ def prepare_basic_cfg(df):
                             "hearing_test_ans": clear_sample_ans}, ignore_index=True)
     sample["hearing_test_ans"] = sample["hearing_test_ans"].apply(lambda x: str(int(x)))
     i = 2
-    for index, row in sample.iterrows():
+    for x, row in sample.iterrows():
         ans = row["hearing_test_ans"]
         if ans == clear_sample_ans:
             index = 1
@@ -587,7 +575,7 @@ def prepare_basic_cfg(df):
 
     # set environment test
     config["cmp_correct_answers"] = base64_urls
-    config["cmp_max_n_feedback"] = 3
+    config["cmp_max_n_feedback"] = 1
     config["cmp_pass_threshold"] = 2
     return config
 

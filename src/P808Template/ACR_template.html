@@ -235,7 +235,7 @@ function isAnyParallelSession(){
 function recordError(name, message){
 	generalErrorLog =generalErrorLog + " Error "+name+": "+message+";%0D%0A"
 	$('#errors').val(generalErrorLog);
-	$("#errorEmail").attr("href","mailto:ic3ai@outlook.com?subject=Error on HIT Load&body="+generalErrorLog);
+	$("#errorEmail").attr("href","mailto:"+config["emailAddress"]+"?subject=Error on HIT Load&body="+generalErrorLog);
 	$("#errorSection").show();
 }
 
