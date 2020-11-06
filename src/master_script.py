@@ -673,7 +673,7 @@ async def main(cfg, test_method, args):
         await create_hit_app_acr(cfg['acr_html'], template_path, output_html_file, args.training_clips,
                            args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
     elif test_method in ['p835', 'echo_impairment_test'] :
-        cfg_part = cfg['p835_html'] if test_method == 'acr'else cfg['echo_impairment_test_html']
+        cfg_part = cfg['p835_html'] if test_method == 'p835' else cfg['echo_impairment_test_html']
         await create_hit_app_p835(cfg_part, template_path, output_html_file, args.training_clips,
                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
     else:
