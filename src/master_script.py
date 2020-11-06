@@ -718,6 +718,7 @@ async def main(cfg, test_method, args):
         await create_hit_app_ccr_dcr(cfg_hit_app, template_path, output_html_file, args.training_clips,
                                      cfg['create_input'], general_cfg)
     elif test_method == 'acr':
+
         await create_hit_app_acr(cfg_hit_app, template_path, output_html_file, args.training_clips,
                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
     elif test_method in ['p835', 'echo_impairment_test']:
