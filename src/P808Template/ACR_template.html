@@ -416,9 +416,12 @@ function validateCMPSection(){
 			correct_ans ++;
 	}
 	// 4. shows the message if needed
-	if (correct_ans >= config["cmp_correct_answers"])
+	if (correct_ans >= config["cmp_correct_answers"]){
 		// valid response in cmp
+		createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
 		return;
+	}
+	removeCookie(config['cookieName']+"_setup");
 	if (n_cmp_feedbacks <  config["cmp_max_n_feedback"]){
 		n_cmp_feedbacks++;
 		msg = "Based on your answers, your environment is NOT quite enough or your setup is NOT good enough. Please make sure to do your task in a quite environment with headset and use both earpods. Try the Setup section again.";
@@ -581,6 +584,13 @@ function readCookieOld(name) {
     return null;
 }
 
+
+/*
+	Remove the variable from local storage
+*/
+function removeCookie(name) {
+	localStorage.removeItem(name);
+}
 
 /*
 	Callback when "Next" in Rating section is clicked.

@@ -575,7 +575,7 @@ def prepare_basic_cfg(df):
 
     # set environment test
     config["cmp_correct_answers"] = base64_urls
-    config["cmp_max_n_feedback"] = 1
+    config["cmp_max_n_feedback"] = 4
     config["cmp_pass_threshold"] = 2
     return config
 
