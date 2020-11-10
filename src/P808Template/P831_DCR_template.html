@@ -78,7 +78,7 @@ var config ={
 	qualificationValidFor:43200,
     forceRetrainingInHours:1,
     showSetupEveryMinutes:30,
-    debug:"true",
+    debug:"false",
     questionUrls: {{cfg.rating_urls}},
     trainingUrls: {{cfg.training_urls}},
 
@@ -96,20 +96,24 @@ var config ={
 		ld_in: ["in-ear", "over-ear"],
 		working_area: "N",
 		hearing: "normal",
- 		num1: "289",
-        num2: "246",
-        num3: "626",
-        num4: "802",
-        num5: "913"
+ 		num1: "{{cfg.num1_ans}}",
+        num2: "{{cfg.num2_ans}}",
+        num3: "{{cfg.num3_ans}}",
+        num4: "{{cfg.num4_ans}}",
+        num5: "{{cfg.num5_ans}}"
 	},
-	emailAddress:"ic3ai@outlook.com"
+	cmp_correct_answers: {{cfg.cmp_correct_answers}},
+	cmp_max_n_feedback : {{cfg.cmp_max_n_feedback}},
+	cmp_pass_threshold: {{cfg.cmp_pass_threshold}},
+	emailAddress: "{{cfg.contact_email}}"
 }
 
 // if performing of this assignment is already counted
 var hitCounterIncreased = false;
 // record the errors happened in the page
 var generalErrorLog= "";
-
+// how many times a feedback was given to the workers,
+var n_cmp_feedbacks = 0;
 const Hide_HIT_REASON = Object.freeze({"MAX_ACHIVED":1, "QUALIFICATON":2})
 /*
 Initializing the page: generate and hide sections depending to the cookies value
@@ -170,6 +174,8 @@ $(function() {
 
 		// for qualification section
 		initializeQualification();
+		cmp_check_on_load();
+
 	}catch(err){
 		console.error(err);
 		recordError(err.name,err.message);
@@ -227,17 +233,17 @@ function validateQualificationAnswer(){
 	working_area_checked= $("input[name='7_working_area']:checked").val() =="N"
 	hearing_self_report_check=$("input[name='8_hearing']:checked").val() == "normal"
 	count_correct_ht=0;
-	if ($("input[name='num1']").val().trim()==config.qualification.num1)
+	if (checkQualNumCorrect($("input[name='num1']").val().trim(),config.qualification.num1))
 		count_correct_ht ++;
-	if ($("input[name='num2']").val().trim()==config.qualification.num2)
+	if (checkQualNumCorrect($("input[name='num2']").val().trim(),config.qualification.num2))
 		count_correct_ht ++;
-	if ($("input[name='num3']").val().trim()==config.qualification.num3)
+	if (checkQualNumCorrect($("input[name='num3']").val().trim(),config.qualification.num3))
 		count_correct_ht ++;
-	if ($("input[name='num4']").val().trim()==config.qualification.num4)
+	if (checkQualNumCorrect($("input[name='num4']").val().trim(),config.qualification.num4))
 		count_correct_ht ++;
-	if ($("input[name='num5']").val().trim()==config.qualification.num5)
+	if (checkQualNumCorrect($("input[name='num5']").val().trim(),config.qualification.num5))
 		count_correct_ht ++;
-	console.log("count_correct_ht:"+count_correct_ht);
+	//console.log("count_correct_ht:"+count_correct_ht);
 	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check &&
 		count_correct_ht>= 3;
 	console.log(passed);
@@ -313,8 +319,98 @@ function addBrowserInfo(debug){
 
 	$('#browser_info').val(info);
 	console.log(info);
-
 }
+
+//-------- check qual num online
+function checkQualNumCorrect(given_ans, correct_hash){
+	return btoa(given_ans) == correct_hash;
+}
+// ------------------------ online check cmp
+
+/*
+ check if the answer to a CMP question is correct.
+*/
+function isCMPAnsCorrect(selected_url){
+	// for backward compatibility
+	if (!config.hasOwnProperty("correct_cmp_answers"))
+		return true;
+	b64 = btoa(selected_url);
+	return config["correct_cmp_answers"].includes(b64);
+}
+
+// add this to onload of page
+function cmp_check_on_load(){
+	$('#setup').find(':input').filter(':visible').each(function(){
+	  $(this).on('change', validateCMPSection);
+	});
+}
+
+/*
+	Validate the answers give to the cmps in the setup section and provide an adequate feedback
+*/
+function validateCMPSection(){
+	// 1. check if all questions are answered
+	cmp_answers= [];
+	for (i = 1; i < 5; i++) {
+		ans = $("input[name='cmp{0}']:checked".f(i)).val();
+	  	if (!ans)
+	  		return;
+	  	cmp_answers.push(ans);
+	}
+	math_ans = $('#Math').val();
+	if (!math_ans)
+	  	return;
+
+		// 2. check math question
+	// do not check math question now
+	// 3. check cmps
+	correct_ans = 0 ;
+	for (i = 0; i < 4; i++) {
+		if (cmp_answers[i] == "o")
+			continue;
+		url = $('span[id="CMP{0}_{1}"]'.f(i+1, cmp_answers[i].toUpperCase())).attr("data-src");
+		if (config["cmp_correct_answers"].includes(btoa(url)))
+			correct_ans ++;
+	}
+	// 4. shows the message if needed
+	if (correct_ans >= config["cmp_correct_answers"]){
+		// valid response in cmp
+		createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
+		return;
+	}
+	removeCookie(config['cookieName']+"_setup");
+	if (n_cmp_feedbacks <  config["cmp_max_n_feedback"]){
+		n_cmp_feedbacks++;
+		msg = "Based on your answers, your environment is NOT quite enough or your setup is NOT good enough. Please make sure to do your task in a quite environment with headset and use both earpods. Try the Setup section again.";
+		last_time_msg = " It is the last time you see this feedback.";
+		makeAllCMPsUnChecked();
+		if (n_cmp_feedbacks ==config["cmp_max_n_feedback"])
+			alert(msg+last_time_msg);
+		else
+			alert(msg);
+
+	}
+	// 4.2 remove the listener
+	if (n_cmp_feedbacks >=  config["cmp_max_n_feedback"]){
+		$('#setup').find(':input').filter(':visible').each(function(){
+	  		$(this).off('change');
+		});
+	}
+}
+
+function makeAllCMPsUnChecked(){
+	// remove the listeners
+	$('#setup').find(':input').filter(':visible').each(function(){
+	  		$(this).off('change');
+	});
+	// uncheck radio <buttons></buttons>
+	for (i = 1; i < 5; i++) {
+		$("input[name='cmp{0}']:checked".f(i)).prop('checked', false);
+	}
+	// add the listeners
+	cmp_check_on_load()
+}
+
 //--------------- Utilities -----------------
 
 /*
@@ -413,6 +509,14 @@ function readCookie(name) {
 	}else
 		return null;
 }
+
+/*
+	Remove the variable from local storage
+*/
+function removeCookie(name) {
+	localStorage.removeItem(name);
+}
+
 
 /*
 	Callback when "Next" in Rating section is clicked.
@@ -1020,32 +1124,32 @@ function generate_rating_section(){
 			<div class="row" style="margin: 30px;">
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n1" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s0.wav" >&nbsp;</span>
+						<span class="baudio" id="n1" title="" data-src="{{cfg.num1_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num1" required="" class="nospace" autocomplete="off">
 				</div>
 
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n2" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s1.wav" >&nbsp;</span>
+						<span class="baudio" id="n2" title="" data-src="{{cfg.num2_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num2" required="" class="nospace" autocomplete="off">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row"style="text-align:center;">
-						<span class="baudio" id="n3" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s2.wav" >&nbsp;</span>
+						<span class="baudio" id="n3" title="" data-src="{{cfg.num3_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num3" required="" class="nospace" autocomplete="off">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row"style="text-align:center;">
-						<span class="baudio" id="n4" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s3.wav" >&nbsp;</span>
+						<span class="baudio" id="n4" title="" data-src="{{cfg.num4_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num4" required="" class="nospace" autocomplete="off">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n5" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s4.wav" >&nbsp;</span>
+						<span class="baudio" id="n5" title="" data-src="{{cfg.num5_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num5" required="" class="nospace" autocomplete="off">
 				</div>

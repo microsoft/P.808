@@ -470,6 +470,14 @@ function readCookie(name) {
 
 
 /*
+	Remove the variable from local storage
+*/
+function removeCookie(name) {
+	localStorage.removeItem(name);
+}
+
+
+/*
 	Callback when "Next" in Rating section is clicked.
 */
 function showNextQuestionInRatingSection(){

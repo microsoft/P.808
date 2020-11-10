@@ -139,6 +139,7 @@ def create_input_for_acr(cfg, df, output_path):
         output_df['gold_clips_ans'] = full_gold_clips_answer
 
     output_df.to_csv(output_path, index=False)
+    return len(output_df)
 
 
 def create_input_for_dcrccr(cfg, df, output_path):
@@ -217,6 +218,7 @@ def create_input_for_dcrccr(cfg, df, output_path):
         random.shuffle(full_trappings)
         output_df['TP'] = full_trappings
     output_df.to_csv(output_path, index=False)
+    return len(output_df)
 
 
 def create_input_for_mturk(cfg, df, method, output_path):
@@ -227,9 +229,9 @@ def create_input_for_mturk(cfg, df, method, output_path):
     :param output_path: path to output file
     """
     if method in ['acr', 'p835', 'echo_impairment_test']:
-        create_input_for_acr(cfg, df, output_path)
+        return create_input_for_acr(cfg, df, output_path)
     else:
-        create_input_for_dcrccr(cfg, df, output_path)
+        return create_input_for_dcrccr(cfg, df, output_path)
 
 
 if __name__ == '__main__':
