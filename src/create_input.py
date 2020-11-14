@@ -14,7 +14,9 @@ import pandas as pd
 import math
 import random
 import numpy as np
-
+import re
+import collections
+import itertools
 
 def validate_inputs(cfg, df, method):
     """
@@ -43,6 +45,153 @@ def validate_inputs(cfg, df, method):
         assert 'gold_clips_ans' in columns, f"No column found with 'gold_clips_ans' in input file " \
             f"(required since v.1.0)"
 
+file_to_condition_map = {}
+
+def conv_filename_to_condition(f_name, condition_pattern):
+    """
+    extract the condition name from filename given the mask in the config
+    :param f_name:
+    :return:
+    """
+    if f_name in file_to_condition_map:
+        return file_to_condition_map[f_name]
+    file_to_condition_map[f_name] = {'Unknown': 'NoCondition'}
+    m = re.match(condition_pattern, f_name)
+    if m:
+        file_to_condition_map[f_name] = m.groupdict('')
+        file_to_condition_map[f_name] = collections.OrderedDict(sorted(file_to_condition_map[f_name].items()))
+    return file_to_condition_map[f_name]
+
+
+def add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session, output_df):
+    block_keys = [x.strip() for x in keys.split(',')]
+    if len(block_keys) > 2:
+        raise SystemExit("Error: balanced_block design- only up to 2 keys in 'block_keys' are supported")
+    data = pd.DataFrame(columns=block_keys.copy().insert(0,' url'))
+
+    for clip in clips:
+        condition = conv_filename_to_condition(clip, condition_pattern)
+        tmp = condition.copy()
+        tmp['url'] = clip
+        data = data.append(tmp, ignore_index=True)
+    if 'Unknown' in data:
+        unknown_count = data['Unknown'].dropna().count()
+        raise SystemExit(f"Error: balanced_block design- {unknown_count} clips did not match the 'condition_pattern'.")
+
+    # check if block design is possible
+    df_agg = data.groupby(block_keys).agg(count_url=('url', 'count'))
+
+    #      are all combinations exists
+    num_unique = {}
+    for key in block_keys:
+        num_unique[key] = len(data[key].unique())
+    combination = np.prod(list(num_unique.values()))
+
+    if len(df_agg) != combination:
+        raise SystemExit("Error: balanced_block design- Not all combination between block_keys exist.")
+    #      check if in each block similar number of clips appears
+    files_per_block = df_agg.count_url.unique()
+    if len(files_per_block) > 1:
+        raise SystemExit("Error: balanced_block design- unequal number of clips per block")
+
+    # check number of files and how to combine elements
+    #      number of clips in the session should be a multiples of values of first block_key
+    n_clips_in_block = num_unique[block_keys[0]]
+    if n_clips_per_session % n_clips_in_block != 0:
+        raise SystemExit("Error: balanced_block design- number_of_clips_per_session should be a multiples of values of "
+                         f"first block_key. Found {num_unique[block_keys[0]]} unique values for '{block_keys[0]}'. "
+                         f"Therefore number_of_clips_per_session should be a multiples of {num_unique[block_keys[0]]})")
+    # create the blocks
+    n_clips = clips.count()
+    #  create block sets
+    column_names = [f"url_{i}" for i in range(0, num_unique[block_keys[0]])]
+    blocked_df = pd.DataFrame(columns=column_names)
+    filtered_data_list = []
+
+    if len(block_keys) > 1:
+        # only 2 blocks were allowed
+        key1_unique_values = list(data[block_keys[1]].unique())
+        for val in key1_unique_values:
+            filtered_data_list.append(data[data[block_keys[1]]==val].copy().reset_index(drop=True))
+    else:
+        filtered_data_list.append(data)
+
+    key0_unique_values = list(data[block_keys[0]].unique())
+    for d in filtered_data_list:
+        i = 0
+        u = {}
+        for val in key0_unique_values:
+            tmp = d[d[block_keys[0]] == val].url.tolist()
+            random.shuffle(tmp)
+            u[f"url_{i}"] = tmp
+            i += 1
+        tmp_df = pd.DataFrame.from_dict(u)
+        blocked_df = blocked_df.append(tmp_df, ignore_index=True)
+
+    # shuffel
+    blocked_df = blocked_df.sample(frac=1)
+    # add extra blocks to have complete sessions
+    blocks_per_session = n_clips_per_session / n_clips_in_block
+    if len(blocked_df) % blocks_per_session != 0:
+        n_extra_blocks = int(blocks_per_session - (len(blocked_df) % blocks_per_session))
+        extra_blocks = blocked_df.sample(n=n_extra_blocks)
+        blocked_df = blocked_df.append(extra_blocks, ignore_index=True)
+
+    # create the sessions
+    np_blocks = blocked_df[column_names].to_numpy()
+    np_blocks_reshaped = np.reshape(np_blocks, (-1, n_clips_per_session), order='c')
+    for q in range(n_clips_per_session):
+        output_df[f'Q{q}'] = np_blocks_reshaped[:, q]
+    return output_df
+
+
+def add_clips_balanced_block_ccr(clips, refs, condition_pattern, keys, n_clips_per_session, output_df):
+    # create the structure only using clips
+    add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session, output_df)
+    clips = clips.tolist()
+    refs = refs.tolist()
+    for q in range(n_clips_per_session):
+        clip_list = output_df[f'Q{q}'].tolist()
+        ref_list = []
+        for c in clip_list:
+            ref_list.append(refs[clips.index(c)])
+        output_df[f'Q{q}_R'] = ref_list
+        output_df.rename(columns={f'Q{q}': f'Q{q}_P'}, inplace=True)
+
+
+def add_clips_random(clips, n_clips_per_session, output_df):
+    n_clips = clips.count()
+    n_sessions = math.ceil(n_clips / n_clips_per_session)
+    needed_clips = n_sessions * n_clips_per_session
+    all_clips = np.tile(clips.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
+    #   check the method: clips_selection_strategy
+    random.shuffle(all_clips)
+
+    clips_sessions = np.reshape(all_clips, (n_sessions, n_clips_per_session))
+
+    for q in range(n_clips_per_session):
+        output_df[f'Q{q}'] = clips_sessions[:, q]
+
+
+def add_clips_random_ccr(clips, refs, n_clips_per_session, output_df):
+    n_clips = clips.count()
+    n_sessions = math.ceil(n_clips / n_clips_per_session)
+    needed_clips = n_sessions * n_clips_per_session
+
+    full_clips = np.tile(clips.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
+    full_refs = np.tile(refs.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
+
+    full = list(zip(full_clips, full_refs))
+    random.shuffle(full)
+    full_clips, full_refs = zip(*full)
+
+    clips_sessions = np.reshape(full_clips, (n_sessions, n_clips_per_session))
+    refs_sessions = np.reshape(full_refs, (n_sessions, n_clips_per_session))
+
+    for q in range(n_clips_per_session):
+        output_df[f'Q{q}_P'] = clips_sessions[:, q]
+        output_df[f'Q{q}_R'] = refs_sessions[:, q]
+
 
 def create_input_for_acr(cfg, df, output_path):
     """
@@ -54,8 +203,17 @@ def create_input_for_acr(cfg, df, output_path):
     """
     clips = df['rating_clips'].dropna()
     n_clips = clips.count()
-    n_sessions = math.ceil(n_clips / int(cfg['number_of_clips_per_session']))
+    n_clips_per_session = int(cfg['number_of_clips_per_session'])
+    output_df = pd.DataFrame()
+    packing_strategy = cfg.get("clip_packing_strategy", "random").strip().lower()
 
+    if packing_strategy == "balanced_block":
+        add_clips_balanced_block(clips, cfg["condition_pattern"], cfg.get("block_keys", cfg["condition_keys"]),
+                                 n_clips_per_session, output_df)
+    elif packing_strategy == "random":
+        add_clips_random(clips, n_clips_per_session, output_df)
+
+    n_sessions = math.ceil(n_clips / int(cfg['number_of_clips_per_session']))
     print(f'{n_clips} clips and {n_sessions} sessions')
 
     # create math
@@ -80,25 +238,13 @@ def create_input_for_acr(cfg, df, output_path):
     for i in range(n_sessions):
         new_4[i] = np.roll(new_4[i], random.randint(1, 3) * 2)
 
-    output_df = pd.DataFrame({'CMP1_A': new_4[:, 0], 'CMP1_B': new_4[:, 1],
-                              'CMP2_A': new_4[:, 2], 'CMP2_B': new_4[:, 3],
-                              'CMP3_A': new_4[:, 4], 'CMP3_B': new_4[:, 5],
-                              'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
+    output_df = output_df.assign(**{'CMP1_A': new_4[:, 0], 'CMP1_B': new_4[:, 1],
+                                    'CMP2_A': new_4[:, 2], 'CMP2_B': new_4[:, 3],
+                                    'CMP3_A': new_4[:, 4], 'CMP3_B': new_4[:, 5],
+                                    'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
 
     # add math
     output_df['math'] = math_output
-    # rating_clips
-    #   repeat some clips to have a full design
-    n_questions = int(cfg['number_of_clips_per_session'])
-    needed_clips = n_sessions * n_questions
-    all_clips = np.tile(clips.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
-    #   check the method: clips_selection_strategy
-    random.shuffle(all_clips)
-
-    clips_sessions = np.reshape(all_clips, (n_sessions, n_questions))
-
-    for q in range(n_questions):
-        output_df[f'Q{q}'] = clips_sessions[:, q]
 
     # trappings
     if int(cfg['number_of_trapping_per_session']) > 0:
@@ -119,6 +265,7 @@ def create_input_for_acr(cfg, df, output_path):
         full_trappings, full_trappings_answer = zip(*full_tp)
         output_df['TP'] = full_trappings
         output_df['TP_ANS'] = full_trappings_answer
+
     # gold_clips
     if int(cfg['number_of_gold_clips_per_session']) > 0:
         if int(cfg['number_of_gold_clips_per_session']) > 1:
@@ -155,8 +302,19 @@ def create_input_for_dcrccr(cfg, df, output_path):
 
     n_clips = clips.count()
     if n_clips != refs.count():
-        raise Exception('size of "rating_clips" and "references" are not equal.')
-    n_sessions = math.ceil(n_clips / int(cfg['number_of_clips_per_session']))
+        raise SystemExit('size of "rating_clips" and "references" are not equal.')
+    n_clips_per_session = int(cfg['number_of_clips_per_session'])
+
+    output_df = pd.DataFrame()
+    packing_strategy = cfg.get("clip_packing_strategy", "random").strip().lower()
+
+    if packing_strategy == "balanced_block":
+        add_clips_balanced_block_ccr(clips, refs, cfg["condition_pattern"], cfg.get("block_keys", cfg["condition_keys"])
+                                     , n_clips_per_session, output_df)
+    elif packing_strategy == "random":
+        add_clips_random_ccr(clips, refs, n_clips_per_session, output_df)
+
+    n_sessions = math.ceil(n_clips / n_clips_per_session)
     print(f'{n_clips} clips and {n_sessions} sessions')
 
     # create math
@@ -181,11 +339,10 @@ def create_input_for_dcrccr(cfg, df, output_path):
     for i in range(n_sessions):
         new_4[i] = np.roll(new_4[i], random.randint(1, 3) * 2)
 
-    output_df = pd.DataFrame({'CMP1_A': new_4[:, 0], 'CMP1_B': new_4[:, 1],
-                              'CMP2_A': new_4[:, 2], 'CMP2_B': new_4[:, 3],
-                              'CMP3_A': new_4[:, 4], 'CMP3_B': new_4[:, 5],
-                              'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
-
+    output_df = output_df.assign(**{'CMP1_A': new_4[:, 0], 'CMP1_B': new_4[:, 1],
+                                    'CMP2_A': new_4[:, 2], 'CMP2_B': new_4[:, 3],
+                                    'CMP3_A': new_4[:, 4], 'CMP3_B': new_4[:, 5],
+                                    'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
     # add math
     output_df['math'] = math_output
     # rating_clips
