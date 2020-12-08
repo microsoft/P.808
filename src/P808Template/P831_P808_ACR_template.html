@@ -1,0 +1,1720 @@
+<!--
+/*---------------------------------------------------------------------------------------------
+*  Copyright (c) Microsoft Corporation. All rights reserved.
+*  Licensed under the MIT License. See License.txt in the project root for license information.
+*--------------------------------------------------------------------------------------------*/
+@author: Babak Naderi
+-->
+
+<head>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+	<meta content="utf-8">
+</head>
+
+
+<style type="text/css">
+body{font-family:Tahoma,"Times New Roman", Times, serif;}
+
+.table th, .table td {
+     border-top: none !important;
+}
+.center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 30%;
+}
+
+.baudio {margin:5px;}
+.baudio .baudio_table{display: inline;}
+.baudio .bn{margin:10px;}
+.baudio td{text-align:center;}
+.baudio .blabel{margin-top:50px;font-size: 70%;	color: #636363;}
+
+.scale {font-size: 100%;}
+.scale td { text-align: left; padding:0;}
+.scale label { display:block;}
+.scale .c { text-align: center;}
+section {
+	margin-bottom:15px;
+	padding: 10px 10px;
+	font-family: Verdana, Geneva, sans-serif;
+	color:#333333;
+	font-size:0.9em;
+}
+fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5px; }
+/* new */
+.dot {height: 15px;  width: 15px;  background-color: #95a5a6;  border-radius: 50%;  display: inline-block; margin:1px;}
+.current {height: 20px;  width: 20px;}
+.done {background-color: #2ecc71;}
+</style>
+
+<script type="text/javascript">
+
+/*
+General configuration file:
+  - cookieName: change it for each study, it will be used to monitor if the user has taken training, setup sections, and
+ how many assignments they submitted to expose limits.
+ - qualificationCookieName: name of cookie that shows the status of qualification section.
+ - qualificationValidFor: how long the qualification cookie stay in minutes (43200 : 1 month)
+ - forceRetrainingInHours: every X hours force the user to take part in training (recommendation: 1hour)
+ - showSetupEveryMinutes: show the setup section every X minutes (recommendation: 15 minutes)
+ - questionUrls: URLs to clips to be appeared in the Rating section. Either hard-coded or placeholders.
+ - trainingUrls: URLs to clips to be appeared in the Training section. Either hard-coded or placeholders.
+ - knownQuestionInTrainingUrl: Training may contain a question with known answer which worker will be forced to give the
+ correct answer to.
+ - knownQuestionInTrainingAns: the answer that should be selected by worker
+ - knownQuestionUrl: the rating section may contain a question with known answer. It will be used in combination of the
+ Assignment Review Policy.
+ - knownQuestionAns: the answer that we expect from worker
+ - randomizeTrainingQuestions: boolean whether the questions in the training section should be randomized on loading time.
+ - randomizeRatingQuestions: boolean whether the questions in the rating section should be randomized on loading time.
+ - allowedMaxHITsInProject: How many HITs each worker is allowed to answer in this project
+ - allowedMaxContinuesSessionDurationInMinutes: how log is the maximum continue session. A break of 10min will be forced
+
+	questionUrls: {{cfg.rating_urls}},
+    trainingUrls: {{cfg.training_urls}},
+*/
+var config ={
+	cookieName:"{{cfg.cookie_name}}",
+	qualificationCookieName:"{{cfg.qual_cookie_name}}",
+	qualificationValidFor:43200,
+    forceRetrainingInHours:1,
+    showSetupEveryMinutes:40,
+    debug:"false",
+    questionUrls: {{cfg.rating_urls}},
+    trainingUrls: {{cfg.training_urls}},
+
+    knownQuestionInTrainingUrl:"{{cfg.training_trap_urls}}",
+    knownQuestionInTrainingAns: "{{cfg.training_trap_ans}}",
+    knownQuestionUrl:"${TP}",
+    knownQuestionAns: "${TP_ANS}",
+    goldClipURL:"${gold_clips}",
+    goldClipAns:"${gold_clips_ans}",
+    randomizeTrainingQuestions:"true",
+    randomizeRatingQuestions:"true",
+    allowedMaxHITsInProject:{{cfg.allowed_max_hit_in_project}},
+	allowedMaxContinuesSessionDurationInMinutes:45,
+	qualification:{
+		mother_tongue: ["english","en"],
+		ld_in: ["in-ear", "over-ear"],
+		working_area: "N",
+		hearing: "normal",
+ 		num1: "{{cfg.num1_ans}}",
+        num2: "{{cfg.num2_ans}}",
+        num3: "{{cfg.num3_ans}}",
+        num4: "{{cfg.num4_ans}}",
+        num5: "{{cfg.num5_ans}}"
+	},
+	cmp_correct_answers: {{cfg.cmp_correct_answers}},
+	cmp_max_n_feedback : {{cfg.cmp_max_n_feedback}},
+	cmp_pass_threshold: {{cfg.cmp_pass_threshold}},
+	emailAddress: "{{cfg.contact_email}}"
+}
+
+// if performing of this assignment is already counted
+var hitCounterIncreased = false;
+// record the errors happened in the page
+var generalErrorLog= "";
+// how many times a feedback was given to the workers,
+var n_cmp_feedbacks = 0;
+
+const Hide_HIT_REASON = Object.freeze({"MAX_ACHIVED":1, "QUALIFICATON":2})
+/*
+Initializing the page: generate and hide sections depending to the cookies value
+*/
+$(function() {
+	try{
+		// disable logs if not debug
+		if (!JSON.parse(config['debug'])){
+			console.log = function() {};
+		}
+		loadTextPlaceHolders();
+
+		generate_training_section();
+		generate_rating_section();
+		avoidAnsweringBeforeListeningThrough();
+		cookie_debug_status="";
+		// given cookie availability disable the qualification
+		qual_passed= readCookie(config['qualificationCookieName']);
+
+
+		if (qual_passed!==null && qual_passed=="true"){
+			$('.qualificationFieldset').prop("disabled", true);
+			$("#qualification").hide();
+			$("#qualification :input").removeAttr("required");
+			cookie_debug_status=cookie_debug_status+"ACR_LISTENER Exist*";
+		}
+		// given cookie availability disable the training
+		if (readCookie(config['cookieName']+"_training")){
+			$('.trainingFieldset').prop("disabled", true);
+			$("#training").hide();
+			$("#training :input").removeAttr("required");
+			$('#instruction').collapse()
+			cookie_debug_status=cookie_debug_status+"Train Exist*";
+		}
+		// given cookie availability disable the setup
+		if (readCookie(config['cookieName']+"_setup")){
+			$('.setupFieldset').prop("disabled", true);
+			$("#setup").hide();
+			$("#setup :input").removeAttr("required");
+			cookie_debug_status=cookie_debug_status+"Setup Exist*";
+		}
+
+		hit_num = readCookie(config['cookieName']+"_counter");
+		howManyHITsAnswered =0;
+		if (hit_num != null ){
+			howManyHITsAnswered= Number(hit_num);
+			if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
+				disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
+			}
+		}
+		if ((qual_passed!==null) && (qual_passed=="false")){
+			disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+		}
+
+		hitCounterIncreased = false;
+		cookie_debug_status=cookie_debug_status+"Counter:"+howManyHITsAnswered+"*";
+		addBrowserInfo(cookie_debug_status);
+
+
+		// for qualification section
+		initializeQualification();
+		initializeActivePageMonitoring();
+		cmp_check_on_load();
+	}catch(err){
+		console.error(err);
+		recordError(err.name,err.message);
+
+	}
+});
+
+var overAllHiddenTime = 0;
+var startHiddenDate = null;
+var sessionId = null;
+var sessionIdVariableName=null;
+/**
+	monitor and record the status of page including being focus, and active time
+
+**/
+function initializeActivePageMonitoring(){
+	sessionId = Math.random().toString(36).substr(2, 9);
+	sessionIdVariableName = config.qualificationCookieName +"_sid";
+	createCookie(sessionIdVariableName,sessionId,70);
+
+	document.addEventListener("visibilitychange", function() {
+		var isHidden = document.hidden;
+		if (isHidden){
+			startHiddenDate = new Date();
+		}else{
+			//get back the focus
+			stopHiddenDate = new Date();
+			diff = stopHiddenDate -startHiddenDate;
+			overAllHiddenTime = overAllHiddenTime + diff;
+			$('#time_page_hidden_sec').val(overAllHiddenTime/1000);
+		}
+		console.log( "document_hidden: "+ document.hidden + "time: "+overAllHiddenTime);
+
+	});
+}
+
+/**
+	check if there is any parallel session available.
+**/
+function isAnyParallelSession(){
+	hit_num = readCookie(sessionIdVariableName);
+	if (hit_num != sessionId){
+		$('#any_parallel_session').val("true");
+		console.log("parallel session.")
+		return true;
+	}
+	return false;
+
+}
+
+/**
+ central method to record errors
+**/
+function recordError(name, message){
+	generalErrorLog =generalErrorLog + " Error "+name+": "+message+";%0D%0A"
+	$('#errors').val(generalErrorLog);
+	$("#errorEmail").attr("href","mailto:"+config["emailAddress"]+"?subject=Error on HIT Load&body="+generalErrorLog);
+	$("#errorSection").show();
+}
+
+/*
+	Initialize the qualification section
+*/
+var qualification_ans= new Set();
+function initializeQualification(){
+	randomizeHearingtestItems();
+    makeCheckboxBeRequired();
+    forceNoSpaceInInput();
+    $("#qualification :input").on('change', isQualificationDone);
+}
+/*
+	check if the qualification all answered
+*/
+function isQualificationDone(){
+	qualification_ans.add(this.name);
+	console.log("check if the qualification is done"+this.name+","+qualification_ans.size);
+	validateQualificationAnswer();
+	if (qualification_ans.size==13)
+		validateQualificationAnswer();
+}
+
+/*
+	check the qualification passed
+*/
+function validateQualificationAnswer(){
+	m_tongue = $("input[name='3_mother_tongue']").val().toLowerCase().trim();
+	m_tongue_check= config.qualification.mother_tongue.includes(m_tongue)
+
+	// check listening devices
+	var listening_device = [];
+	$.each($("input[name='4_ld']:checked"), function(){
+		listening_device.push($(this).val());
+	});
+	device_check=false;
+	for (var i = 0; i < listening_device.length; i++) {
+		device_check = device_check || config.qualification.ld_in.includes(listening_device[i]);
+	}
+	working_area_checked= $("input[name='7_working_area']:checked").val() =="N"
+	hearing_self_report_check=$("input[name='8_hearing']:checked").val() == "normal"
+	count_correct_ht=0;
+	if (checkQualNumCorrect($("input[name='num1']").val().trim(),config.qualification.num1))
+		count_correct_ht ++;
+	if (checkQualNumCorrect($("input[name='num2']").val().trim(),config.qualification.num2))
+		count_correct_ht ++;
+	if (checkQualNumCorrect($("input[name='num3']").val().trim(),config.qualification.num3))
+		count_correct_ht ++;
+	if (checkQualNumCorrect($("input[name='num4']").val().trim(),config.qualification.num4))
+		count_correct_ht ++;
+	if (checkQualNumCorrect($("input[name='num5']").val().trim(),config.qualification.num5))
+		count_correct_ht ++;
+	//console.log("count_correct_ht:"+count_correct_ht);;
+	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check &&
+		count_correct_ht>= 3;
+	console.log(passed);
+	// add a qualification for 'qualificationValidFor' minutes
+	createCookie(config.qualificationCookieName,passed,config.qualificationValidFor);
+}
+
+/*
+	randomize clips in the hearing test
+*/
+function randomizeHearingtestItems(){
+    var cards = $(".rnd");
+	for(var i = 0; i < cards.length; i++){
+		var target = Math.floor(Math.random() * cards.length -1) + 1;
+		var target2 = Math.floor(Math.random() * cards.length -1) +1;
+		cards.eq(target).before(cards.eq(target2));
+    }
+}
+/*
+	Make a checkbox group to be required
+*/
+function makeCheckboxBeRequired(){
+    var requiredCheckboxes = $('.4_lds :checkbox[required]');
+    requiredCheckboxes.change(function(){
+        if(requiredCheckboxes.is(':checked')) {
+            requiredCheckboxes.removeAttr('required');
+        } else {
+            requiredCheckboxes.attr('required', 'required');
+        }
+    });
+}
+/*
+	Avoid space in text field
+*/
+function forceNoSpaceInInput(){
+    $(".nospace").on({
+          keydown: function(e) {
+            if (e.which === 32)
+              return false;
+          },
+          change: function() {
+            this.value = this.value.replace(/\s/g, "");
+          }
+        });
+}
+
+/*
+Change placeholders inside text with values from config file.
+*/
+function loadTextPlaceHolders(){
+	// update the instruction
+	$('.max_allowed_hits').html(config['allowedMaxHITsInProject']);
+	$('.setup_time').html(config['showSetupEveryMinutes']);
+	$('.training_time').html(config['forceRetrainingInHours']);
+
+}
+
+/*
+Store the following information in hidden input field which will be added to answerc.sv by AMT
+userAgent, cookieEnabled, appVersion, platform, language, status of 3 cookies.
+*/
+function addBrowserInfo(debug){
+	info="U_A:"+navigator.userAgent+";"+
+		"CookieEnabled:"+navigator.cookieEnabled+";"+
+		"AppV:"+navigator.appVersion+";"+
+		"Platform:"+navigator.platform+";"+
+		"LN:"+navigator.language+";"+
+		"cookie_debug:"+debug+";";
+
+	$('#browser_info').val(info);
+	console.log(info);
+}
+
+//-------- check qual num online
+function checkQualNumCorrect(given_ans, correct_hash){
+	return btoa(given_ans) == correct_hash;
+}
+// ------------------------ online check cmp
+
+/*
+ check if the answer to a CMP question is correct.
+*/
+function isCMPAnsCorrect(selected_url){
+	// for backward compatibility
+	if (!config.hasOwnProperty("correct_cmp_answers"))
+		return true;
+	b64 = btoa(selected_url);
+	return config["correct_cmp_answers"].includes(b64);
+}
+
+// add this to onload of page
+function cmp_check_on_load(){
+	$('#setup').find(':input').filter(':visible').each(function(){
+	  $(this).on('change', validateCMPSection);
+	});
+}
+
+/*
+	Validate the answers give to the cmps in the setup section and provide an adequate feedback
+*/
+function validateCMPSection(){
+	// 1. check if all questions are answered
+	cmp_answers= [];
+	for (i = 1; i < 5; i++) {
+		ans = $("input[name='cmp{0}']:checked".f(i)).val();
+	  	if (!ans)
+	  		return;
+	  	cmp_answers.push(ans);
+	}
+	math_ans = $('#Math').val();
+	if (!math_ans)
+	  	return;
+
+		// 2. check math question
+	// do not check math question now
+	// 3. check cmps
+	correct_ans = 0 ;
+	for (i = 0; i < 4; i++) {
+		if (cmp_answers[i] == "o")
+			continue;
+		url = $('span[id="CMP{0}_{1}"]'.f(i+1, cmp_answers[i].toUpperCase())).attr("data-src");
+		if (config["cmp_correct_answers"].includes(btoa(url)))
+			correct_ans ++;
+	}
+	// 4. shows the message if needed
+	if (correct_ans >= config["cmp_correct_answers"]){
+		// valid response in cmp
+		createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
+		return;
+	}
+	removeCookie(config['cookieName']+"_setup");
+	if (n_cmp_feedbacks <  config["cmp_max_n_feedback"]){
+		n_cmp_feedbacks++;
+		msg = "Based on your answers, your environment is NOT quite enough or your setup is NOT good enough. Please make sure to do your task in a quite environment with headset and use both earpods. Try the Setup section again.";
+		last_time_msg = " It is the last time you see this feedback.";
+		makeAllCMPsUnChecked();
+		if (n_cmp_feedbacks ==config["cmp_max_n_feedback"])
+			alert(msg+last_time_msg);
+		else
+			alert(msg);
+
+	}
+	// 4.2 remove the listener
+	if (n_cmp_feedbacks >=  config["cmp_max_n_feedback"]){
+		$('#setup').find(':input').filter(':visible').each(function(){
+	  		$(this).off('change');
+		});
+	}
+}
+
+function makeAllCMPsUnChecked(){
+	// remove the listeners
+	$('#setup').find(':input').filter(':visible').each(function(){
+	  		$(this).off('change');
+	});
+	// uncheck radio <buttons></buttons>
+	for (i = 1; i < 5; i++) {
+		$("input[name='cmp{0}']:checked".f(i)).prop('checked', false);
+	}
+	// add the listeners
+	cmp_check_on_load()
+}
+
+//--------------- Utilities -----------------
+
+/*
+	Utility function to format strings
+*/
+String.prototype.format = String.prototype.f = function() {
+    var s = this,
+        i = arguments.length;
+    while (i--) {
+        s = s.replace(new RegExp('\\{' + i + '\\}', 'gm'), arguments[i]);
+    }
+    return s;
+};
+
+/*
+	Utility: convert seconds to MM:SS
+*/
+String.prototype.toMMSS = function () {
+    var sec_num = parseInt(this, 10); // don't forget the second param
+    var minutes   = Math.floor(sec_num / 60);
+    var seconds = sec_num - (minutes * 60);
+    if (minutes < 10) {minutes = "0"+minutes;}
+    if (seconds < 10) {seconds = "0"+seconds;}
+    return minutes+':'+seconds;
+}
+
+/*
+	Disable the HIS and show a proper message.
+	- used when the maximum number of HITs in project is reached
+*/
+function disableTheHIT(c){
+	$("#qualification").hide();
+	$("#training").hide();
+	$("#setup").hide();
+	$("#rating_section").hide();
+	$("#Survey").hide();
+	$("#thanks").hide();
+	$("#device_check_section").hide();
+
+	if (c == Hide_HIT_REASON.MAX_ACHIVED)
+		$("#max_allowed_HITs_reached").show();
+	if (c == Hide_HIT_REASON.QUALIFICATON)
+		$("#qualification_rejected").show();
+}
+
+/*
+	Add a cookies with corresponding values
+*/
+function createCookie(name, value, minutes) {
+    var expires;
+    if (minutes) {
+        var date = new Date();
+        date.setTime(date.getTime() + (minutes * 60 * 1000));
+        expires = date.toGMTString();
+    } else {
+        expires = "";
+    }
+
+    let st =value +";"+ expires ;
+    console.log(st);
+    localStorage.setItem(name, st);
+}
+
+
+/*
+	Update the cookie which counts the number of Assignments performed by user. Increase it by "updateBy" value.
+*/
+function updateCounterCookie(name, updateBy){
+	expiry_in_a_month= 30*24*60
+	c = readCookie(name);
+	if (c==null){
+		createCookie(name, 1, expiry_in_a_month);
+		return 1;
+	}else{
+	 	console.log(c);
+	 	createCookie(name, Number(c)+updateBy, expiry_in_a_month);
+	}
+	return Number(c)+updateBy;
+}
+
+/*
+	Return the value of cookie, or null
+*/
+function readCookie(name) {
+	var storedValue = localStorage.getItem(name);
+	if (storedValue){
+		let infos = storedValue.toString().split(';');
+		let value = infos[0];
+		let validUntil = new Date(infos[1]);
+		let today = new Date();
+		if (today<=  validUntil)
+			return value;
+		else{
+			localStorage.removeItem(name);
+			return null;
+		}
+	}else
+		return null;
+}
+
+
+/*
+	Remove the variable from local storage
+*/
+function removeCookie(name) {
+	localStorage.removeItem(name);
+}
+
+
+/*
+	Callback when "Next" in Rating section is clicked.
+*/
+function showNextQuestionInRatingSection(){
+	var count = $("#nav-tab-ul li").length;
+	id=$("#nav-tab-ul li.active").index();
+	if (id+2==count){
+		$('#next-rating').addClass('disabled');
+	}
+	id=id+2;
+	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
+
+}
+
+/*
+	Callback when "Previous" in Rating section is clicked.
+*/
+function showPreviousQuestionInRatingSection(){
+	id=$("#nav-tab-ul li.active").index();
+	id=id;
+	$('#nav-tab-ul li:nth-child('+id+') a').tab('show');
+	var count = $("#nav-tab-ul li").length;
+	if (id+1<=count)
+		$('#next-rating').removeClass('disabled');
+}
+
+/*
+	Callback when "Next" in Training section is clicked.
+*/
+function showNextQuestionInTrainingSection(){
+	var count = $("#trainingTabs li").length;
+	id=$("#trainingTabs li.active").index();
+	if (id+1!=count){
+		id=id+2;
+		$('#trainingTabs li:nth-child('+id+') a').tab('show');
+	}else{
+		// last next is called
+		setTimeout(function (){
+			window.location.hash="navNextPre";
+		},  50);
+	}
+}
+
+/*
+	Callback when "Previous" in Training section is clicked.
+*/
+function showPreviousQuestionInTrainingSection(){
+	id=$("#trainingTabs li.active").index();
+	id=id;
+	$('#trainingTabs li:nth-child('+id+') a').tab('show');
+}
+
+
+var trainingStimulusPlayed;
+
+/*
+  If all training clips played until the end, add a cookie expiring after
+  config.forceRetrainingInHours
+*/
+function playedAudioTraining(id){
+	// parallel session check
+	isAnyParallelSession();
+	input_id = id.substring(0, id.length - 6);
+	console.log("playedAudioTraining id:{0}, input_id:{1}".f(id,input_id ));
+
+	$('input[name="'+input_id+'"]').off('change');
+	const c = /t(\d+)_.*/;
+	ex = c.exec(id);
+	trainingQuestionNumber= ex[1];
+	console.log("trainingQuestionNumber {0}".f(trainingQuestionNumber ));
+	eval("trainingStimulusPlayed["+trainingQuestionNumber+"-1]=1;");
+	console.log(trainingStimulusPlayed.reduce(getSum, 0))
+	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
+		createCookie(config['cookieName']+"_training","un_important",config['forceRetrainingInHours']*60);
+	}
+	console.log($('span[id="'+id+'"]').attr("data-src"))
+	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionInTrainingUrl']){
+		console.log("was the trapping");
+		element = $('input[name="'+input_id+'"]');
+		element.unbind('change');
+		element.on('change', onValueChangeForTpQuestionInTraining);
+	}
+}
+
+// help to calc the sum of elements in an array
+function getSum(total, num) {
+  return total + num;
+}
+
+//---------------- baudio.js -----------------
+// All functions needed for custom audio playback
+var audioElements=[];
+function clickManager(event) {
+	ae=event.data.ae;
+	var id=event.data.id;
+	if (ae.paused) {
+		pauseAll();
+		playAudio(ae);
+	} else {
+		pauseAudio(ae);
+	}
+};
+
+function playAudio(audio){
+	audio.play();
+	var idT=audio.id;
+	var id=idT.substring(6,idT.length);
+	console.log(id);
+	$("#baudio_s_"+id).removeClass("glyphicon-repeat");
+	$("#baudio_s_"+id).removeClass("glyphicon-play");
+	$("#baudio_s_"+id).addClass("glyphicon-pause");
+	$("#baudio_"+id).addClass("btn-primary");
+	$("#audio_n_play_"+id).val(parseInt($("#audio_n_play_"+id).val())+1);
+}
+
+function pauseAudio(audio){
+	audio.pause();
+	var idT=audio.id;
+	var id=idT.substring(6,idT.length);
+	$("#baudio_s_"+id).removeClass("glyphicon-pause");
+	$("#baudio_"+id).removeClass("btn-primary");
+	$("#baudio_s_"+id).addClass("glyphicon-play");
+}
+
+function pauseAll(){
+	for (i = 0; i < audioElements.length; i++) {
+		if (!audioElements[i].paused){
+			pauseAudio(audioElements[i]);
+		}
+	}
+}
+
+function canPlay(event){
+	var ae=this;
+	var idText =this.id;
+	var id=idText.substring(6,idText.length);
+	$("#baudio_l_d_"+id).text(" / " + (ae.duration).toString().toMMSS());
+	$("#baudio_"+id).removeClass("disabled");
+}
+
+function timeUpdate(){
+	var ae=this;
+	var idText =this.id;
+	var id=idText.substring(6,idText.length);
+	$("#baudio_l_c_"+id).text(ae.currentTime.toString().toMMSS());
+}
+
+function isended(){
+	var ae=this;
+	var idText =this.id;
+	var id=idText.substring(6,idText.length);
+
+	$("#baudio_s_"+id).removeClass("glyphicon-pause");
+	$("#baudio_"+id).removeClass("btn-primary");
+	$("#baudio_s_"+id).addClass("glyphicon-repeat");
+	$("#audio_n_finish_"+id).val(parseInt($("#audio_n_finish_"+id).val())+1);
+	if ($("#"+id).attr('data-onfinished')){
+		window[$("#"+id).attr('data-onfinished')](id);
+	}
+}
+
+// loading all baudio elements in the page
+$(function() {
+    $( ".baudio" ).each(function(){
+		titleTextTemplate='<tr><td>{1}</td></tr>';
+		insert='';
+		title='';
+		a='<audio id="audio_{0}" preload="true"><source src="{1}" type="audio/wav"> </audio>'+
+		'<input type="hidden" id="audio_n_play_{0}" name="audio_n_play_{0}" value="0">'+
+		'<input type="hidden" id="audio_n_finish_{0}" name="audio_n_finish_{0}" value="0">';
+		if ($(this).attr('title')){
+			insert=titleTextTemplate;
+			title=$(this).attr('title');
+		}
+
+		t='<table class="baudio_table" border="0">'+insert+' <tr><td><button id="baudio_{0}" type="button" class="btn bn disabled"><span id ="baudio_s_{0}" class="glyphicon glyphicon-play"></span></button></td></tr><tr><td><span id="baudio_l_c_{0}" class="blabel" >00:00</span><span id="baudio_l_d_{0}" class="blabel" > / 00:00</span></td></tr></table>';
+		src=$(this).attr('data-src');
+		id=$(this).attr('id');
+
+		$(this).append(a.f(id,src));
+		$(this).append(t.f(id,title));
+		var audioElement = document.getElementById("audio_"+id);
+		//save for later
+		audioElements.push(audioElement);
+		$( "#baudio_"+id ).click({ae: audioElement, id: id},clickManager);
+		$( "#baudio_"+id ).disabled=false;
+		audioElement.addEventListener("canplay",canPlay.bind(audioElement),false);
+		audioElement.addEventListener("timeupdate",timeUpdate.bind(audioElement),false);
+		audioElement.addEventListener("ended",isended.bind(audioElement),false);
+	});
+
+	$("source").on("error", function (e) {
+        console.log("Error at audio tag level!"+e.target.src);
+        problematic_urls=problematic_urls+"<li>"+e.target.src+"</li>";
+        //$("#error_details").html(problematic_urls);
+        recordError("on loading audio clips",e.target.src);
+        //$("#error_loading_files").show();
+    });
+});
+var problematic_urls="";
+/*
+	Called when the scale item is clicked
+*/
+function alertForbiddenChange(){
+	alert('You should listen until the end.');
+	$(this).prop('checked', false);
+}
+
+/*
+	Users should not be able to vot before listening the audio clips until the end.
+*/
+function avoidAnsweringBeforeListeningThrough(){
+	var i;
+	// Training section
+	for (i = 0; i < config['trainingUrls'].length; i++) {
+		$('input[name^="t{0}"]'.f(i+1)).on('change', alertForbiddenChange);
+	}
+	// Rating section
+	for (i = 0; i < config['questionUrls'].length; i++) {
+		$('input[name^="q{0}"]'.f(i+1)).on('change', alertForbiddenChange);
+	}
+}
+
+/*
+	Listener on value change for the Gold question.
+	if the answer is correct, change the value of gq_check to 0.
+*/
+function onValueChangeForGoldQuestion(){
+	let ans = $( this ).val()
+	let expectedVal = parseInt(config['goldClipAns'])
+	if ( expectedVal -1 <=ans && ans <= expectedVal +1 )
+		$('#gq_check').val(0);
+	else
+		$('#gq_check').val(-1);
+	console.log($('#gq_check').val())
+}
+
+/*
+	Listener on value change for the trapping question.
+	if the answer is correct, change the value of tp_check to 0.
+*/
+function onValueChangeForTpQuestion(){
+	if ($( this ).val()  == parseInt(config['knownQuestionAns']))
+		$('#tp_check').val(0);
+	else
+		$('#tp_check').val(-1);
+	//console.log("gc_check"+$('#tp_check').val())
+}
+
+/*
+	Listener on value change for the trapping question in training.
+	if the answer is wrong, show a message.
+*/
+function onValueChangeForTpQuestionInTraining(e){
+	console.log("trapping onValueChangeForTpQuestionInTraining")
+	if ($( this ).val()  != config['knownQuestionInTrainingAns']){
+		console.log("****** "+ $( this ).val())
+		alert('Error: In case you hear an interruption message, please follow the instruction given in the message.');
+		$(this).prop('checked', false);
+	}
+
+}
+
+/*
+	Called when the audio in rating section by the given id is completely played.
+	Now user can rate the quality.
+*/
+function playedAudioQ(id){
+	// parallel session check
+	isAnyParallelSession();
+	input_id = id.substring(0, id.length - 6);
+	// check if it was the trapping question
+	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionUrl']){
+		element = $('input[name="'+input_id+'"]');
+		element.unbind('change');
+		element.on('change', onValueChangeForTpQuestion);
+	}else if ($('span[id="'+id+'"]').attr("data-src") == config['goldClipURL']){
+		element = $('input[name="'+input_id+'"]');
+		element.unbind('change');
+		element.on('change', onValueChangeForGoldQuestion);
+	}else{
+		$('input[name="'+input_id+'"]').off('change');
+		// check if already this HIT is counted
+		if (!hitCounterIncreased){
+			updateCounterCookie(config['cookieName']+"_counter",1);
+			hitCounterIncreased=true
+		}
+	}
+}
+
+/*
+	Called when user answers to one question from setup
+	(i.e. q2. math question). Here the cookie will be added/updated
+*/
+function userAnsweringToSetupQuestions(){
+	createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
+	$('input[name="math"]').off('change');
+}
+
+</script>
+
+<script type="text/javascript">
+
+/*
+	functions responsible to headset check
+*/
+function isHeadsetOn(webrtc_raw){
+	keywords= ["headphone",  "headset","airpod", "usb audio device"]
+	for (var i = 0; i < keywords.length; i++) {
+		if (webrtc_raw.includes(keywords[i]))
+			return true;
+	}
+	return false;
+}
+
+const constraints = {
+  	audio: true,
+	video:false
+};
+
+/*
+	Async function to check the list of audio devices when the user allowed
+*/
+const startHeadsetCheck = async function() {
+	$('#status').html("waiting for allowance...")
+    await navigator.mediaDevices.getUserMedia(constraints);
+
+    navigator.mediaDevices.enumerateDevices()
+    .then(devices => {
+        var device_list= "";
+        for (var i=0;i<devices.length;i++){
+        	if (devices[i].kind.startsWith('audio')){
+    			device_list = device_list+ devices[i].kind + ":" +devices[i].label.toLowerCase() +"+";
+    		}
+        }
+        headsetDetected=isHeadsetOn(device_list);
+        $( "#webrtc_raw" ).val(device_list);
+        $( "#use_headset" ).val(headsetDetected);
+		$( "#status" ).html("Done. Please continue.");
+  });
+}
+
+//function startMeasure(){
+// 	startHeadsetCheck();
+//}
+</script>
+
+<script type="text/javascript">
+
+/*
+	shuffle function for randomization of items -->
+*/
+function shuffle(a) {
+	var j, x, i;
+	for (i = a.length - 1; i > 0; i--) {
+		j = Math.floor(Math.random() * (i + 1));
+		x = a[i];
+		a[i] = a[j];
+		a[j] = x;
+	}
+	return a;
+}
+
+/* --- P.831s7 Specific methods ---*/
+var currentElementForTrial = [];
+var elements = [[]];
+var question_lists =['q{0}_echo', 'q{0}_ovrl'];
+var unansweredQuestions = new Set();
+
+// for training
+var currentElementForTrialTraining = [];
+var elementsTraining = [[]];
+var question_listsTraining =['t{0}_echo', 't{0}_ovrl'];
+var unansweredQuestionsTraining = new Set();
+
+/*
+	Generate the training section
+*/
+function generate_training_section(){
+	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#T{0}-panel" id="T{0}-tab" role="tab" aria-controls="T{0}" {2}>Trial {0}</a></li>';
+	acr_tab ='<div class="tab-pane fade {2}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row"><div class="col-sm-3"></div><div class="col-sm-6"><p style="margin-top:10px; text-align:center;">Listen to the following speech clip.</p><div id="t{0}_echo" style="display: block;"><p align="center"> <span class="baudio" id="t{0}_echo_audio" data-onfinished="playedAudioTraining" data-src="{1}">&nbsp;</span></p><div style="margin:30px 10px;"></div><p>1/2. How would you rate the <b>degradation from acoustic echo</b> in this speech sample?</p><fieldset id="fieldset_t{0}_echo" title=""><table class="table md scale" cellspacing="0" cellpadding="0"><thead><tr><th>the ECHO in this speech sample was</th><th class="c">Score</th></tr></thead><tbody><tr><td><div class="radio"><label><input type="radio" name="t{0}_echo" value="5">Imperceptible</label></div></td><td class="c">5</td></tr><tr><td><div class="radio"><label><input type="radio" name="t{0}_echo" value="4">Perceptible but not annoying</label></div></td><td class="c">4</td></tr><tr><td><div class="radio"><label><input type="radio" name="t{0}_echo" value="3">Slightly annoying</label></div></td><td class="c">3</td></tr><tr><td><div class="radio"><label><input type="radio" name="t{0}_echo" value="2">Annoying</label></div></td><td class="c">2</td></tr><tr><td><div class="radio"><label><input type="radio" name="t{0}_echo" value="1" required="">Very annoying</label></div></td><td class="c">1</td></tr></tbody></table></fieldset></div><div id="t{0}_ovrl" style="display: none;"><p align="center"> <span class="baudio" id="t{0}_ovrl_audio" data-onfinished="playedAudioTraining" data-src="{1}">&nbsp;</span></p><div style="margin:30px 10px;"></div><p>{3}/2. How would you judge <b>overall quality</b> of this speech sample?</p><fieldset id="fieldset_t{0}_ovrl" title=""><table class="table md scale" cellspacing="0" cellpadding="0"><thead><tr><th>the OVERALL QUALITY of this speech sample was</th><th class="c">Score</th></tr></thead><tbody><tr><td><div class="radio"><label><input type="radio" name="t{0}_ovrl" value="5">Excellent</label></div></td><td class="c">5</td></tr><tr><td><div class="radio"><label><input type="radio" name="t{0}_ovrl" value="4">Good</label></div></td><td class="c">4</td></tr><tr><td><div class="radio"><label><input type="radio" name="t{0}_ovrl" value="3">Fair</label></div></td><td class="c">3</td></tr><tr><td><div class="radio"><label><input type="radio" name="t{0}_ovrl" value="2">Poor</label></div></td><td class="c">2</td></tr><tr><td><div class="radio"><label><input type="radio" name="t{0}_ovrl" value="1" required="">Bad</label></div></td><td class="c">1</td></tr></tbody></table></fieldset></div><div class="row" style="margin: 25px 0px;"><div class="col-sm-4" style="text-align:center;"> <button type="button" class="btn btn-light btn-sm" onclick="prevQuestion({0}-1, true)"><span class="glyphicon glyphicon-chevron-left"></span> </button></div><div class="col-sm-4" style="text-align:center;"><div class="row" style="text-align:center;" id="progress_T_{0}"></div></div><div class="col-sm-4" style="text-align:center;"> <button type="button" id="next_t{0}_button" class="btn btn-light btn-sm" onclick="nextQuestion({0}-1,true)"><span class="glyphicon glyphicon-chevron-right"></span></button></div></div><p></p></div><div class="col-sm-3"></div></div></div>';
+
+	// set the order of scale
+	//order = $("#p835_order").val();
+	order_num=[2,3];
+	//if (order =="bak_sig"){
+		// swap the order
+	//	question_listsTraining =['t{0}_ovrl', 't{0}_sig', 't{0}_ovrl'];
+	//	order_num=[2, 1];
+	//}
+
+	// this will show which url was shown by in which question as their orther will be randomized
+	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" />';
+
+    if (JSON.parse(config['randomizeTrainingQuestions']))
+		urls = shuffle(config['trainingUrls']);
+	else
+		urls = config['trainingUrls'];
+
+	elementsTraining = new Array(urls.length);
+	currentElementForTrialTraining = new Array(urls.length);
+
+	var i;
+	for (i = 0; i < urls.length; i++) {
+		elementsTraining[i] = [];
+		if (i==0){
+			$('#trainingTabs').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
+			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'in active', order_num[0], order_num[1]));
+		}else{
+			$('#trainingTabs').append(acr_nav_tab.f(i+1,'',''));
+			$('#nav-tabContent').append(acr_tab.f(i+1, urls[i],'',order_num[0] ,order_num[1]));
+		}
+		$('#av-tabContent').append(input_template.f(i+1, urls[i]));
+		el = []
+		for (j = 0; j < question_listsTraining.length; j++) {
+			tmp_name = question_listsTraining[j].f(i+1);
+			el.push(document.getElementById(tmp_name));
+			// add questions to the set of unanswered one
+			unansweredQuestionsTraining.add(tmp_name);
+			//set the listeners to change to next question when vote is given
+			$( 'input[name='+tmp_name+']').click({trial_num: i, num: j, isTraining: true},onRating);
+		}
+		elementsTraining[i] = el;
+		// initialize the GUI
+		hideAllElementsOnlyNumT(i, 0);
+		currentElementForTrialTraining[i] = 0;
+	}
+	$('.question_number_training').html(urls.length);
+	trainingStimulusPlayed = new Array(urls.length).fill(0);
+}
+
+
+/*
+	Generate rating section
+*/
+function generate_rating_section(){
+
+	acr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#Q{0}-panel" id="Q{0}-tab" role="tab" aria-controls="Q{0}" {2}>Trial {0}</a></li>';
+	acr_tab ='<div class="tab-pane fade {2}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"><p></p><div class="row"><div class="col-sm-3"></div><div class="col-sm-6"><p style="margin-top:10px; text-align:center;">Listen to the following speech clip.</p> <div id="q{0}_echo" style="display: block;"><p align="center"> <span class="baudio" id="q{0}_echo_audio" data-onfinished="playedAudioQ" data-src="{1}">&nbsp;</span></p><div style="margin:30px 10px;"></div><p>1/2. How would you rate the <b>degradation from acoustic echo</b> in this speech sample?</p><fieldset id="fieldset_q{0}_echo" title=""><table class="table md scale" cellspacing="0" cellpadding="0"><thead><tr><th>the ECHO in this speech sample was</th><th class="c">Score</th></tr></thead><tbody><tr><td><div class="radio"><label><input type="radio" name="q{0}_echo" value="5">Imperceptible</label></div></td><td class="c">5</td></tr><tr><td><div class="radio"><label><input type="radio" name="q{0}_echo" value="4">Perceptible but not annoying</label></div></td><td class="c">4</td></tr><tr><td><div class="radio"><label><input type="radio" name="q{0}_echo" value="3">Slightly annoying</label></div></td><td class="c">3</td></tr><tr><td><div class="radio"><label><input type="radio" name="q{0}_echo" value="2">Annoying</label></div></td><td class="c">2</td></tr><tr><td><div class="radio"><label><input type="radio" name="q{0}_echo" value="1" required="">Very annoying</label></div></td><td class="c">1</td></tr></tbody></table></fieldset></div><div id="q{0}_ovrl" style="display: none;"><p align="center"> <span class="baudio" id="q{0}_ovrl_audio" data-onfinished="playedAudioQ" data-src="{1}">&nbsp;</span></p><div style="margin:30px 10px;"></div><p>{3}/2. How would you judge <b>overall quality</b> of this speech sample?</p><fieldset id="fieldset_q{0}_ovrl" title=""><table class="table md scale" cellspacing="0" cellpadding="0"><thead><tr><th>the OVERALL QUALITY of this speech sample was</th><th class="c">Score</th></tr></thead><tbody><tr><td><div class="radio"><label><input type="radio" name="q{0}_ovrl" value="5">Excellent</label></div></td><td class="c">5</td></tr><tr><td><div class="radio"><label><input type="radio" name="q{0}_ovrl" value="4">Good</label></div></td><td class="c">4</td></tr><tr><td><div class="radio"><label><input type="radio" name="q{0}_ovrl" value="3">Fair</label></div></td><td class="c">3</td></tr><tr><td><div class="radio"><label><input type="radio" name="q{0}_ovrl" value="2">Poor</label></div></td><td class="c">2</td></tr><tr><td><div class="radio"><label><input type="radio" name="q{0}_ovrl" value="1" required="">Bad</label></div></td><td class="c">1</td></tr></tbody></table></fieldset></div> <div class="row" style="margin: 25px 0px;"><div class="col-sm-4" style="text-align:center;"> <button type="button" class="btn btn-light btn-sm" onclick="prevQuestion({0}-1, false)"><span class="glyphicon glyphicon-chevron-left"></span> </button></div><div class="col-sm-4" style="text-align:center;"><div class="row" style="text-align:center;" id="progress_{0}"></div></div><div class="col-sm-4" style="text-align:center;"> <button type="button" id="next_q{0}_button" class="btn btn-light btn-sm" onclick="nextQuestion({0}-1, false)"><span class="glyphicon glyphicon-chevron-right"></span></button></div></div><p></p></div><div class="col-sm-3"></div></div></div>';
+
+	// this will show which url was shown in which question as their order will be randomized
+	input_template= '<input id="Q{0}_URL" name="Q{0}_URL" type="hidden" value="{1}" />';
+	if (JSON.parse(config['randomizeRatingQuestions'])){
+		urls = shuffle(config['questionUrls']);
+	}else{
+		urls = config['questionUrls'];
+	}
+
+	// set the order of scale
+	//order = $("#p835_order").val();
+	order_num=[2,3];
+	//if (order =="bak_sig"){
+		// swap the order
+	//	question_lists =['q{0}_ovrl', 'q{0}_sig', 'q{0}_ovrl'];
+	//	order_num=[2, 1];
+	//}
+
+	elements = new Array(urls.length);
+	currentElementForTrial = new Array(urls.length);
+
+	var i;
+	for (i = 0; i < urls.length; i++) {
+		elements[i] = [];
+		if (i==0){
+			$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
+			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],'in active', order_num[0], order_num[1]));
+		}else{
+			$('#nav-tab-ul').append(acr_nav_tab.f(i+1,'',''));
+			$('#nav-tabContent-rating').append(acr_tab.f(i+1, urls[i],'', order_num[0], order_num[1]));
+		}
+
+		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i]));
+		el = []
+
+
+		for (j = 0; j < question_lists.length; j++) {
+			tmp_name = question_lists[j].f(i+1);
+			el.push(document.getElementById(tmp_name));
+			// add questions to the set of unanswered one
+			unansweredQuestions.add(tmp_name);
+			//set the listeners to change to next question when vote is given
+			$( 'input[name='+tmp_name+']').click({trial_num: i, num: j, isTraining: false},onRating);
+		}
+		elements[i] = el;
+		// initialize the GUI
+		hideAllElementsOnlyNumR(i, 0);
+		currentElementForTrial[i] = 0;
+	}
+	$('.question_number').html(urls.length);
+}
+
+
+function hideAllElementsOnlyNumT(trial_num, num){
+	dot ='<span class="dot {0}"></span>';
+	progress_el_name ='#progress_T_{0}'.f(trial_num+1);
+	$(progress_el_name).empty();
+	el = elementsTraining[trial_num];
+
+	if (unansweredQuestionsTraining.has(question_listsTraining[num].f(trial_num+1)))
+		$('#next_t{0}_button'.f(trial_num+1)).prop('disabled', true);
+	else
+		$('#next_t{0}_button'.f(trial_num+1)).prop('disabled', false);
+	for (i = 0; i < el.length; i++) {
+		el[i].style.display = "none";
+		q_name = question_listsTraining[i].f(trial_num+1);
+		if (!unansweredQuestionsTraining.has(q_name))
+		 	$(progress_el_name).append(dot.f(i==num? 'done current': 'done'));
+		else
+			$(progress_el_name).append(dot.f(i==num? 'current': ''));
+	}
+
+	$('#'+el[num].id).fadeIn(400);
+}
+
+function hideAllElementsOnlyNumR(trial_num, num){
+
+	dot ='<span class="dot {0}"></span>';
+	progress_el_name ='#progress_{0}'.f(trial_num+1);
+	$(progress_el_name).empty();
+	el = elements[trial_num];
+	if (unansweredQuestions.has(question_lists[num].f(trial_num+1)))
+		$('#next_q{0}_button'.f(trial_num+1)).prop('disabled', true);
+	else
+		$('#next_q{0}_button'.f(trial_num+1)).prop('disabled', false);
+	for (i = 0; i < el.length; i++) {
+		el[i].style.display = "none";
+		q_name = question_lists[i].f(trial_num+1);
+		if (!unansweredQuestions.has(q_name))
+		 	$(progress_el_name).append(dot.f(i==num? 'done current': 'done'));
+		else
+			$(progress_el_name).append(dot.f(i==num? 'current': ''));
+	}
+	$('#'+el[num].id).fadeIn(400);
+}
+
+function prevQuestion(trial_num, isTraining){
+	if (isTraining){
+		currentElementForTrialTraining[trial_num]--;
+		if (currentElementForTrialTraining[trial_num]<0)
+			currentElementForTrialTraining[trial_num] = 0;
+		hideAllElementsOnlyNumT(trial_num, currentElementForTrialTraining[trial_num]);
+	}else{
+		currentElementForTrial[trial_num]--;
+		if (currentElementForTrial[trial_num]<0)
+			currentElementForTrial[trial_num] = 0;
+		hideAllElementsOnlyNumR(trial_num, currentElementForTrial[trial_num]);
+	}
+}
+
+
+function nextQuestion(trial_num, isTraining){
+	if (isTraining){
+		name = question_listsTraining[currentElementForTrialTraining[trial_num]].f(trial_num+1);
+		if (typeof $('input[name='+name+']:checked').val() === "undefined")
+			return;
+		else
+			unansweredQuestionsTraining.delete(name);
+		currentElementForTrialTraining[trial_num] ++;
+		if (currentElementForTrialTraining[trial_num]>=elementsTraining[trial_num].length){
+			currentElementForTrialTraining[trial_num] = elementsTraining[trial_num].length -1;
+			hideAllElementsOnlyNumT(trial_num, currentElementForTrialTraining[trial_num]);
+			if (trial_num+1< config['trainingUrls'].length){
+				trialEnded(true);
+			}
+		}else
+			hideAllElementsOnlyNumT(trial_num, currentElementForTrialTraining[trial_num]);
+
+	}else{
+		name = question_lists[currentElementForTrial[trial_num]].f(trial_num+1);
+		if (typeof $('input[name='+name+']:checked').val() === "undefined")
+			return;
+		else
+			unansweredQuestions.delete(name);
+		currentElementForTrial[trial_num] ++;
+		if (currentElementForTrial[trial_num]>=elements[trial_num].length){
+			currentElementForTrial[trial_num] = elements[trial_num].length -1;
+			hideAllElementsOnlyNumR(trial_num, currentElementForTrial[trial_num]);
+			if (trial_num+1< config['questionUrls'].length){
+				trialEnded(false);
+			}
+		}else
+			hideAllElementsOnlyNumR(trial_num, currentElementForTrial[trial_num]);
+	}
+}
+
+function isTpQuestionInTraining(id){
+	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionInTrainingUrl'])
+		return true;
+	return false;
+
+}
+
+function onRating(event){
+	trial_num = event.data.trial_num;
+	num = event.data.num;
+	isTraining = event.data.isTraining;
+	if (isTraining){
+		tmp_name = question_listsTraining[num].f(trial_num+1);
+		if (isTpQuestionInTraining(tmp_name+"_audio")){
+			// check if the answer is false then the onRating should not proceed
+			if ($( this).val()  != config['knownQuestionInTrainingAns']){
+				return;
+			}
+		}
+		name = "audio_n_finish_"+question_listsTraining[currentElementForTrialTraining[trial_num]].f(trial_num+1)+"_audio";
+		if ($('input[name='+name+']').val()==0)
+			return;
+		hideAllElementsOnlyNumT(trial_num, num);
+	}else {
+		name = "audio_n_finish_"+question_lists[currentElementForTrial[trial_num]].f(trial_num+1)+"_audio";
+		if ($('input[name='+name+']').val()==0)
+			return;
+		hideAllElementsOnlyNumR(trial_num, num);
+	}
+	nextQuestion(trial_num, isTraining);
+}
+
+function trialEnded(isTraining){
+	if (isTraining)
+		showNextQuestionInTrainingSection();
+	else
+		showNextQuestionInRatingSection();
+}
+
+function help_which_questions_remain(){
+	msg = "";
+	if (unansweredQuestions.size>0 ){
+		msg = 'Following questions remained in the "Ratings" section: \n';
+		for (let item of unansweredQuestions)
+			msg= msg + '\t•'+questionName2Text(item)+'\n';
+	}else{
+		msg = "All questions in the Rating section are answered, in case the Submit button is still deactivate, please check other sections."
+	}
+	alert(msg);
+}
+
+function questionName2Text(qName){
+	const RE_DATE = /q(\d+)_(\w+)/;
+	const matchObj = RE_DATE.exec(qName);
+	const template = "Trial {0}: {1}";
+	question = "";
+	if (matchObj[2]=="echo")
+		question = "Echo Degradation";
+	else if (matchObj[2]=="other")
+		question = "Other Degradations";
+	else
+		question = "Overall Quality";
+
+	return template.f(matchObj[1],question);
+}
+
+</script>
+
+<!--    Error -->
+<section class="container" id="errorSection" hidden>
+	<div class="alert alert-danger" role="alert" >
+		<h5>Error</h5>
+		<p>One or more errors are detected during loading this HIT. Please use the following link to send the error to us: <a class="email"  id="errorEmail"title="Email in HIT" href="">Email</a>.</p>
+		<p><b> Meanwhile, please return this HIT and try another one</b>.</p>
+	</div>
+</section>
+
+<!-- Instructions -->
+<section class="container" id="Survey">
+	<div class="panel panel-primary">
+		<div class="panel-heading">
+			<h3 class="panel-title">
+				<a data-target="#instruction" data-toggle="collapse" >Instructions for speech quality assessment</a>
+			</h3>
+		</div>
+		<div  class="panel-collapse collapse in" id="instruction">
+			  <div class="panel-body" >
+			  <b>Introduction</b>
+
+
+				<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/process_3.png" alt="scale" class="center" style='width: 60%' >
+
+				  <p>Welcome! You are about to participate in our speech quality assessment experiment! This HIT has two + two (just every now and then) sections:</p>
+				<ul>
+					<li><b>Qualification (just once):</b> Check if you are eligible to perform these HITs</li>
+					<li><b>Setup (every <b class="setup_time"> 0</b> minutes):</b> Configure your system and validate it by answering 6 questions</li>
+					<li><b>Training (every <b class="training_time"> 0 </b> hour):</b> <b class="question_number_training"> 0 </b> questions, same as "Ratings" but appears just once a day</li>
+					<li><b>Rating:</b> Listen to <b class="question_number"> 0 </b> audio files and give <b>your opinion about the quality of the speech</b> you hear.</li>
+				</ul>
+				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
+				<p><b>Rules:</b></p>
+				<ul>
+					<li>You must use a <b>headset</b>, not the loudspeaker: otherwise your response will be rejected</li>
+					<li>You must perform the task in a <b>quiet environment</b></li>
+					<li>Do not change the volume after modifying it in the Setup section.</li>
+				</ul>
+
+				<p><b>Payment:</b></p>
+				<p>The result of this experiment is <b>very important for us and other scientist</b> working in this area. We have methods that analyse the consistency of your answers. We will use these methods to rank the submitted assignments according to quality.</p>
+				<p>For this experiment, we will pay a base reward of <b>${{cfg.hit_base_payment}}/HIT</b> for every accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You will receive a bonus of:</p>
+
+				<ul>
+				  <li>${{cfg.quantity_bonus}}/HIT (for a total of <b>${{cfg.sum_quantity}}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs</b> or</li>
+				  <li>${{cfg.quality_bonus}}/HIT (for a total of <b>${{cfg.sum_quality }}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs</b> <u>and</u> be in the <b>top {{cfg.quality_top_percentage}}% quality group</b>.</li>
+				</ul>
+
+				<p>Bonuses will be assigned with in 7 days.</p>
+				  <b>Please perform up to <b class="max_allowed_hits"> 0 </b> HITs from this group. If you do more than that, the <u>rest will be rejected.</u></b>
+			</div>
+		</div>
+
+	</div>
+</section>
+
+
+<!-- Qualification -->
+<section class="container" id="qualification">
+
+<div class="row col-xs-12 col-md-12">
+<div class="panel panel-info">
+  <div class="panel-heading">
+    <h3 class="panel-title">
+		<a data-toggle="collapse" href="#collapse1">Qualification - Just once</a>
+	</h3>
+  </div>
+  <div id="collapse1" class="panel-collapse collapse in">
+	  <div class="panel-body">
+
+		<fieldset class="qualificationFieldset"><label>1.&nbsp;What is your gender?</label>
+				<div class="radio">
+				  <label><input type="radio" name="1_gender" value="M" required="">Male</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="1_gender" value="F">Female</label>
+				</div>
+				<div class="radio disabled">
+				  <label><input type="radio" name="1_gender" value="O">Other</label>
+				</div>
+		</fieldset>
+		<fieldset class="qualificationFieldset"><label>2.&nbsp;In what year were you born? </label>
+				<div class="form-group">
+				  <input type="text" class="form-control" name="2_birth_year" required="">
+				</div>
+		</fieldset>
+
+		<fieldset class="qualificationFieldset"><label>3.&nbsp;What is your mother tongue? </label>
+				<div class="form-group">
+				  <input type="text" class="form-control" name="3_mother_tongue" required="">
+				</div>
+		</fieldset>
+
+
+		<fieldset class="qualificationFieldset"><label>4.&nbsp; What type of listening devices do you have and able to use now (select all)?</label>
+
+			<div class="table-responsive 4_lds">
+			  <table class="table" border="0" cellpadding="0" cellspacing="0" >
+				<tbody>
+					<tr>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/inear.png" alt="in-ear headphones" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/overear.png" alt="Over-the-ear headphones" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/louadspeaker.png" alt="louadspeaker" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/inbuild.png" alt="inbuild speakers" width="100px"> </td>
+					</tr>
+					<tr>
+						<td><div class="checkbox"><label><input type="checkbox" value="in-ear" name="4_ld" required>In-ear headphones</label></div></td>
+						<td><div class="checkbox"><label><input type="checkbox" value="over-ear" name="4_ld" required>Over-the-ear headphones</label></div></td>
+						<td><div class="checkbox"><label><input type="checkbox" value="ex-ls" name="4_ld" required>External loudspeaker</label></div></td>
+						<td><div class="checkbox"><label><input type="checkbox" value="ib-ls" name="4_ld" required>In-build loudspeaker</label></div></td>
+					</tr>
+
+				</tbody>
+			  </table>
+			</div>
+
+		</fieldset>
+
+		<fieldset class="qualificationFieldset">
+				 <div class="form-group">
+				  <label for="sel1">5.&nbsp;When was the last time you participated in <span title="Giving your opinion about a product or media, for example what is the over all quality of this video. "><u>a subjective test</u></span>?</label>
+				  <select class="form-control" id="sel1" name="5_last_subjective" required="">
+					<option value="">Please select</option>
+					<option value="0d">Today</option>
+					<option value="3d">In last 3 days</option>
+					<option value="7d">In last week</option>
+					<option value="30d">In last month</option>
+					<option value="nn">Never participated</option>
+				  </select>
+				</div>
+		</fieldset>
+
+		<fieldset class="qualificationFieldset">
+				 <div class="form-group">
+				  <label for="sel2">6.	When was the last time you participated in an <span title="Giving your opinion about an audio sample"><u>audio listening test</u></span>?</label>
+				  <select class="form-control" id="sel2" name="6_audio_test" required="">
+					<option value="">Please select</option>
+					<option value="0d">Today</option>
+					<option value="3d">In last 3 days</option>
+					<option value="7d">In last week</option>
+					<option value="30d">In last month</option>
+					<option value="nn">Never participated</option>
+				  </select>
+				</div>
+		</fieldset>
+
+		<fieldset class="qualificationFieldset"><label>7.&nbsp;Have you ever been directly involved in work connected with assessment of the performance of telephone systems, or related work such as speech coding?</label>
+				<div class="radio">
+				  <label><input type="radio" name="7_working_area" value="Y" required="">Yes</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="7_working_area" value="N">No</label>
+				</div>
+		</fieldset>
+
+		<fieldset class="qualificationFieldset"><label>8.&nbsp; I belive, ...</label>
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="normal" required="">I have a normal hearing ability.</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="mid">I have difficulties keeping up with conversations, especially in noisy surroundings (mid hearing loss).</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="moderate">I have difficulty keeping up with conversations when I am not using a hearing aid (moderate hearing loss).</label>
+				</div>
+				<div class="radio">
+				  <label><input type="radio" name="8_hearing" value="severe">I rely on lip-reading even when I am using hearing aids (severe or profound hearing loss). </label>
+				</div>
+		</fieldset>
+
+
+		<div style="text-align: center;margin:30px;"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention"> </img> <b>Please wear your headphones now.</b></div>
+
+	   <fieldset class="qualificationFieldset"><label>9.&nbsp;Please adjust the level of your computer to a comfortable level so that you hear the following audio sample very well.</label>
+
+			<p align="center"> <span class="baudio" id="volume" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/signal_level.wav" >&nbsp;</span> </p>
+
+			<div class="alert alert-warning" role="alert">
+			  <b>NOTE:</b> After that, you are not allowed to change the volume anymore. Otherwise your response will be rejected.
+			</div>
+
+		</fieldset>
+
+		<fieldset class="qualificationFieldset"><label>10.&nbsp;In each of the following tests, you hear combination of three digits (for example 1 5 3), spoken with noise in the background. Simply enter the three numbers that you have understood on the answer box below each audio file. </label>
+
+
+			<div class="row" style="margin: 30px;">
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="n1" title="" data-src="{{cfg.num1_url}}" >&nbsp;</span>
+					</div>
+					<input type="text" name="num1" required="" class="nospace" autocomplete="off">
+				</div>
+
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="n2" title="" data-src="{{cfg.num2_url}}" >&nbsp;</span>
+					</div>
+					<input type="text" name="num2" required="" class="nospace" autocomplete="off">
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row"style="text-align:center;">
+						<span class="baudio" id="n3" title="" data-src="{{cfg.num3_url}}" >&nbsp;</span>
+					</div>
+					<input type="text" name="num3" required="" class="nospace" autocomplete="off">
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row"style="text-align:center;">
+						<span class="baudio" id="n4" title="" data-src="{{cfg.num4_url}}" >&nbsp;</span>
+					</div>
+					<input type="text" name="num4" required="" class="nospace" autocomplete="off">
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="n5" title="" data-src="{{cfg.num5_url}}" >&nbsp;</span>
+					</div>
+					<input type="text" name="num5" required="" class="nospace" autocomplete="off">
+				</div>
+			</div>
+
+		</fieldset>
+	  </div>
+  </div>
+</div>
+
+</div>
+</section>
+
+
+<!-- Setup -->
+<section class="container" id="setup">
+<div class="panel panel-info">
+  <div class="panel-heading">
+    <h3 class="panel-title">
+		<a data-target="#setup_panel" data-toggle="collapse" >Setup (every <b class="setup_time"> a </b> minutes)</a>
+	</h3>
+  </div>
+  <div  class="panel-collapse collapse in" id="setup_panel">
+	  <div class="panel-body">
+
+		  <div style="text-align: center;margin:30px;"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">  <b>Please wear your headphones now. You must <u>wear both earbuds</u>. </b></div>
+
+		<fieldset class="setupFieldset" ><label>1.&nbsp;Please adjust the level of your computer to <b>a comfortable level</b> so that you hear the following audio sample very well.</label>
+
+			<p align="center"> <span class="baudio" id="volume2" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/signal_level.wav" >&nbsp;</span> </p>
+
+			<div class="alert alert-danger" role="alert">
+			  <b>NOTE:</b> Missing this step can strongly affect quality of your answer.
+			</div>
+
+			<div class="alert alert-warning" role="alert">
+			  After adjusting the level, you are not allowed to change the volume anymore. Otherwise your response will be rejected.
+			</div>
+		</fieldset>
+
+
+		<fieldset  class="setupFieldset"><label>2.&nbsp; Please listen to the following audio file and type in the answer to the question: </label>
+
+				<div align="center"> <span class="baudio" id="math1" data-src="${math}" >&nbsp;</span> </div>
+
+
+		<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" onchange="userAnsweringToSetupQuestions()"/> </div>
+
+		</fieldset>
+
+		<div class="alert alert-info" role="alert">For the following <b>four questions</b>, please specify which sample has a better quality compared to the other one from your perspective.</div>
+
+
+		<fieldset  class="setupFieldset"><label>3.&nbsp;Which sample has a better quality compared to the other one? </label>
+
+		<div class="row" style="margin-top:10px;">
+				<div class="col-sm-4">
+					<div align="right"> <span class="baudio" id="CMP1_A" title="Sample A" data-src="${CMP1_A}" >&nbsp;</span> </div>
+				</div>
+				<div class="col-sm-4"></div>
+				<div class="col-sm-4">
+					<div align="left"> <span class="baudio" id="CMP1_B" title="Sample B" data-src="${CMP1_B}" >&nbsp;</span> </div>
+				</div>
+		</div>
+
+		<div class="row" >
+				<div class="col-sm-4"></div>
+				<div class="col-sm-5">
+					<div class="radio"><label><input type="radio" name="cmp1" required="" value="a">Quality of <b>Sample A</b> is better.</label></div>
+					<div class="radio"><label><input type="radio" name="cmp1" required="" value="o">Difference is <b>not detectable</b>.</label></div>
+					<div class="radio"><label><input type="radio" name="cmp1" required="" value="b">Quality of <b>Sample B</b> is better.</label></div>
+				</div>
+				<div class="col-sm-3"></div>
+		</div>
+
+		</fieldset>
+
+		<fieldset  class="setupFieldset"><label>4.&nbsp;Which sample has a better quality compared to the other one? </label>
+
+		<div class="row" style="margin-top:10px;">
+				<div class="col-sm-4">
+					<div align="right"> <span class="baudio" id="CMP2_A" title="Sample A" data-src="${CMP2_A}" >&nbsp;</span> </div>
+				</div>
+				<div class="col-sm-4"></div>
+				<div class="col-sm-4">
+					<div align="left"> <span class="baudio" id="CMP2_B" title="Sample B" data-src="${CMP2_B}" >&nbsp;</span> </div>
+				</div>
+		</div>
+
+		<div class="row" >
+				<div class="col-sm-4"></div>
+				<div class="col-sm-5">
+					<div class="radio"><label><input type="radio" name="cmp2" required="" value="a">Quality of <b>Sample A</b> is better.</label></div>
+					<div class="radio"><label><input type="radio" name="cmp2" required="" value="o">Difference is <b>not detectable</b>.</label></div>
+					<div class="radio"><label><input type="radio" name="cmp2" required="" value="b">Quality of <b>Sample B</b> is better.</label></div>
+				</div>
+				<div class="col-sm-3"></div>
+		</div>
+
+		</fieldset>
+		<fieldset  class="setupFieldset"><label>5.&nbsp;Which sample has a better quality compared to the other one? </label>
+
+		<div class="row" style="margin-top:10px;">
+				<div class="col-sm-4">
+					<div align="right"> <span class="baudio" id="CMP3_A" title="Sample A" data-src="${CMP3_A}" >&nbsp;</span> </div>
+				</div>
+				<div class="col-sm-4"></div>
+				<div class="col-sm-4">
+					<div align="left"> <span class="baudio" id="CMP3_B" title="Sample B" data-src="${CMP3_B}" >&nbsp;</span> </div>
+				</div>
+		</div>
+
+		<div class="row">
+				<div class="col-sm-4"></div>
+				<div class="col-sm-5">
+					<div class="radio"><label><input type="radio" name="cmp3" required="" value="a">Quality of <b>Sample A</b> is better.</label></div>
+					<div class="radio"><label><input type="radio" name="cmp3" required="" value="o">Difference is <b>not detectable</b>.</label></div>
+					<div class="radio"><label><input type="radio" name="cmp3" required="" value="b">Quality of <b>Sample B</b> is better.</label></div>
+				</div>
+				<div class="col-sm-3"></div>
+		</div>
+
+		</fieldset>
+
+		<fieldset  class="setupFieldset"><label>6.&nbsp;Which sample has a better quality compared to the other one? </label>
+
+
+		<div class="row" style="margin-top:10px;">
+				<div class="col-sm-4">
+					<div align="right"> <span class="baudio" id="CMP4_A" title="Sample A" data-src="${CMP4_A}" >&nbsp;</span> </div>
+				</div>
+				<div class="col-sm-4"></div>
+				<div class="col-sm-4">
+					<div align="left"> <span class="baudio" id="CMP4_B" title="Sample B" data-src="${CMP4_B}" >&nbsp;</span> </div>
+				</div>
+		</div>
+
+		<div class="row">
+				<div class="col-sm-4"></div>
+				<div class="col-sm-5">
+					<div class="radio"><label><input type="radio" name="cmp4" required="" value="a">Quality of <b>Sample A</b> is better.</label></div>
+					<div class="radio"><label><input type="radio" name="cmp4" required="" value="o">Difference is <b>not detectable</b>.</label></div>
+					<div class="radio"><label><input type="radio" name="cmp4" required="" value="b">Quality of <b>Sample B</b> is better.</label></div>
+				</div>
+				<div class="col-sm-3"></div>
+		</div>
+
+		</fieldset>
+
+	  </div>
+  </div>
+</div>
+
+</section>
+<!-- Setup  ends-->
+
+<!-- Device Check -->
+<section class="container" id="device_check_section">
+	<div class="panel panel-primary">
+		<div class="panel-heading">
+			<h3 class="panel-title">
+				<a data-target="#device_check" data-toggle="collapse" >Listening device check</a>
+			</h3>
+		</div>
+		<div  class="panel-collapse collapse in" id="device_check">
+			  <div class="panel-body" >
+			  <b>Introduction</b>
+				  <p>We need to check your listening device. It is an automated test using your Web-browser functionality. Please click on <b>Start</b>.
+					  After that, you might see a popup message from your browser asking for allowance to use your microphone.
+					  Please click on <b>Allow</b> (on some of smartphones there will be no message). <u>We do not process or record any audio with your microphone</u>.
+				 <div class="center">
+						<button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
+						<div id="status"> </div>
+			  	</div>
+			</div>
+		</div>
+
+	</div>
+</section>
+<!-- Device Check ends-->
+
+<!-- Training section, appears once a day-->
+<section class="container" id="training">
+		<div class="panel panel-primary">
+			<div class="panel-heading">
+				<h3 class="panel-title">
+					<a data-target="#trainingS" data-toggle="collapse" >Training (every <b class="training_time"> 0 </b> hour(s))</a>
+				</h3>
+			</div>
+			<div  class="panel-collapse collapse in" id="trainingS">
+				<div class="panel-body">
+				<p> Please answer the following <b class="question_number_training"> 0 </b> questions. For each question, please listen to the audio sample and give your opinion about the degradation from acoustic echo and the overall quality on the following scale. <b>Note</b> that the scale will be activated when the speech sample is played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
+
+ 				<!-- will be generated -->
+				<ul class="nav nav-tabs" role="tablist" id="trainingTabs"> 	</ul>
+				<!-- will be generated -->
+				<div class="tab-content" id="nav-tabContent">	</div>
+
+
+			<nav aria-label="..." id="navNextPreT">
+			  <ul class="pager">
+				<li class="previous" onclick="showPreviousQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous trial</a></li>
+				<li class="next" onclick="showNextQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button">Next trial<span aria-hidden="true">&rarr;</span></a></li>
+			  </ul>
+			</nav>
+			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>Next Trial</b> to answer all <b class="question_number_training"> 0 </b> trials.</div>
+			</div>
+			</div>
+		</div>
+
+</section>
+<!-- Training section ends-->
+
+<input id="tp_check" name="tp_check" type="hidden" value="-1" />
+<input id="gq_check" name="gq_check" type="hidden" value="-1" />
+<input id="errors" name="errors" type="hidden" value="" />
+
+<input id="browser_info" name="browser_info" type="hidden" value="-1" maxlength="2000"/>
+<input id="webrtc_raw" name="webrtc_raw" type="hidden" value="-1" maxlength="2000"/>
+<input id="use_headset" name="use_headset" type="hidden" value="-1" />
+
+<input id="time_page_hidden_sec" name="time_page_hidden_sec" type="hidden" value="0" />
+<input id="any_parallel_session" name="any_parallel_session" type="hidden" value="false" />
+
+
+<!--- Rating task -->
+
+<section class="container" id="rating_section">
+		<div class="panel panel-primary">
+			<div class="panel-heading">
+				<h3 class="panel-title">Ratings</h3>
+			</div>
+			<div class="panel-body">
+				<p> Please answer the following <b class="question_number"> 0 </b> questions. For each question, please listen to the audio sample and give your opinion about the degradation from acoustic echo and the overall quality on the following scale. <b>Note</b> that the scale will be activated when the speech sample is played until the end. In case you hear an interruption message, please follow the instruction given in the message.</p>
+				<p> There is no right or wrong answer as long as you listen to the audio files and give your opinion.</p>
+
+ 				<!-- will be generated -->
+				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
+				<!-- will be generated -->
+				<div class="tab-content" id="nav-tabContent-rating">	</div>
+
+
+				<nav aria-label="..." id="navNextPre">
+				  <ul class="pager">
+					<li class="previous" id="prev-rating" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button" ><span aria-hidden="true">&larr;</span>Previous trial</a></li>
+					<li class="next" id= "next-rating" onclick="showNextQuestionInRatingSection();" ><a href="#navNextPre" class="page-link"  role="button">Next trial<span aria-hidden="true">&rarr;</span></a></li>
+				  </ul>
+				</nav>
+				<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>Next trial</b> to answer all <b class="question_number">0</b> trials, then submit your response.</div>
+			</div>
+		</div>
+</section>
+
+
+<section class="container" id="thanks">
+	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
+	<p>Note: The submit button works only if you answer to all questions. Make sure to answer to all 3 questions in each trial. <a id="myLink" href="#" onclick="help_which_questions_remain();return false;">Click here to see which questions in the "Rating" section are not answered?</a></p>
+</section>
+
+<section class="container" id="max_allowed_HITs_reached" hidden>
+	<p><h2>Well done! </h2> You performed the maximum number of HITs that you were allowed to.</p>
+
+	<div class="alert alert-danger" role="alert">
+		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
+			  <b>NOTE:</b> Performing more HITs
+		than what is explained in the description is forbidden and leads ro rejection of all of your submissions.
+			</div>
+
+</section>
+
+<section class="container" id="qualification_rejected" hidden>
+	<p>There is no assignments that match to your profile now. Please try it again in two-weeks time.
+	We thank you for your participation.</p>
+
+	<div class="alert alert-danger" role="alert">
+		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
+			  <b>NOTE:</b> Any try to perform assignments and neglecting this message is forbidden and leads ro rejection of all of your submissions.
+			</div>
+</section>
+
+
