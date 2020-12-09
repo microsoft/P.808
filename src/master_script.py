@@ -474,6 +474,79 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
         file.write(html)
     print(f"  [{out_path}] is created")
 
+# TODO: At least extract this to a file if possible
+async def create_hit_app_echo_impairment_new(cfg, template_path, out_path, training_path, trap_path, cfg_g, cfg_trapping_store, general_cfg):
+    """Create the echo_impairment_test_new.html file corresponding to this project"""
+
+    print("Start creating custom echo_impairment_test_new.html")
+    df_trap = pd.DataFrame()
+    if trap_path and os.path.exists(trap_path):
+        df_trap = pd.read_csv(trap_path, nrows=1)
+    else:
+        trapclipsstore = TrappingSamplesInStore(cfg_trapping_store, 'TrappingQuestions')
+        df_trap = await trapclipsstore.get_dataframe()
+    # trapping clips are required, at list 1 clip should be available here
+    if len(df_trap.index) < 1 and int(cfg_g['number_of_clips_per_session']) > 0:
+        raise (f"At least one trapping clip is required")
+    for index, row in df_trap.head(n=1).iterrows():
+        trap_url = row['trapping_clips']
+        trap_ans = row['trapping_ans']
+
+    config = {}
+    config['cookie_name'] = cfg['cookie_name']
+    config['qual_cookie_name'] = cfg['qual_cookie_name']
+    config['allowed_max_hit_in_project'] = cfg['allowed_max_hit_in_project']
+    config['training_trap_urls'] = trap_url
+    config['training_trap_ans'] = trap_ans
+    config['contact_email'] = cfg["contact_email"]
+
+    config['hit_base_payment'] = cfg['hit_base_payment']
+    config['quantity_hits_more_than'] = cfg['quantity_hits_more_than']
+    config['quantity_bonus'] = cfg['quantity_bonus']
+    config['quality_top_percentage'] = cfg['quality_top_percentage']
+    config['quality_bonus'] = float(cfg['quality_bonus']) + float(cfg['quantity_bonus'])
+    config['sum_quantity'] = float(cfg['quantity_bonus']) + float(cfg['hit_base_payment'])
+    config['sum_quality'] = config['quality_bonus'] + float(cfg['hit_base_payment'])
+    config = {**config, **general_cfg}
+
+    df_train = pd.read_csv(training_path)
+    train = []
+    for index, row in df_train.iterrows():
+        train.append({'mixed': row['training_clips'], 'model': row['training_clips'], 'dummy': 'dummy'}) # TODO: Needs model output as well via training
+    train.append({'mixed': trap_url, 'model': trap_url, 'dummy': 'dummy'})
+    config['training_urls'] = train
+
+    # rating urls
+    rating_urls = []
+    n_clips = int(cfg_g['number_of_clips_per_session'])
+    n_traps = int(cfg_g['number_of_trapping_per_session'])
+    n_gold_clips = int(cfg_g['number_of_gold_clips_per_session'])
+
+    for i in range(0, n_clips):
+        rating_urls.append({'mixed': f'${{Q{i}_mixed}}', 'model': f'${{Q{i}_model}}', 'dummy': 'dummy'})
+
+    if n_traps > 1:
+        raise Exception("more than 1 trapping clips question is not supported.")
+    elif n_traps == 1:
+        rating_urls.append({'mixed': '${TP}', 'model': '${TP}', 'dummy': 'dummy'})
+
+    if n_gold_clips > 1:
+        raise Exception("more than 1 gold question is not supported.")
+    if n_gold_clips == 1:
+        rating_urls.append({'mixed': '${gold_clips}', 'model': '${gold_clips}', 'dummy': 'dummy'}) # TODO: Need diff mixed and model for gold
+
+    config['rating_urls'] = rating_urls
+
+    with open(template_path, 'r') as file:
+        content = file.read()
+        file.seek(0)
+    t = Template(content)
+    html = t.render(cfg=config)
+
+    with open(out_path, 'w') as file:
+        file.write(html)
+    print(f"  [{out_path}] is created")
+
 
 async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, general):
     """
@@ -505,7 +578,7 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
         df_clips = pd.DataFrame({'rating_clips': rating_clips})
 
     df_general = pd.read_csv(general)
-    if test_method in ["acr", "p835", "echo_impairment_test"]:
+    if test_method in ["acr", "p835", "echo_impairment_test", "echo_impairment_test_new"]:
         if gold and os.path.exists(gold):
             df_gold = pd.read_csv(gold)
         else:
@@ -606,6 +679,8 @@ def get_path(test_method, is_p831):
     # for echo_impairment_test
     echo_impairment_test_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_template.html')
 
+    echo_impairment_test_new_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_new_template.html')
+
     #   for p831-acr
     p831_acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_fest_template.html')
     p831_acr_cfg_template_path = os.path.join(os.path.dirname(__file__),
@@ -643,6 +718,12 @@ def get_path(test_method, is_p831):
         assert os.path.exists(echo_impairment_test_template_path), f"No html template file found  in {echo_impairment_test_template_path}"
         assert os.path.exists(acr_cfg_template_path), f"No cfg template  found  in {acr_cfg_template_path}"
         template_path = echo_impairment_test_template_path
+        cfg_path = acr_cfg_template_path
+
+    if test_method == "echo_impairment_test_new":
+        assert os.path.exists(echo_impairment_test_new_template_path), f"No html template file found  in {echo_impairment_test_new_template_path}"
+        assert os.path.exists(acr_cfg_template_path), f"No cfg template  found  in {acr_cfg_template_path}"
+        template_path = echo_impairment_test_new_template_path
         cfg_path = acr_cfg_template_path
 
     if is_p831 and test_method == "acr":
@@ -724,6 +805,9 @@ async def main(cfg, test_method, args):
     elif test_method in ['p835', 'echo_impairment_test']:
         await create_hit_app_p835(cfg_hit_app, template_path, output_html_file, args.training_clips,
                                   args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
+    elif test_method == 'echo_impairment_test_new':
+        await create_hit_app_echo_impairment_new(cfg_hit_app, template_path, output_html_file, args.training_clips,
+                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
     else:
         await create_hit_app_ccr_dcr(cfg_hit_app, template_path, output_html_file, args.training_clips,
                                      cfg['create_input'], general_cfg)
@@ -736,7 +820,7 @@ async def main(cfg, test_method, args):
         create_analyzer_cfg_general(cfg, cfg_hit_app, cfg_path, output_cfg_file)
     elif is_p831 and test_method == 'dcr':
         create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file)
-    elif test_method in ['acr', 'p835', 'echo_impairment_test']:
+    elif test_method in ['acr', 'p835', 'echo_impairment_test', 'echo_impairment_test_new']:
         create_analyzer_cfg_general(cfg, cfg_hit_app, cfg_path, output_cfg_file)
     else:
         create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file)
@@ -761,7 +845,7 @@ if __name__ == '__main__':
     # check input arguments
     args = parser.parse_args()
 
-    methods = ['acr', 'dcr', 'ccr', 'p835', 'echo_impairment_test']
+    methods = ['acr', 'dcr', 'ccr', 'p835', 'echo_impairment_test', 'echo_impairment_test_new']
     test_method = args.method.lower()
     assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835', 'echo_impairment_test'"
 
@@ -783,7 +867,7 @@ if __name__ == '__main__':
     else:
         assert True, "Neither clips file not cloud store provided for rating clips"
 
-    if test_method in ['acr', 'p835', 'echo_impairment_test']:
+    if test_method in ['acr', 'p835', 'echo_impairment_test', 'echo_impairment_test_new']:
         if args.gold_clips:
             assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
         elif cfg.has_option('GoldenSample', 'Path'):
