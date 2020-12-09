@@ -607,7 +607,7 @@ def get_path(test_method, is_p831):
     echo_impairment_test_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_template.html')
 
     #   for p831-acr
-    p831_acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/P831_P808_ACR_template.html')
+    p831_acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_fest_template.html')
     p831_acr_cfg_template_path = os.path.join(os.path.dirname(__file__),
                                               'assets_master_script/acr_result_parser_template.cfg')
 
