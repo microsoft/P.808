@@ -98,18 +98,24 @@ def create_input_for_echo_impairment(cfg, df, output_path):
         if int(cfg['number_of_gold_clips_per_session']) > 1:
             print("more than one gold_clip is not supported for now - continue with 1")
         n_gold_clips = n_sessions
-        gold_clip_source = df['gold_clips'].dropna()
+        gold_clips_mixed_source = df['gold_clips_mixed'].dropna()
+        gold_clips_model_source = df['gold_clips_model'].dropna()
         gold_clip_ans_source = df['gold_clips_ans'].dropna()
 
-        full_gold_clips = np.tile(gold_clip_source.to_numpy(),
-                                  (n_gold_clips // gold_clip_source.count()) + 1)[:n_gold_clips]
+        full_gold_clips_mixed = np.tile(gold_clips_mixed_source.to_numpy(),
+                                        (n_gold_clips // gold_clips_mixed_source.count()) + 1)[:n_gold_clips]
+        full_gold_clips_model = np.tile(gold_clips_model_source.to_numpy(),
+                                        (n_gold_clips // gold_clips_model_source.count()) + 1)[:n_gold_clips]
         full_gold_clips_answer = np.tile(gold_clip_ans_source.to_numpy(), (n_gold_clips // gold_clip_ans_source.count())
                                          + 1)[:n_gold_clips]
-        full_gc = list(zip(full_gold_clips, full_gold_clips_answer))
+        full_gc = list(zip(full_gold_clips_mixed,
+                           full_gold_clips_model, full_gold_clips_answer))
         random.shuffle(full_gc)
 
-        full_gold_clips, full_gold_clips_answer = zip(*full_gc)
-        output_df['gold_clips'] = full_gold_clips
+        full_gold_clips_mixed, full_gold_clips_model, full_gold_clips_answer = zip(
+            *full_gc)
+        output_df['gold_clips_mixed'] = full_gold_clips_mixed
+        output_df['gold_clips_mdeol'] = full_gold_clips_model
         output_df['gold_clips_ans'] = full_gold_clips_answer
 
     output_df.to_csv(output_path, index=False)
@@ -157,8 +163,8 @@ def create_hit_app_echo_impairment_new(cfg, template_path, training_path, trap_p
     df_train = pd.read_csv(training_path)
     train = []
     for _, row in df_train.iterrows():
-        train.append({'mixed': row['training_clips'],
-                      'model': row['training_clips'], 'dummy': 'dummy'})
+        train.append({'mixed': row['training_clips_mixed'],
+                      'model': row['training_clips_model'], 'dummy': 'dummy'})
     train.append({'mixed': trap_url, 'model': trap_url, 'dummy': 'dummy'})
     config['training_urls'] = train
 
