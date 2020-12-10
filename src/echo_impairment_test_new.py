@@ -98,25 +98,25 @@ def create_input_for_echo_impairment(cfg, df, output_path):
         if int(cfg['number_of_gold_clips_per_session']) > 1:
             print("more than one gold_clip is not supported for now - continue with 1")
         n_gold_clips = n_sessions
-        gold_clips_mixed_source = df['gold_clips_mixed'].dropna()
-        gold_clips_model_source = df['gold_clips_model'].dropna()
-        gold_clip_ans_source = df['gold_clips_ans'].dropna()
 
-        full_gold_clips_mixed = np.tile(gold_clips_mixed_source.to_numpy(),
-                                        (n_gold_clips // gold_clips_mixed_source.count()) + 1)[:n_gold_clips]
-        full_gold_clips_model = np.tile(gold_clips_model_source.to_numpy(),
-                                        (n_gold_clips // gold_clips_model_source.count()) + 1)[:n_gold_clips]
-        full_gold_clips_answer = np.tile(gold_clip_ans_source.to_numpy(), (n_gold_clips // gold_clip_ans_source.count())
-                                         + 1)[:n_gold_clips]
-        full_gc = list(zip(full_gold_clips_mixed,
-                           full_gold_clips_model, full_gold_clips_answer))
+        gold_clips_mixed_source, gold_clips_mixed_ans = df['gold_clips_mixed'].dropna(), df['gold_clips_mixed_ans'].dropna()
+        gold_clips_model_source, gold_clips_model_ans = df['gold_clips_model'].dropna(), df['gold_clips_model_ans'].dropna()
+
+        full_gold_clips_mixed = _tile_gold_clips(gold_clips_mixed_source, n_gold_clips)
+        full_gold_clips_mixed_ans = _tile_gold_clips(gold_clips_mixed_ans, n_gold_clips)
+        full_gold_clips_model = _tile_gold_clips(gold_clips_model_source, n_gold_clips)
+        full_gold_clips_model_ans = _tile_gold_clips(gold_clips_model_ans, n_gold_clips)
+
+        full_gc = list(zip(full_gold_clips_mixed, full_gold_clips_mixed_ans,
+                           full_gold_clips_model, full_gold_clips_model_ans))
         random.shuffle(full_gc)
 
-        full_gold_clips_mixed, full_gold_clips_model, full_gold_clips_answer = zip(
+        full_gold_clips_mixed, full_gold_clips_mixed_ans, full_gold_clips_model, full_gold_clips_model_ans = zip(
             *full_gc)
         output_df['gold_clips_mixed'] = full_gold_clips_mixed
-        output_df['gold_clips_mdeol'] = full_gold_clips_model
-        output_df['gold_clips_ans'] = full_gold_clips_answer
+        output_df['gold_clips_mixed_ans'] = full_gold_clips_mixed_ans
+        output_df['gold_clips_model'] = full_gold_clips_model
+        output_df['gold_clips_model_ans'] = full_gold_clips_model_ans
 
     output_df.to_csv(output_path, index=False)
     return len(output_df)
@@ -197,3 +197,8 @@ def create_hit_app_echo_impairment_new(cfg, template_path, training_path, trap_p
         content = f.read()
     template = jinja2.Template(content)
     return template.render(cfg=config)
+
+
+def _tile_gold_clips(clips_series, num_gold_clips):
+    tile_count = (num_gold_clips // clips_series.count()) + 1
+    return np.tile(clips_series.to_numpy(), tile_count)[:num_gold_clips]
