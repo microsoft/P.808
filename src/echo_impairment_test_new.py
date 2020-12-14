@@ -189,7 +189,7 @@ def create_hit_app_echo_impairment_new(cfg, template_path, training_path, trap_p
         raise Exception("more than 1 gold question is not supported.")
     elif n_gold_clips == 1:
         rating_urls.append(
-            {'mixed': '${gold_clip_mixed}', 'model': '${gold_clip_model}', 'dummy': 'dummy'})
+            {'mixed': '${gold_clips_mixed}', 'model': '${gold_clips_model}', 'dummy': 'dummy'})
 
     config['rating_urls'] = rating_urls
 
