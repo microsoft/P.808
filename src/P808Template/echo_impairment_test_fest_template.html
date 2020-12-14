@@ -421,7 +421,7 @@ function validateCMPSection(){
 			correct_ans ++;
 	}
 	// 4. shows the message if needed
-	if (correct_ans >= config["cmp_correct_answers"]){
+	if (correct_ans >= config["cmp_correct_answers"].length){
 		// valid response in cmp
 		createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
 		return;
