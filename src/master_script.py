@@ -209,6 +209,10 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path):
     config['quantity_bonus'] = cfg_section['quantity_bonus']
     config['quality_top_percentage'] = cfg_section['quality_top_percentage']
     config['quality_bonus'] = cfg_section['quality_bonus']
+    default_condition = '.*_c(?P<condition_num>\d{1,2})_.*.wav'
+    default_keys = 'condition_num'
+    config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
+    config['condition_keys'] = cfg['create_input'].get("condition_keys", default_keys)
 
     with open(template_path, 'r') as file:
         content = file.read()
@@ -242,7 +246,11 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path):
     config['quantity_bonus'] = cfg['dcr_ccr_html']['quantity_bonus']
     config['quality_top_percentage'] = cfg['dcr_ccr_html']['quality_top_percentage']
     config['quality_bonus'] = cfg['dcr_ccr_html']['quality_bonus']
-
+    default_condition = '.*_c(?P<condition_num>\d{1,2})_.*.wav'
+    default_keys = 'condition_num'
+    config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
+    config['condition_keys'] = cfg['create_input'].get("condition_keys", default_keys)
+    
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
@@ -683,6 +691,22 @@ async def main(cfg, test_method, args):
             cfg_hit_app = cfg['echo_impairment_test_html']
         else:
             cfg_hit_app = cfg['dcr_ccr_html']
+
+    # check clip_packing_strategy
+    clip_packing_strategy = "random"
+    if "clip_packing_strategy" in cfg["create_input"]:
+        clip_packing_strategy = cfg["create_input"]["clip_packing_strategy"].strip().lower()
+        if clip_packing_strategy == "balanced_block":
+            # condition pattern is needed
+            if not(("condition_pattern" in cfg["create_input"]) & ("condition_keys" in cfg["create_input"])):
+                raise SystemExit("Error: by 'balanced_block' strategy, 'condition_pattern' and 'condition_keys' should "
+                                 "be specified in the configuration.")
+            if (',' in cfg["create_input"]["condition_keys"]) & ("block_keys" not in cfg["create_input"]):
+                raise SystemExit("Error: In 'balanced_block' strategy, 'block_keys' should be specified in "
+                                 "configuration when 'condition_keys' contains more than one key.")
+        elif not(clip_packing_strategy == "random"):
+            raise SystemExit("Error: Unexpected value for 'clip_packing_strategy' in the configuration file")
+
 
     # create output folder
     output_dir = args.project
