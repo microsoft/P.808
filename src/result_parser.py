@@ -205,7 +205,6 @@ def check_gold_question(method, row):
         # gq_correct_ans = int(float(row[config['gold_question']['ans_found_in']]))
         #  tp_correct_ans = int(float(row[config['trapping']['ans_found_in']]))
         gq_correct_ans= -1
-        # TODO: Add support for echo impairment test new that can have different gold results
         # check if it is hardcoded correct answer or dynamic one
         if config.has_option('gold_question', 'correct_ans'):
             gq_correct_ans = int(config['gold_question']['correct_ans'])
