@@ -15,8 +15,6 @@ import math
 import random
 import numpy as np
 
-import echo_impairment_test_new
-
 
 def validate_inputs(cfg, df, method):
     """
@@ -32,8 +30,6 @@ def validate_inputs(cfg, df, method):
     required_columns_ccr = ['rating_clips', 'references', 'math', 'pair_a', 'pair_b', 'trapping_clips']
     if method in ['acr', 'p835', 'echo_impairment_test']:
         req = required_columns_acr
-    elif method == 'echo_impairment_test_new':
-        req = ['rating_clips_mixed', 'rating_clips_model', 'math', 'pair_a', 'pair_b', 'trapping_clips', 'trapping_ans']
     else:
         req = required_columns_ccr
 
@@ -234,8 +230,6 @@ def create_input_for_mturk(cfg, df, method, output_path):
     """
     if method in ['acr', 'p835', 'echo_impairment_test']:
         return create_input_for_acr(cfg, df, output_path)
-    elif method == 'echo_impairment_test_new':
-        return echo_impairment_test_new.create_input_for_echo_impairment(cfg, df, output_path)
     else:
         return create_input_for_dcrccr(cfg, df, output_path)
 

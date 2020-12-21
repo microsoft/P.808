@@ -17,7 +17,6 @@ from azure.storage.file import FileService
 import asyncio
 import base64
 import datetime
-import echo_impairment_test_new
 
 class ClipsInAzureStorageAccount(object):
     def __init__(self, config, alg):
@@ -506,7 +505,7 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
         df_clips = pd.DataFrame({'rating_clips': rating_clips})
 
     df_general = pd.read_csv(general)
-    if test_method in ["acr", "p835", "echo_impairment_test", "echo_impairment_test_new"]:
+    if test_method in ["acr", "p835", "echo_impairment_test"]:
         if gold and os.path.exists(gold):
             df_gold = pd.read_csv(gold)
         else:
@@ -605,8 +604,6 @@ def get_path(test_method, is_p831):
     # for echo_impairment_test
     echo_impairment_test_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_template.html')
 
-    echo_impairment_test_new_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_new_template.html')
-
     #   for p831-acr
     p831_acr_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_fest_template.html')
     p831_acr_cfg_template_path = os.path.join(os.path.dirname(__file__),
@@ -624,8 +621,7 @@ def get_path(test_method, is_p831):
         ('dcr', False): (dcr_template_path, dcr_ccr_cfg_template_path),
         ('ccr', False): (ccr_template_path, dcr_ccr_cfg_template_path),
         ('p835', False): (p835_template_path, acr_cfg_template_path),
-        ('echo_impairment_test', False): (echo_impairment_test_template_path, acr_cfg_template_path),
-        ('echo_impairment_test_new', False): (echo_impairment_test_new_template_path, acr_cfg_template_path)
+        ('echo_impairment_test', False): (echo_impairment_test_template_path, acr_cfg_template_path)
     }
 
     template_path, cfg_path = method_to_template[(test_method, is_p831)]
@@ -699,13 +695,6 @@ async def main(cfg, test_method, args):
     elif test_method in ['p835', 'echo_impairment_test']:
         await create_hit_app_p835(cfg_hit_app, template_path, output_html_file, args.training_clips,
                                   args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
-    elif test_method == 'echo_impairment_test_new':
-        rendered_template = echo_impairment_test_new.create_hit_app_echo_impairment_new(cfg_hit_app, template_path, 
-            args.training_clips, args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
-
-        with open(output_html_file, 'w') as f:
-            f.write(rendered_template)
-        print(f"  [{output_html_file}] is created")
     else:
         await create_hit_app_ccr_dcr(cfg_hit_app, template_path, output_html_file, args.training_clips,
                                      cfg['create_input'], general_cfg)
@@ -718,7 +707,7 @@ async def main(cfg, test_method, args):
         create_analyzer_cfg_general(cfg, cfg_hit_app, cfg_path, output_cfg_file)
     elif is_p831 and test_method == 'dcr':
         create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file)
-    elif test_method in ['acr', 'p835', 'echo_impairment_test', 'echo_impairment_test_new']:
+    elif test_method in ['acr', 'p835', 'echo_impairment_test']:
         create_analyzer_cfg_general(cfg, cfg_hit_app, cfg_path, output_cfg_file)
     else:
         create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file)
@@ -743,7 +732,7 @@ if __name__ == '__main__':
     # check input arguments
     args = parser.parse_args()
 
-    methods = ['acr', 'dcr', 'ccr', 'p835', 'echo_impairment_test', 'echo_impairment_test_new']
+    methods = ['acr', 'dcr', 'ccr', 'p835', 'echo_impairment_test']
     test_method = args.method.lower()
     assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835', 'echo_impairment_test'"
 
@@ -765,7 +754,7 @@ if __name__ == '__main__':
     else:
         assert True, "Neither clips file not cloud store provided for rating clips"
 
-    if test_method in ['acr', 'p835', 'echo_impairment_test', 'echo_impairment_test_new']:
+    if test_method in ['acr', 'p835', 'echo_impairment_test']:
         if args.gold_clips:
             assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
         elif cfg.has_option('GoldenSample', 'Path'):
