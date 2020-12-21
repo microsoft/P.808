@@ -732,6 +732,7 @@ if __name__ == '__main__':
     # check input arguments
     args = parser.parse_args()
 
+
     methods = ['acr', 'dcr', 'ccr', 'p835', 'echo_impairment_test']
     test_method = args.method.lower()
     assert test_method in methods, f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835', 'echo_impairment_test'"
