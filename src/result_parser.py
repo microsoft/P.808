@@ -578,7 +578,7 @@ def calc_quality_bonuses(quantity_bonus_result, answer_list, overall_mos, conf, 
     for worker in candidates:
             # select answers
             worker_answers = df[df['workerid'] == worker]
-            votes_p_file, votes_per_condition = transform(test_method, worker_answers.to_dict('records'), use_condition_level)
+            votes_p_file, votes_per_condition, _ = transform(test_method, worker_answers.to_dict('records'), use_condition_level)
             if use_condition_level:
                 aggregated_data = pd.DataFrame(votes_per_condition)
             else:
