@@ -23,6 +23,72 @@ from jinja2 import Template
 import create_input as ca
 
 
+ECHO_FIELDS = [
+    {
+        "field_id": "rating_echo",
+        "title": "How would you rate the level of acoustic echo in this file?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "Very annoying - 1", "value": "1"},
+            {"label": "Annoying - 2", "value": "2"},
+            {"label": "Slightly annoying - 3", "value": "3"},
+            {"label": "Perceptible, but not annoying - 4", "value": "4"},
+            {"label": "Imperceptible - 5", "value": "5"},
+        ],
+    },
+    {
+        "field_id": "rating_deg",
+        "title": "How would you rate the level of other degradations (missing audio, distortions, cut-outs)?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "Very annoying - 1", "value": "1"},
+            {"label": "Annoying - 2", "value": "2"},
+            {"label": "Slightly annoying - 3", "value": "3"},
+            {"label": "Perceptible, but not annoying - 4", "value": "4"},
+            {"label": "Imperceptible - 5", "value": "5"},
+        ]
+    }
+]
+
+FIELDS = [
+    {
+        "field_id": "rating",
+        "title": "Please rate the audio file",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "Bad - 1", "value": "1"},
+            {"label": "Poor - 2", "value": "2"},
+            {"label": "Fair - 3", "value": "3"},
+            {"label": "Good - 4", "value": "4"},
+            {"label": "Excellent - 5", "value": "5"},
+        ],
+    },
+]
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Master script to prepare the ACR test')
+    parser.add_argument("--project", help="Name of the project", required=True)
+    parser.add_argument(
+        "--cfg", help="Configuration file, see master.cfg", required=True)
+    parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
+                                        "case of ccr/dcr it should also contain a column for 'references'")
+    parser.add_argument("--gold_clips", help="A csv containing urls of all gold clips in column 'gold_clips' and their "
+                                             "answer in column 'gold_clips_ans'")
+    parser.add_argument("--trapping_clips", help="A csv containing urls of all trapping clips. Columns 'trapping_clips'"
+                                                 "and 'trapping_ans'")
+    parser.add_argument('--num_responses_per_clip',
+                        help='Number of response per clip required', default=5, type=int)
+    parser.add_argument('--method', default='acr', const='acr', nargs='?',
+                        choices=('acr', 'echo'), help='Use regular ACR questions or echo questions')
+
+    return parser.parse_args()
+
+
 class ClipsInAzureStorageAccount(object):
     def __init__(self, config, alg):
         self._account_name = os.path.basename(
@@ -156,7 +222,7 @@ class TrappingSamplesInStore(ClipsInAzureStorageAccount):
         return df
 
 
-async def prepare_metadata_per_task(cfg, clips, gold, trapping):
+async def prepare_metadata_per_task(cfg, clips, gold, trapping, method):
     """
     Merge different input files into one dataframe
     :param test_method
@@ -176,10 +242,13 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping):
     else:
         rating_clips_stores = cfg.get(
             'RatingClips', 'RatingClipsConfigurations').split(',')
-        testclipsstore = ClipsInAzureStorageAccount(cfg['noisy'], 'noisy')
-        testclipsbasenames = [os.path.basename(clip) for clip in await testclipsstore.clip_names]
-        metadata = pd.DataFrame({'basename': testclipsbasenames})
-        metadata = metadata.set_index('basename')
+
+        metadata = pd.DataFrame()
+        if method == 'acr':
+            testclipsstore = ClipsInAzureStorageAccount(cfg['noisy'], 'noisy')
+            testclipsbasenames = [os.path.basename(clip) for clip in await testclipsstore.clip_names]
+            metadata = pd.DataFrame({'basename': testclipsbasenames})
+            metadata = metadata.set_index('basename')
         for model in rating_clips_stores:
             enhancedClip = ClipsInAzureStorageAccount(cfg[model], model)
             eclips = await enhancedClip.clip_names
@@ -245,15 +314,17 @@ async def post_task(scale_api_key, task_obj):
     r = requests.post(url, data=json.dumps(task_obj), headers=headers, auth=(
         scale_api_key, ''))
     if r.status_code != 200:
+        print(task_obj)
         print(r.content)
 
 
 async def main(cfg, args):
 
     # prepare format
-    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips)
+    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips, args.method)
 
     for metadata in metadata_lst:
+        fields = FIELDS if cfg.method == 'acr' else ECHO_FIELDS
         task_obj = {
             "callback_url": "http://example.com/callback",
             "project": cfg.get("CommonAccountKeys", 'ScaleAccountName'),
@@ -265,46 +336,18 @@ async def main(cfg, args):
                     "content": "Please rate these audio files",
                 },
             ],
-            "fields": [
-                {
-                    "field_id": "rating",
-                    "title": "Please rate the audio file",
-                    "required": True,
-                    "type": "category",
-                    "choices": [
-                        {"label": "Bad - 1", "value": "1"},
-                        {"label": "Poor - 2", "value": "2"},
-                        {"label": "Fair - 3", "value": "3"},
-                        {"label": "Good - 4", "value": "4"},
-                        {"label": "Excellent - 5", "value": "5"},
-                    ],
-                },
-            ],
+            "fields": fields,
             "metadata": metadata
         }
         task_obj['metadata']["group"] = args.project
 
-        await post_task(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), task_obj)
+        assert False, json.dumps(task_obj)
+        # await post_task(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), task_obj)
 
 
 if __name__ == '__main__':
     print("Welcome to the Master script for ACR test.")
-    parser = argparse.ArgumentParser(
-        description='Master script to prepare the ACR test')
-    parser.add_argument("--project", help="Name of the project", required=True)
-    parser.add_argument(
-        "--cfg", help="Configuration file, see master.cfg", required=True)
-    parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
-                                        "case of ccr/dcr it should also contain a column for 'references'")
-    parser.add_argument("--gold_clips", help="A csv containing urls of all gold clips in column 'gold_clips' and their "
-                                             "answer in column 'gold_clips_ans'")
-    parser.add_argument("--trapping_clips", help="A csv containing urls of all trapping clips. Columns 'trapping_clips'"
-                                                 "and 'trapping_ans'")
-    parser.add_argument('--num_responses_per_clip',
-                        help='Number of response per clip required', default=5, type=int)
-    # check input arguments
-    args = parser.parse_args()
-
+    args = parse_args()
     assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
 
     cfg = CP.ConfigParser()
