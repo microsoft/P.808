@@ -46,12 +46,52 @@ def main(cfg, args):
         if (next_token == None):
             break
 
-    results = []
-    rater_stats = []
+    if args.method == 'acr':
+        results, rater_stats = parse_acr(all_tasks, args.project)
+        df = pd.DataFrame(results)
+        df.to_csv(os.path.join(
+            output_dir, "Batch_{0}_per_clip_results.csv".format(now.strftime("%m%d%Y"))))
 
-    for task in all_tasks:
+        model_pivot_table = df.pivot_table(
+            values='MOS', index='model', columns='clipset', margins=True, margins_name='Overall', aggfunc=[np.mean, len, np.std])
+        model_pivot_table = model_pivot_table.swaplevel(axis=1)
+        model_pivot_table.drop('Overall', inplace=True)
+        for cols in model_pivot_table.columns.levels[0]:
+            model_pivot_table.loc[:, (cols, 'CI')] = model_pivot_table.loc[:, cols].apply(
+                lambda x: 1.96 * x['std']/np.sqrt(x['len']), axis=1)
+            model_pivot_table.loc[:, (cols, 'DMOS')] = model_pivot_table.loc[:, cols]. apply(
+                lambda x: x['mean'] - model_pivot_table.loc['noisy', (cols, 'mean')], axis=1)
+
+        model_pivot_table = model_pivot_table.sort_values(
+            ('Overall', 'mean'), ascending=False).sort_index(axis=1, ascending=False)
+        model_pivot_table.to_csv(os.path.join(
+            output_dir, "Batch_{0}_per_condition_results.csv".format(now.strftime("%m%d%Y"))))
+
+    elif args.method == 'echo':
+        echo_results, deg_results, rater_stats = parse_echo(
+            all_tasks, args.project)
+
+        df_echo = pd.DataFrame(echo_results)
+        df_echo.to_csv(os.path.join(
+            output_dir, f'{args.project}_Batch_{now.strftime("%m%d%Y")}_per_clip_results_echo.csv'), index=False)
+
+        df_deg = pd.DataFrame(deg_results)
+        df_deg.to_csv(os.path.join(
+            output_dir, f'{args.project}_Batch_{now.strftime("%m%d%Y")}_per_clip_results_deg.csv'), index=False)
+    else:
+        raise Exception(f'Unknown method {cfg.method}')
+
+    df_rater = pd.DataFrame(rater_stats)
+    df_rater.to_csv(os.path.join(
+        output_dir, f'{args.project}_Batch_{now.strftime("%m%d%Y")}_rater_stats.csv'))
+
+
+def parse_acr(tasks, project):
+    results = list()
+    rater_stats = list()
+    for task in tasks:
         # Filter out results that are not a part of the interested project
-        if task.param_dict['metadata']['group'] != args.project:
+        if task.param_dict['metadata']['group'] != project:
             continue
 
         for file_url in task.param_dict['metadata']['file_urls']:
@@ -59,35 +99,70 @@ def main(cfg, args):
                 'short_file_name': task.param_dict['metadata']['file_shortname']}
             clip_dict['model'] = file_url
             clip_dict['file_url'] = task.param_dict['metadata']['file_urls'][file_url]
+            if 'response' not in task.param_dict:
+                print('Found task that has not been rated yet')
+                continue
+
             ratings = task.param_dict['response'][file_url]['responses']
             rater_stats.extend(ratings)
+
             for i in range(len(ratings)):
                 vote = 'vote_' + str(i+1)
                 clip_dict[vote] = ratings[i]['rating']
-            clip_dict['MOS'] = np.mean([rating['rating'] for rating in ratings])
+
+            clip_dict['MOS'] = np.mean([rating['rating']
+                                        for rating in ratings])
             clip_dict['n'] = len(ratings)
+
             clipset_match = re.match(
                 '.*[/](?P<clipset>audioset|ms_realrec|noreverb_clnsp|reverb_clnsp|stationary)', clip_dict['file_url'])
             clip_dict['clipset'] = clipset_match.groupdict()['clipset']
+
             results.append(clip_dict)
 
-    df = pd.DataFrame(results)
-    df_rater = pd.DataFrame(rater_stats)
-    df.to_csv(os.path.join(
-        output_dir, "Batch_{0}_per_clip_results.csv".format(now.strftime("%m%d%Y"))))
-    df_rater.to_csv(os.path.join(
-        output_dir, "Batch_{0}_rater_stats.csv".format(now.strftime("%m%d%Y"))))
-    model_pivot_table = df.pivot_table(
-        values='MOS', index='model', columns='clipset', margins=True, margins_name='Overall', aggfunc=[np.mean, len, np.std])
-    model_pivot_table = model_pivot_table.swaplevel(axis=1)
-    model_pivot_table.drop('Overall', inplace=True)
-    for cols in model_pivot_table.columns.levels[0]:
-        model_pivot_table.loc[:, (cols, 'CI')] = model_pivot_table.loc[:, cols].apply(lambda x: 1.96 * x['std']/np.sqrt(x['len']), axis=1)
-        model_pivot_table.loc[:, (cols, 'DMOS')] = model_pivot_table.loc[:, cols]. apply(lambda x: x['mean'] - model_pivot_table.loc['noisy', (cols, 'mean')], axis=1)
+    return results, rater_stats
 
-    model_pivot_table = model_pivot_table.sort_values(('Overall', 'mean'), ascending=False).sort_index(axis=1, ascending=False)
-    model_pivot_table.to_csv(os.path.join(
-        output_dir, "Batch_{0}_per_condition_results.csv".format(now.strftime("%m%d%Y"))))
+
+def parse_echo(tasks, project):
+    echo_results = list()
+    deg_results = list()
+    rater_stats = list()
+
+    for task in tasks:
+        # Filter out results that are not a part of the interested project
+        if task.param_dict['metadata']['group'] != project:
+            continue
+
+        for file_url in task.param_dict['metadata']['file_urls']:
+            clip_dict = {
+                'short_file_name': task.param_dict['metadata']['file_shortname']}
+            clip_dict['model'] = file_url
+            clip_dict['file_url'] = task.param_dict['metadata']['file_urls'][file_url]
+            if 'response' not in task.param_dict:
+                print('Found task that has not been rated yet')
+                continue
+
+            ratings = task.param_dict['response'][file_url]['responses']
+            rater_stats.extend(ratings)
+
+            clip_dict_echo = dict(clip_dict)
+            clip_dict_deg = dict(clip_dict)
+            for i, rating in enumerate(ratings):
+                vote = f'vote_{i+1}'
+                clip_dict_echo[vote] = rating['rating_echo']
+                clip_dict_deg[vote] = rating['rating_deg']
+
+            clip_dict_echo['MOS_ECHO'] = np.mean(
+                [rating['rating_echo'] for rating in ratings])
+            clip_dict_echo['n'] = len(ratings)
+            echo_results.append(clip_dict_echo)
+
+            clip_dict_deg['MOS_OTHER'] = np.mean(
+                [rating['rating_deg'] for rating in ratings])
+            clip_dict_deg['n'] = len(ratings)
+            deg_results.append(clip_dict_deg)
+
+    return echo_results, deg_results, rater_stats
 
 
 if __name__ == '__main__':
@@ -100,6 +175,8 @@ if __name__ == '__main__':
         "--cfg", help="Configuration file, see master.cfg", required=True)
     parser.add_argument(
         "--ago", help="Number of days ago to start the search from", default=1, type=int)
+    parser.add_argument('--method', default='acr', const='acr', nargs='?',
+                        choices=('acr', 'echo'), help='Use regular ACR questions or echo questions')
 
     # check input arguments
     args = parser.parse_args()
