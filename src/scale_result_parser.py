@@ -50,7 +50,7 @@ def main(cfg, args):
         results, rater_stats = parse_acr(all_tasks, args.project)
         df = pd.DataFrame(results)
         df.to_csv(os.path.join(
-            output_dir, "Batch_{0}_per_clip_results.csv".format(now.strftime("%m%d%Y"))))
+            output_dir, "Batch_{0}_per_clip_results.csv".format(now.strftime("%Y%m%d"))))
 
         model_pivot_table = df.pivot_table(
             values='MOS', index='model', columns='clipset', margins=True, margins_name='Overall', aggfunc=[np.mean, len, np.std])
@@ -65,7 +65,7 @@ def main(cfg, args):
         model_pivot_table = model_pivot_table.sort_values(
             ('Overall', 'mean'), ascending=False).sort_index(axis=1, ascending=False)
         model_pivot_table.to_csv(os.path.join(
-            output_dir, "Batch_{0}_per_condition_results.csv".format(now.strftime("%m%d%Y"))))
+            output_dir, "Batch_{0}_per_condition_results.csv".format(now.strftime("%Y%m%d"))))
 
     elif args.method == 'echo':
         echo_results, deg_results, rater_stats = parse_echo(
@@ -73,17 +73,17 @@ def main(cfg, args):
 
         df_echo = pd.DataFrame(echo_results)
         df_echo.to_csv(os.path.join(
-            output_dir, f'{args.project}_Batch_{now.strftime("%m%d%Y")}_per_clip_results_echo.csv'), index=False)
+            output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results_echo.csv'), index=False)
 
         df_deg = pd.DataFrame(deg_results)
         df_deg.to_csv(os.path.join(
-            output_dir, f'{args.project}_Batch_{now.strftime("%m%d%Y")}_per_clip_results_deg.csv'), index=False)
+            output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results_deg.csv'), index=False)
     else:
         raise Exception(f'Unknown method {cfg.method}')
 
     df_rater = pd.DataFrame(rater_stats)
     df_rater.to_csv(os.path.join(
-        output_dir, f'{args.project}_Batch_{now.strftime("%m%d%Y")}_rater_stats.csv'))
+        output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_rater_stats.csv'))
 
 
 def parse_acr(tasks, project):
@@ -155,11 +155,15 @@ def parse_echo(tasks, project):
             clip_dict_echo['MOS_ECHO'] = np.mean(
                 [rating['rating_echo'] for rating in ratings])
             clip_dict_echo['n'] = len(ratings)
+            clip_dict_echo['std_echo'] = np.std([rating['rating_echo'] for rating in ratings], ddof=1)
+            clip_dict_echo['95%CI_echo'] = 1.96 * clip_dict_echo['std_echo'] / np.sqrt(len(ratings))
             echo_results.append(clip_dict_echo)
 
             clip_dict_deg['MOS_OTHER'] = np.mean(
                 [rating['rating_deg'] for rating in ratings])
             clip_dict_deg['n'] = len(ratings)
+            clip_dict_deg['std_other'] = np.std([rating['rating_deg'] for rating in ratings], ddof=1)
+            clip_dict_deg['95%CI_other'] = 1.96 * clip_dict_deg['std_other'] / np.sqrt(len(ratings))
             deg_results.append(clip_dict_deg)
 
     return echo_results, deg_results, rater_stats
