@@ -244,11 +244,13 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, method):
             'RatingClips', 'RatingClipsConfigurations').split(',')
 
         metadata = pd.DataFrame()
+        """
         if method == 'acr':
             testclipsstore = ClipsInAzureStorageAccount(cfg['noisy'], 'noisy')
             testclipsbasenames = [os.path.basename(clip) for clip in await testclipsstore.clip_names]
             metadata = pd.DataFrame({'basename': testclipsbasenames})
             metadata = metadata.set_index('basename')
+        """
         for model in rating_clips_stores:
             enhancedClip = ClipsInAzureStorageAccount(cfg[model], model)
             eclips = await enhancedClip.clip_names
@@ -324,7 +326,10 @@ async def main(cfg, args):
     metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips, args.method)
 
     for metadata in metadata_lst:
-        fields = FIELDS if cfg.method == 'acr' else ECHO_FIELDS
+        fields = FIELDS
+        if args.method == 'echo':
+            fields = ECHO_FIELDS
+
         task_obj = {
             "callback_url": "http://example.com/callback",
             "project": cfg.get("CommonAccountKeys", 'ScaleAccountName'),
@@ -341,8 +346,7 @@ async def main(cfg, args):
         }
         task_obj['metadata']["group"] = args.project
 
-        assert False, json.dumps(task_obj)
-        # await post_task(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), task_obj)
+        await post_task(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), task_obj)
 
 
 if __name__ == '__main__':
