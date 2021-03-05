@@ -45,7 +45,7 @@ def outliers_modified_z_score(votes):
     x = np.array(modified_z_scores)
     v = np.array(votes)
     v = v[(x < threshold)]
-    return v
+    return v.tolist()
 
 
 def outliers_z_score(votes):
@@ -63,7 +63,7 @@ def outliers_z_score(votes):
     x = np.array(z)
     v = np.array(votes)
     v = v[x < threshold]
-    return v
+    return v.tolist()
 
 #p835
 def check_if_session_accepted(data):
@@ -123,6 +123,10 @@ def check_audio_played(row, method):
         elif method in ['p835', 'echo_impairment_test']:
             for q_name in question_names:
                 if int(row[f'answer.audio_n_finish_{q_name}{question_name_suffix}_audio']) > 0:
+                    question_played += 1
+        elif method == "ccr":
+            for q_name in question_names:
+                if int(row[f'answer.audio_n_finish_q_{q_name[1:]}']) > 0:
                     question_played += 1
         else:
             for q_name in question_names:
@@ -578,7 +582,8 @@ def calc_quality_bonuses(quantity_bonus_result, answer_list, overall_mos, conf, 
     for worker in candidates:
             # select answers
             worker_answers = df[df['workerid'] == worker]
-            votes_p_file, votes_per_condition = transform(test_method, worker_answers.to_dict('records'), use_condition_level)
+            votes_p_file, votes_per_condition, _ = transform(test_method, worker_answers.to_dict('records'),
+                                                             use_condition_level, True)
             if use_condition_level:
                 aggregated_data = pd.DataFrame(votes_per_condition)
             else:
@@ -678,7 +683,8 @@ p835_suffixes = ['_bak', '_sig', '_ovrl']
 echo_impairment_test_suffixes = ['_echo', '_other']
 create_per_worker = True
 
-def transform(test_method, sessions, agrregate_on_condition):
+
+def transform(test_method, sessions, agrregate_on_condition, is_worker_specific):
     """
     Given the valid sessions from answer.csv, group votes per files, and per conditions.
     Assumption: file name conatins the condition name/number, which can be extracted using "condition_patten" .
@@ -712,7 +718,8 @@ def transform(test_method, sessions, agrregate_on_condition):
             try:
                 votes.append(int(session[f'answer.{question}{question_name_suffix}']))
                 cond =conv_filename_to_condition(file_name)
-                tmp = {'workerid': session['workerid'],
+                tmp = {'HITId': session['hitid'],
+                    'workerid': session['workerid'],
                         'file':file_name,
                        'short_file_name': file_name.rsplit('/', 1)[-1],
                         'vote': int(session[f'answer.{question}{question_name_suffix}'])}
@@ -786,7 +793,13 @@ def transform(test_method, sessions, agrregate_on_condition):
             tmp['condition_name'] = key
             votes = data_per_condition[key]
             # apply z-score outlier detection
-            # votes = outliers_z_score(votes)
+            if (not(is_worker_specific) and 'outlier_removal' in config['accept_and_use']) \
+                    and (config['accept_and_use']['outlier_removal'].lower() in ['true', '1', 't', 'y', 'yes']):
+                v_len = len(votes)
+                votes = outliers_z_score(votes)
+                v_len_after = len(votes)
+                if v_len != v_len_after:
+                    print(f'Condition{tmp["condition_name"]}: {v_len-v_len_after} votes are removed, remains {v_len_after}')
             tmp = {**tmp, **condition_detail[key]}
             tmp['n'] = len(votes)
             if tmp['n'] > 0:
@@ -827,7 +840,7 @@ def create_headers_for_per_file_report(test_method, condition_keys):
     return header
 
 
-def stats(input_file):
+def calc_stats(input_file):
     """
     calc the statistics considering the time worker spend
     :param input_file:
@@ -887,7 +900,7 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
     full_data, accepted_sessions = data_cleaning(answer_path, test_method)
     n_workers = number_of_uniqe_workers(full_data)
     print(f"{n_workers} workers participated in this batch.")
-    stats(answer_path)
+    calc_stats(answer_path)
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
     if len(accepted_sessions) > 1:
         condition_set = []
@@ -896,7 +909,7 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
             print("Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip")
             use_condition_level = config.has_option('general', 'condition_pattern')
             votes_per_file, vote_per_condition, data_per_worker = transform(test_method, accepted_sessions,
-                                                           config.has_option('general', 'condition_pattern'))
+                                                           config.has_option('general', 'condition_pattern'), False)
 
             votes_per_file_path = os.path.splitext(answer_path)[0] + f'_votes_per_clip{question_name_suffix}.csv'
             votes_per_cond_path = os.path.splitext(answer_path)[0] + f'_votes_per_cond{question_name_suffix}.csv'
