@@ -263,7 +263,7 @@ async def main(cfg, args):
 
     for metadata in metadata_lst:
         task_obj = {
-            "unique_id": metadata['file_shortname'],
+            "unique_id": args.project + "\\" + metadata['file_shortname'],
             "callback_url": "http://example.com/callback",
             "project": cfg.get("CommonAccountKeys", 'ScaleAccountName'),
             "instruction": "Please rate these audio files",
