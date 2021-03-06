@@ -19,9 +19,17 @@ from azure.storage.blob import (AppendBlobService, BlockBlobService,
                                 PageBlobService)
 from azure.storage.file import FileService
 from jinja2 import Template
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 import create_input as ca
 
+s = requests.Session()
+retries = Retry(total=5,
+            backoff_factor=0.1,
+            status_forcelist=[ 500, 502, 503, 504 ])
+
+s.mount('https://', HTTPAdapter(max_retries=retries))
 
 class ClipsInAzureStorageAccount(object):
     def __init__(self, config, alg):
@@ -242,7 +250,7 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping):
 async def post_task(scale_api_key, task_obj):
     url = 'https://api.scale.com/v1/task/textcollection'
     headers = {"Content-Type": "application/json"}
-    r = requests.post(url, data=json.dumps(task_obj), headers=headers, auth=(
+    r = s.post(url, data=json.dumps(task_obj), headers=headers, auth=(
         scale_api_key, ''))
     if r.status_code != 200:
         print(r.content)
@@ -255,6 +263,7 @@ async def main(cfg, args):
 
     for metadata in metadata_lst:
         task_obj = {
+            "unique_id": args.project + "\\" + metadata['file_shortname'],
             "callback_url": "http://example.com/callback",
             "project": cfg.get("CommonAccountKeys", 'ScaleAccountName'),
             "instruction": "Please rate these audio files",
