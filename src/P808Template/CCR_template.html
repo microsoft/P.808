@@ -34,10 +34,13 @@ body{font-family:Tahoma,"Times New Roman", Times, serif;}
 .baudio .bn{margin:10px;}
 .baudio td{text-align:center;}
 .baudio .blabel{margin-top:50px; font-size: 70%; color: #636363;}
-.baudio .play_clip1 .clip1 {font-weight: bold; color: #000000; font-size: 110%;}
-.baudio .play_clip2 .clip2 {font-weight: bold; color: #000000; font-size: 110%;}
+.baudio .clip1 {padding: 2px 5px 2px 5px;}
+.baudio .clip2 {padding: 2px 5px 2px 5px;}
+.baudio .play_clip1 .clip1 {font-weight: bold; color: #000000; font-size: 110%; background-color: #66ccff;}
+.baudio .play_clip2 .clip2 {font-weight: bold; color: #000000; font-size: 110%; background-color: #ff9999;}
 .baudio .play_clip1 .clip2 {color: #838383; font-weight: normal; }
 .baudio .play_clip2 .clip1 {color: #838383; font-weight: normal; }
+.baudio . clip1 {padding: 2px 5px 2px 5px;}
 .baudio .title {font-size: 72%; color: #838383;}
 
 .scale {font-size: 100%;}
@@ -744,6 +747,8 @@ function startSecondClip(){
 	this.time_out_id = null;
 	$("#title_"+this.id).removeClass("play_clip1");
 	$("#title_"+this.id).addClass("play_clip2");
+
+
 }
 
 class DoubleClip {
@@ -842,7 +847,7 @@ $(function() {
 			title=$(this).attr('title');
 		}
 
-		t='<table class="baudio_table" border="0">'+insert+' <tr><td><button id="baudio_{0}" type="button" class="btn bn disabled"><span id ="baudio_s_{0}" class="glyphicon glyphicon-play"></span></button></td></tr><tr><td><span id="baudio_l_c_{0}" class="blabel" >00:00</span><span id="baudio_l_d_{0}" class="blabel" > / 00:00</span></td></tr></table>';
+		t='<table id = "baudio_table_{}" class="baudio_table" border="0">'+insert+' <tr><td><button id="baudio_{0}" type="button" class="btn bn disabled"><span id ="baudio_s_{0}" class="glyphicon glyphicon-play"></span></button></td></tr><tr><td><span id="baudio_l_c_{0}" class="blabel" >00:00</span><span id="baudio_l_d_{0}" class="blabel" > / 00:00</span></td></tr></table>';
 		src=$(this).attr('data-src');
 		id=$(this).attr('id');
 
@@ -1583,8 +1588,12 @@ function generate_rating_section(){
 			</div>
 			<div  class="panel-collapse collapse in" id="trainingS">
 				<div class="panel-body">
-				<p> Please answer the following <b class="question_number_training"> 0 </b> questions. For each question, please carefully listen to the pair of clips and give your opinion about the quality of the <b>second clip</b> relative to the quality of the first clip using the following scale. Both clips will be presented using a same audio controller one after each other with 1 second break.<b>Note</b> that the scale will be activated when clips played until the end. </p>
-				<p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
+				<p> Please answer the following <b class="question_number_training"> 0 </b> questions.
+					In this experiment you will hear pairs of speech samples that have been recorded to represent various telephone situations.
+					For each question, please carefully listen to the pair of clips and give your opinion about the quality of the <b style="background-color: #ff9999;">second clip</b> relative to the quality of the <b style="background-color: #66ccff;"> first clip </b> using the following scale. Both clips will be presented using a same audio controller one after each other with 1 second break. The audio controller shows which clip is playing now:</p>
+					<p><img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/ccr_clips.png" class="center" alt="ccs description" width="50%"></p>
+				   <p>What you will hear is one pair of sentences, a short period of silence, and another pair of sentences. You will evaluate the quality of the second pair of sentences compared to the quality of the first pair of sentences.  <b>Note</b> that the scale will be activated when clips played until the end. </p>
+				   <p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="trainingTabs">
@@ -1624,8 +1633,14 @@ function generate_rating_section(){
 				<h3 class="panel-title">Ratings</h3>
 			</div>
 			<div class="panel-body">
-				<p> Please answer the following <b class="question_number"> 0 </b> questions. For each question, please carefully listen to the pair of clips and give your opinion about the quality of the <b>second clip</b> relative to the quality of the first clip using the following scale. Both clips will be presented using a same audio controller one after each other with 1 second break. <b>Note</b> that the scale will be activated when clips played until the end. </p>
-				<p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
+
+				<p> Please answer the following <b class="question_number"> 0 </b> questions.
+					In this experiment you will hear pairs of speech samples that have been recorded to represent various telephone situations.
+					For each question, please carefully listen to the pair of clips and give your opinion about the quality of the <b style="background-color: #ff9999;">second clip</b> relative to the quality of the <b style="background-color: #66ccff;"> first clip </b> using the following scale. Both clips will be presented using a same audio controller one after each other with 1 second break. The audio controller shows which clip is playing now:</p>
+					<p><img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/ccr_clips.png" class="center" alt="ccs description" width="50%"></p>
+				   <p>What you will hear is one pair of sentences, a short period of silence, and another pair of sentences. You will evaluate the quality of the second pair of sentences compared to the quality of the first pair of sentences.  <b>Note</b> that the scale will be activated when clips played until the end. </p>
+				   <p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
+
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>

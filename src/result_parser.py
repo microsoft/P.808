@@ -65,7 +65,7 @@ def outliers_z_score(votes):
     v = v[x < threshold]
     return v.tolist()
 
-#p835
+
 def check_if_session_accepted(data):
     """
     Check if the session can be acceptd given the criteria in config and the calculations
@@ -91,7 +91,7 @@ def check_if_session_accepted(data):
         data['Reject'] = ""
     return accept
 
-#p835
+
 def check_if_session_should_be_used(data):
     """
     Check if the session should be used given the criteria in config
@@ -106,7 +106,7 @@ def check_if_session_should_be_used(data):
         return True
     return False
 
-# p835
+
 def check_audio_played(row, method):
     """
     check if all audios for questions played until the end
@@ -136,7 +136,7 @@ def check_audio_played(row, method):
         return False
     return question_played == len(question_names)
 
-# p835
+
 def check_tps(row, method):
     """
     Check if the trapping clips questions are answered correctly
@@ -172,7 +172,7 @@ def check_tps(row, method):
         pass
     return correct_tps
 
-#p835
+
 def check_variance(row):
     """
     Check how is variance of ratings in the session (if the worker just clicked samething)
@@ -196,7 +196,7 @@ def check_variance(row):
         pass
     return -1
 
-#p835
+
 def check_gold_question(method, row):
     """
     Check if the gold_question is answered correctly

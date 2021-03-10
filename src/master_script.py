@@ -697,7 +697,7 @@ async def main(cfg, test_method, args):
     n_HITs = ca.create_input_for_mturk(cfg['create_input'], df, test_method, output_csv_file)
 
     # check settings of quantity bonus
-    if not (int(cfg_hit_app["quantity_hits_more_than"]) in range(int(n_HITs/2),  int(n_HITs*2/3))):
+    if not (int(cfg_hit_app["quantity_hits_more_than"]) in range(int(n_HITs/2),  int(n_HITs*2/3)+1)):
         print("\nWARNING: it seems that 'quantity_hits_more_than' not set properly. Consider to use a number in"
                               f" the range of [{int(n_HITs/2)}, {int(n_HITs*2/3)}].\n")
 
