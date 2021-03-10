@@ -93,18 +93,25 @@ def check_if_session_accepted(data):
 
 
 def check_if_session_should_be_used(data):
-    """
-    Check if the session should be used given the criteria in config
-    :param data:
-    :return:
-    """
-    if data['accept'] == 1 and \
-            data['variance_in_ratings'] >= float(config['accept_and_use']['variance_bigger_equal']) and \
-            ('correct_gold_question' not in data or data['correct_gold_question'] >= int(config['accept_and_use']['gold_standard_bigger_equal'])) and \
-            (data['correct_cmps'] is None or data['correct_cmps'] >=
-             int(config['accept_and_use']['correct_cmp_bigger_equal'])):
-        return True
-    return False
+    if data['accept'] != 1:
+        return False, []
+    
+    should_be_used = True
+    failures = []
+
+    if data['variance_in_ratings'] < float(config['accept_and_use']['variance_bigger_equal']):
+        should_be_used = False
+        failures.append('variance')
+    
+    if 'correct_gold_question' in data and data['correct_gold_question'] < int(config['accept_and_use']['gold_standard_bigger_equal']):
+        should_be_used = False
+        failures.append('gold')
+    
+    if data['correct_cmps'] is not None and data['correct_cmps'] < int(config['accept_and_use']['correct_cmp_bigger_equal']):
+        should_be_used = False
+        failures.append('comparisons')
+    
+    return should_be_used, failures
 
 
 def check_audio_played(row, method):
@@ -304,6 +311,7 @@ def data_cleaning(filename, method):
     worker_list = []
     use_sessions = []
     count_sig_bak = 0
+    not_using_further_reasons = []
     for row in reader:
         correct_cmp_ans = 0
         setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
@@ -348,7 +356,9 @@ def data_cleaning(filename, method):
             d['accept'] = 0
             d['Approve'] = ''
 
-        if check_if_session_should_be_used(d):
+        should_be_used, failures = check_if_session_should_be_used(d)
+        not_using_further_reasons.extend(failures)
+        if should_be_used:
             d['accept_and_use'] = 1
             use_sessions.append(row)
             if method == 'p835' and row['answer.p835_order'] == 'sig_bak':
@@ -376,7 +386,7 @@ def data_cleaning(filename, method):
     save_approve_rejected_ones_for_gui(worker_list, accept_reject_gui_file)
     save_hits_to_be_extended(worker_list, extending_hits_file)
 
-    print(f"   {len(accept_and_use_sessions)} answers are good to be used further")
+    print(f"   {len(accept_and_use_sessions)} answers are good to be used further {list(collections.Counter(not_using_further_reasons).items())}")
     print(f"   Data cleaning report is saved in: {report_file}")
     if method == 'p835':
         print(f"   percentage of 'sig_bak':  {round(count_sig_bak/len(accept_and_use_sessions),4)*100} %")

@@ -16,6 +16,7 @@ import xml.etree.ElementTree as ET
 import re
 import random
 import botocore
+import statistics
 
 
 def send_message(client, cfg):
@@ -130,33 +131,43 @@ def assign_bonus(client, bonus_list_path):
     :param bonus_list_path: path to the csv file with following columns:workerId, assignmentId, bonusAmount, reason
     :return:
     """
-    print('send bonus...')
-    with open(bonus_list_path, mode='r') as bonus_list:
-        reader = csv.DictReader(bonus_list)
-        line_count = 0
-        success = 0
-        failed = 0
-        for row in reader:
-            if line_count == 0:
-                assert 'workerId' in row,  f"No column found with workerId in [{bonus_list_path}]"
-                assert 'assignmentId' in row,  f"No column found with assignmentId in [{bonus_list_path}]"
-                assert 'bonusAmount' in row, f"No column found with bonusAmount in [{bonus_list_path}]"
-                assert 'reason' in row,  f"No column found with reason in [{bonus_list_path}]"
+    print('Sending bonuses...')
+    with open(bonus_list_path, 'r') as bonus_list:
+        entries = list(csv.DictReader(bonus_list))
 
-            response = client.send_bonus(
-                WorkerId=row['workerId'],
-                BonusAmount=row['bonusAmount'],
-                AssignmentId=row['assignmentId'],
-                Reason=row['reason']
-            )
-            if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-                #print(f'\tsend ${row["bonusAmount"]} to {row["workerId"]}({row["assignmentId"]}): SUCCESS ')
-                success += 1
-            else:
-                print(f'\tsend ${row["bonusAmount"]} to {row["workerId"]}({row["assignmentId"]}): FAILED ')
-                failed += 1
-            line_count += 1
-        print(f' Sent {line_count} bonuses: {success} succeed, {failed} faild.')
+    bonus_amounts = [float(entry['bonusAmount']) for entry in entries]
+    num_bonus_workers = len(bonus_amounts)
+    total_bonus = round(sum(bonus_amounts), 2)
+    max_bonus = max(bonus_amounts)
+    mean_bonus = round(total_bonus / num_bonus_workers, 2)
+    median_bonus = statistics.median(bonus_amounts)
+
+    print(f'Number of workers: {num_bonus_workers}, total: {total_bonus}, max: {max_bonus}, mean: {mean_bonus}, median: {median_bonus}')
+    proceed = input('Proceed (y/N)?: ')
+    if len(proceed) > 0 and proceed.lower() not in ['y', 'n']:
+        exit(f'Unknown value "{proceed}"')
+    if len(proceed) == 0 or proceed.lower() == 'n':
+        exit()
+
+    failed = 0
+    for row in entries:
+        assert 'workerId' in row
+        assert 'assignmentId' in row
+        assert 'bonusAmount' in row
+        assert 'reason' in row
+
+        response = client.send_bonus(
+            WorkerId=row['workerId'],
+            BonusAmount=row['bonusAmount'],
+            AssignmentId=row['assignmentId'],
+            Reason=row['reason']
+        )
+
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+            print(f'Failed to send for {row}')
+            failed += 1
+
+    print(f'Bonuses sent, failed {failed}, succeeded {num_bonus_workers - failed}')        
 
 
 def approve_reject_assignments_together(client, assignment_path):
