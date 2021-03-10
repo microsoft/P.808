@@ -21,13 +21,14 @@ from azure.storage.file import FileService
 from jinja2 import Template
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from concurrent.futures import ThreadPoolExecutor
 
 import create_input as ca
 
 s = requests.Session()
 retries = Retry(total=5,
-            backoff_factor=0.1,
-            status_forcelist=[ 500, 502, 503, 504 ])
+                backoff_factor=0.1,
+                status_forcelist=[500, 502, 503, 504])
 
 s.mount('https://', HTTPAdapter(max_retries=retries))
 
@@ -318,14 +319,15 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, method):
     return metadata_lst
 
 
-async def post_task(scale_api_key, task_obj):
+def post_task(scale_api_key, task_obj):
     url = 'https://api.scale.com/v1/task/textcollection'
     headers = {"Content-Type": "application/json"}
+
     r = s.post(url, data=json.dumps(task_obj), headers=headers, auth=(
         scale_api_key, ''))
     if r.status_code != 200:
-        print(task_obj)
-        print(r.content)
+        return task_obj['unique_id'], r.content
+    return None
 
 
 async def main(cfg, args):
@@ -333,6 +335,7 @@ async def main(cfg, args):
     # prepare format
     metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips, args.method)
 
+    task_objs = list()
     for metadata in metadata_lst:
         fields = FIELDS
         if args.method == 'echo':
@@ -355,7 +358,15 @@ async def main(cfg, args):
         }
         task_obj['metadata']["group"] = args.project
 
-        await post_task(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), task_obj)
+        task_objs.append(task_obj)
+
+    results = list()
+    with ThreadPoolExecutor(max_workers=25) as executor:
+        for res in executor.map(post_task, [cfg.get("CommonAccountKeys", 'ScaleAPIKey')] * len(task_objs), task_objs):
+            results.append(res)
+
+    failed = [x for x in results if x]
+    print(failed)
 
 
 if __name__ == '__main__':
