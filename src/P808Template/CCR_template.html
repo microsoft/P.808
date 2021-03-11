@@ -33,7 +33,15 @@ body{font-family:Tahoma,"Times New Roman", Times, serif;}
 .baudio .baudio_table{display: inline;}
 .baudio .bn{margin:10px;}
 .baudio td{text-align:center;}
-.baudio .blabel{margin-top:50px;font-size: 70%;	color: #636363;}
+.baudio .blabel{margin-top:50px; font-size: 70%; color: #636363;}
+.baudio .clip1 {padding: 2px 5px 2px 5px;}
+.baudio .clip2 {padding: 2px 5px 2px 5px;}
+.baudio .play_clip1 .clip1 {font-weight: bold; color: #000000; font-size: 110%; background-color: #66ccff;}
+.baudio .play_clip2 .clip2 {font-weight: bold; color: #000000; font-size: 110%; background-color: #ff9999;}
+.baudio .play_clip1 .clip2 {color: #838383; font-weight: normal; }
+.baudio .play_clip2 .clip1 {color: #838383; font-weight: normal; }
+.baudio . clip1 {padding: 2px 5px 2px 5px;}
+.baudio .title {font-size: 72%; color: #838383;}
 
 .scale {font-size: 100%;}
 .scale td { text-align: left; padding:0;}
@@ -47,6 +55,7 @@ section {
 	font-size:0.9em;
 }
 fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5px; }
+
 </style>
 
 <script type="text/javascript">
@@ -579,19 +588,18 @@ var trainingStimulusPlayed;
   config.forceRetrainingInHours
 */
 function playedAudioTraining(id){
-	let id_num= id.substring(3);
-	played_ref= $("#audio_n_finish_t_a{0}".f(id_num)).val();
-	played_pro = $("#audio_n_finish_t_b{0}".f(id_num)).val()
+	let id_num= id.substring(2);
+	played= $("#audio_n_finish_t_{0}".f(id_num)).val();
 	//both should be played at least once
-	if (played_ref== 0 || played_pro == 0)
+	if (played == 0)
 		return;
 	$('input[name="t{0}"]'.f(id_num)).off('change');
 	eval("trainingStimulusPlayed["+id_num+"-1]=1;");
-	console.log(trainingStimulusPlayed.reduce(getSum, 0))
 	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
 		createCookie(config['cookieName']+"_training","un_important",config['forceRetrainingInHours']*60);
 	}
-	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionInTrainingUrl']){
+	if ($('span[id="'+id+'"]').attr("data-src1") == config['knownQuestionInTrainingUrl'] &&
+		$('span[id="'+id+'"]').attr("data-src2") == config['knownQuestionInTrainingUrl'] ){
 		element = $('input[name="t{0}"]'.f(id_num));
 		element.unbind();
 		element.on('change', onValueChangeForTpQuestionInTraining);
@@ -617,10 +625,27 @@ function clickManager(event) {
 	}
 };
 
+//for double clips
+function clickManagerDC(event) {
+	dc=event.data.dc;
+	var id=event.data.id;
+	if (dc.paused) {
+		pauseAll();
+		playAudio(dc);
+	} else {
+		pauseAudio(dc);
+	}
+};
+
 function playAudio(audio){
 	audio.play();
-	var idT=audio.id;
-	var id=idT.substring(6,idT.length);
+	var id='';
+	if (audio instanceof DoubleClip)
+		id = audio.id;
+	else{
+		var idT=audio.id;
+		id=idT.substring(6,idT.length);
+	}
 	console.log(id);
 	$("#baudio_s_"+id).removeClass("glyphicon-repeat");
 	$("#baudio_s_"+id).removeClass("glyphicon-play");
@@ -631,8 +656,14 @@ function playAudio(audio){
 
 function pauseAudio(audio){
 	audio.pause();
-	var idT=audio.id;
-	var id=idT.substring(6,idT.length);
+	var id ='';
+	if (audio instanceof DoubleClip)
+		id = audio.id;
+	else{
+		var idT=audio.id;
+		id=idT.substring(6,idT.length);
+	}
+	console.log(id);
 	$("#baudio_s_"+id).removeClass("glyphicon-pause");
 	$("#baudio_"+id).removeClass("btn-primary");
 	$("#baudio_s_"+id).addClass("glyphicon-play");
@@ -647,6 +678,7 @@ function pauseAll(){
 }
 
 function canPlay(event){
+	console.log(this);
 	var ae=this;
 	var idText =this.id;
 	var id=idText.substring(6,idText.length);
@@ -675,9 +707,135 @@ function isended(){
 	}
 }
 
+function doubleClipCanPlay(event){
+	if (!this.canPlay()){
+		return;
+	}
+	var id= this.id;
+	var duration = this.duration();
+	$("#baudio_l_d_"+id).text(" / " + (duration).toString().toMMSS());
+	$("#baudio_"+id).removeClass("disabled");
+}
+
+function doubleClipTimeUpdate(){
+	var ct=this.currentTime;
+	var id=this.id;
+	$("#baudio_l_c_"+id).text(ct.toString().toMMSS());
+}
+
+function doubleClipIsended(){
+	var id = this.id;
+
+	if (this.ended){
+		$("#baudio_s_"+id).removeClass("glyphicon-pause");
+		$("#baudio_"+id).removeClass("btn-primary");
+		$("#baudio_s_"+id).addClass("glyphicon-repeat");
+		$("#audio_n_finish_"+id).val(parseInt($("#audio_n_finish_"+id).val())+1);
+		if ($("#"+id).attr('data-onfinished')){
+			window[$("#"+id).attr('data-onfinished')](id);
+		}
+	}else{
+		// only clip1 is ended
+		this.time_out_id = window.setTimeout(startSecondClip.bind(this), this.pause_time_sec * 1000);
+		this.in_between = true;
+	}
+}
+
+function startSecondClip(){
+	this.ae2.play();
+	this.in_between = false;
+	this.time_out_id = null;
+	$("#title_"+this.id).removeClass("play_clip1");
+	$("#title_"+this.id).addClass("play_clip2");
+
+
+}
+
+class DoubleClip {
+	ae1;
+	ae2;
+	id;
+	pause_time_sec = 1;
+	in_between= false;
+	time_out_id;
+  constructor(id, ae1, ae2) {
+  this.id = id;
+    this.ae1 = ae1;
+    this.ae2 = ae2;
+  }
+
+  duration(){
+	let ae1_duration = this.ae1.duration;
+	let ae2_duration = this.ae2.duration;
+	//add 1 second for pause
+	return ae1_duration + ae2_duration+ this.pause_time_sec;
+  }
+
+  canPlay(){
+  	if (this.ae1.readyState >=3 &&this.ae2.readyState >=3)
+  		return true;
+  	return false;
+  }
+
+  get currentTime(){
+		let ae1_ct = this.ae1.currentTime;
+		let ae2_ct = this.ae2.currentTime;
+		if (ae1_ct < this.ae1.duration)
+			return ae1_ct;
+		if (ae1_ct == this.ae1.duration && ae2_ct==0)
+			return ae1_ct;
+		if (ae1_ct == this.ae1.duration && ae2_ct!=0)
+			return ae1_ct+this.pause_time_sec+ae2_ct;
+  }
+
+  // both clips played until the end
+  get ended(){
+  		if (this.ae1.currentTime == this.ae1.duration &&
+  		this.ae2.currentTime == this.ae2.duration )
+  			return true;
+  		return false;
+  }
+
+  get paused(){
+  	return (this.ae1.paused && this.ae2.paused && !this.in_between);
+  }
+
+  pause(){
+ 	this.ae1.pause();
+  	this.ae2.pause();
+  	if (this.time_out_id!=null){
+		window.clearTimeout(this.time_out_id);
+		this.time_out_id = null;
+	}
+	this.in_between= false;
+  }
+
+  play(){
+  		let ae1_ct = this.ae1.currentTime;
+		let ae2_ct = this.ae2.currentTime;
+		if (ae1_ct < this.ae1.duration){
+			this.ae1.play();
+			$("#title_"+this.id).removeClass("play_clip2");
+			$("#title_"+this.id).addClass("play_clip1");
+			return;
+		}
+		if (ae1_ct == this.ae1.duration && ae2_ct < this.ae2.duration){
+			this.ae2.play();
+			$("#title_"+this.id).removeClass("play_clip1");
+			$("#title_"+this.id).addClass("play_clip2");
+			return;
+		}
+		//so start again
+		this.ae1.play();
+		this.ae2.currentTime= 0;
+		$("#title_"+this.id).removeClass("play_clip2");
+		$("#title_"+this.id).addClass("play_clip1");
+  }
+}
+
 // loading all baudio elements in the page
 $(function() {
-    $( ".baudio" ).each(function(){
+    $( ".baudio:not(.multi)" ).each(function(){
 		titleTextTemplate='<tr><td>{1}</td></tr>';
 		insert='';
 		title='';
@@ -689,7 +847,7 @@ $(function() {
 			title=$(this).attr('title');
 		}
 
-		t='<table class="baudio_table" border="0">'+insert+' <tr><td><button id="baudio_{0}" type="button" class="btn bn disabled"><span id ="baudio_s_{0}" class="glyphicon glyphicon-play"></span></button></td></tr><tr><td><span id="baudio_l_c_{0}" class="blabel" >00:00</span><span id="baudio_l_d_{0}" class="blabel" > / 00:00</span></td></tr></table>';
+		t='<table id = "baudio_table_{}" class="baudio_table" border="0">'+insert+' <tr><td><button id="baudio_{0}" type="button" class="btn bn disabled"><span id ="baudio_s_{0}" class="glyphicon glyphicon-play"></span></button></td></tr><tr><td><span id="baudio_l_c_{0}" class="blabel" >00:00</span><span id="baudio_l_d_{0}" class="blabel" > / 00:00</span></td></tr></table>';
 		src=$(this).attr('data-src');
 		id=$(this).attr('id');
 
@@ -703,6 +861,64 @@ $(function() {
 		audioElement.addEventListener("canplay",canPlay.bind(audioElement),false);
 		audioElement.addEventListener("timeupdate",timeUpdate.bind(audioElement),false);
 		audioElement.addEventListener("ended",isended.bind(audioElement),false);
+	});
+
+	 $( ".baudio.multi" ).each(function(){
+
+		titleTextTemplate='<tr><td><div class= "title" id ="title_{0}">{1}</div></td></tr>';
+		insert=titleTextTemplate;
+		title='';
+		a='<audio id="audio_1_{0}" preload="true"><source src="{1}" type="audio/wav"> </audio>'+
+		'<audio id="audio_2_{0}" preload="true"><source src="{2}" type="audio/wav"> </audio>'+
+		'<input type="hidden" id="audio_n_play_{0}" name="audio_n_play_{0}" value="0">'+
+		'<input type="hidden" id="audio_n_finish_{0}" name="audio_n_finish_{0}" value="0">';
+		if ($(this).attr('title') || $(this).attr('data-title1') || $(this).attr('data-title2')){
+			//insert=titleTextTemplate;
+			t1 = '';
+			t2 = '';
+			title = '';
+			if ($(this).attr('data-title1'))
+				t1 = $(this).attr('data-title1');
+			if ($(this).attr('data-title2'))
+				t2 = $(this).attr('data-title2');
+
+			if ($(this).attr('title'))
+				title=$(this).attr('title');
+			else
+				title = "<span class = 'clip1'>"+t1+"</span> - <span class = 'clip2'>"+t2+"</span>";
+		}
+
+		t='<table class="baudio_table" border="0">'+insert+
+		' <tr><td><button id="baudio_{0}" type="button" class="btn bn disabled">'+
+		'<span id ="baudio_s_{0}" class="glyphicon glyphicon-play"></span></button></td></tr>'+
+		'<tr><td><span id="baudio_l_c_{0}" class="blabel" >00:00</span>'+
+		'<span id="baudio_l_d_{0}" class="blabel" > / 00:00</span></td></tr></table>';
+
+		src1=$(this).attr('data-src1');
+		src2=$(this).attr('data-src2');
+		id=$(this).attr('id');
+
+		$(this).append(a.f(id,src1,src2));
+		$(this).append(t.f(id,title));
+		var audioElement1 = document.getElementById("audio_1_"+id);
+		var audioElement2 = document.getElementById("audio_2_"+id);
+		double_clip = new DoubleClip(id,audioElement1, audioElement2);
+
+		//save for later
+		audioElements.push(double_clip);
+
+		$( "#baudio_"+id ).click({dc: double_clip, id: id},clickManagerDC);
+
+		$( "#baudio_"+id ).disabled=false;
+		audioElement1.addEventListener("canplay",doubleClipCanPlay.bind(double_clip),false);
+		audioElement2.addEventListener("canplay",doubleClipCanPlay.bind(double_clip),false);
+
+		audioElement1.addEventListener("timeupdate",doubleClipTimeUpdate.bind(double_clip),false);
+		audioElement2.addEventListener("timeupdate",doubleClipTimeUpdate.bind(double_clip),false);
+
+		audioElement1.addEventListener("ended",doubleClipIsended.bind(double_clip),false);
+		audioElement2.addEventListener("ended",doubleClipIsended.bind(double_clip),false);
+
 	});
 
 	$("source").on("error", function (e) {
@@ -786,15 +1002,13 @@ function onValueChangeForTpQuestionInTraining(){
 	Now user can rate the quality.
 */
 function playedAudioQ(id){
-	let id_num= id.substring(3);
-	played_ref= $("#audio_n_finish_q_a{0}".f(id_num)).val();
-	played_pro = $("#audio_n_finish_q_b{0}".f(id_num)).val();
-	console.log(played_ref +","+played_pro);
-	//both should be played at least once
-	if (played_ref== 0 || played_pro == 0)
+	let id_num= id.substring(2);
+	played= $("#audio_n_finish_q_{0}".f(id_num)).val();
+	if (played== 0 )
 		return;
 	// check if it was the trapping question
-	if ($('span[id="'+id+'"]').attr("data-src") == config['knownQuestionUrl']){
+	if ($('span[id="'+id+'"]').attr("data-src1") == config['knownQuestionUrl'] &&
+		$('span[id="'+id+'"]').attr("data-src2") == config['knownQuestionUrl'] ){
 		element = $('input[name="q{0}"]'.f(id_num));
 		element.unbind();
 		element.on('change', onValueChangeForTpQuestion);
@@ -884,9 +1098,9 @@ function shuffle(a) {
 */
 function generate_training_section(){
 	ccr_nav_tab = '<li class="nav-item {1}"><a class="nav-link " data-toggle="tab"  href="#T{0}-panel" id="T{0}-tab " role="tab" aria-controls="T{0}" {2}>Q. {0}</a></li>';
-	ccr_tab ='<div class="tab-pane fade {3}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. The Quality of the <b>Clip B</b> Compared to the Quality of the <b>Clip A</b> is: </p> <div class="row"> <div class="col-sm-6">	  <p align="center"> <span class="baudio" title = "Clip A" id="t_a{0}" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span> </p> </div> <div class="col-sm-6">	  <p align="center"> <span class="baudio" title = "Clip B" id="t_b{0}" data-onfinished="playedAudioTraining" data-src="{2}" >&nbsp;</span> </p> </div> </div> <fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the Clip B is</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}3">Much Better</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}2">Better</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}1">Slightly Better</label></div></td><td class="c">1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="0">About the Same</label></div></td><td class="c">0</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}1"required="">Slightly Worse</label></div></td><td class="c">-1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}2"required="">Worse</label></div></td><td class="c">-2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}3"required="">Much Worse</label></div></td><td class="c">-3</td></tr></tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
+	ccr_tab ='<div class="tab-pane fade {3}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. The quality of the <b>second clip</b> compared to the quality of the <b>first clip</b> is: </p> <div class="row"> <p align="center"> <span class="baudio multi" id="t_{0}" data-src1="{1}" data-src2="{2}" data-title1 = "First clip" data-title2 = "Second clip" data-onfinished="playedAudioTraining"></span> </p> </div>  <fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the second clip is</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}3">Much Better</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}2">Better</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}1">Slightly Better</label></div></td><td class="c">1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="0">About the Same</label></div></td><td class="c">0</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}1"required="">Slightly Worse</label></div></td><td class="c">-1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}2"required="">Worse</label></div></td><td class="c">-2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}3"required="">Much Worse</label></div></td><td class="c">-3</td></tr></tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
 	// this will show which url was shown by in which question as their orther will be randomized
-	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" />';
+	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" /><input id="T{0}_order" name="T{0}_order" type="hidden" value="{2}" />';
 
     if (JSON.parse(config['randomizeTrainingQuestions']))
 		urls = shuffle(config['trainingUrls']);
@@ -894,7 +1108,7 @@ function generate_training_section(){
 		urls = config['trainingUrls'];
 
 	var i;
-	var urlA,urlB,signA, signB;
+	var urlA,urlB,signA, signB, order;
 	for (i = 0; i < urls.length; i++) {
 		let r = Math.random();
 		if (r>0.5){
@@ -902,12 +1116,14 @@ function generate_training_section(){
 			urlB = urls[i].processed;
 			signA = '';
 			signB = '-';
+			order = 'rp';
 		}else{
 			//processed ,unprocessed => sign should be replaced
 			urlA = urls[i].processed;
 			urlB = urls[i].ref;
 			signA = '-';
 			signB = '';
+			order = 'pr';
 		}
 		if (i==0){
 			$('#trainingTabs').append(ccr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
@@ -916,7 +1132,7 @@ function generate_training_section(){
 			$('#trainingTabs').append(ccr_nav_tab.f(i+1,'',''));
 			$('#nav-tabContent').append(ccr_tab.f(i+1, urlA, urlB,'', signA, signB));
 		}
-		$('#av-tabContent').append(input_template.f(i+1, urls[i].processed));
+		$('#av-tabContent').append(input_template.f(i+1, urls[i].processed, order));
 	}
 
 	trainingStimulusPlayed = new Array(urls.length).fill(0);
@@ -927,9 +1143,9 @@ function generate_training_section(){
 */
 function generate_rating_section(){
 	ccr_nav_tab = '<li class="nav-item {1}"><a class="nav-link" data-toggle="tab" href="#Q{0}-panel" id="Q{0}-tab" role="tab" aria-controls="Q{0}" {2}>Q. {0}</a></li>';
-	ccr_tab ='<div class="tab-pane fade {3}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. The Quality of the <b>Clip B</b> Compared to the Quality of the <b>Clip A</b> is: </p> <div class="row"> <div class="col-sm-6">	  <p align="center"> <span class="baudio" title = "Clip A" id="q_a{0}" data-onfinished="playedAudioQ" data-src="{1}" >&nbsp;</span> </p> </div> <div class="col-sm-6">	  <p align="center"> <span class="baudio" title = "Clip B" id="q_b{0}" data-onfinished="playedAudioQ" data-src="{2}" >&nbsp;</span> </p> </div> </div> <fieldset id="fieldset_q{0}"  title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the Clip B is</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{4}3">Much Better</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{4}2">Better</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{4}1">Slightly Better</label></div></td><td class="c">1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="0">About the Same</label></div></td><td class="c">0</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{5}1"required="">Slightly Worse</label></div></td><td class="c">-1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{5}2"required="">Worse</label></div></td><td class="c">-2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{5}3"required="">Much Worse</label></div></td><td class="c">-3</td></tr></tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
+	ccr_tab ='<div class="tab-pane fade {3}" id="Q{0}-panel" role="tabpanel" aria-labelledby="q{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. The quality of the <b>second clip</b> compared to the quality of the <b>first clip</b> is: </p> <div class="row"> <p align="center">  <span class="baudio multi" id="q_{0}" data-src1="{1}" data-src2="{2}" data-title1 = "First clip" data-title2 = "Second clip" data-onfinished="playedAudioQ" ></span>  </p></div> <fieldset id="fieldset_q{0}"  title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the second clip is</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{4}3">Much Better</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{4}2">Better</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{4}1">Slightly Better</label></div></td><td class="c">1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="0">About the Same</label></div></td><td class="c">0</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{5}1"required="">Slightly Worse</label></div></td><td class="c">-1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{5}2"required="">Worse</label></div></td><td class="c">-2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="q{0}" value="{5}3"required="">Much Worse</label></div></td><td class="c">-3</td></tr></tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
 	// this will show which url was shown by in which question as their orther will be randomized
-	input_template= '<input id="Q{0}_URL" name="Q{0}_URL" type="hidden" value="{1}" />';
+	input_template= '<input id="Q{0}_URL" name="Q{0}_URL" type="hidden" value="{1}" /> <input id="Q{0}_order" name="Q{0}_order" type="hidden" value="{2}" />';
 	if (JSON.parse(config['randomizeRatingQuestions'])){
 		urls = shuffle(config['questionUrls']);
 	}else{
@@ -937,7 +1153,7 @@ function generate_rating_section(){
 	}
 
 	var i;
-	var urlA,urlB,signA, signB;
+	var urlA,urlB,signA, signB, order;
 	for (i = 0; i < urls.length; i++) {
 		let r = Math.random();
 		if (r>0.5){
@@ -945,12 +1161,14 @@ function generate_rating_section(){
 			urlB = urls[i].processed;
 			signA = '';
 			signB = '-';
+			order = 'rp';
 		}else{
 			//processed ,unprocessed => sign should be replaced
 			urlA = urls[i].processed;
 			urlB = urls[i].ref;
 			signA = '-';
 			signB = '';
+			order = 'pr';
 		}
 		if (i==0){
 			$('#nav-tab-ul').append(ccr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
@@ -959,7 +1177,7 @@ function generate_rating_section(){
 			$('#nav-tab-ul').append(ccr_nav_tab.f(i+1,'',''));
 			$('#nav-tabContent-rating').append(ccr_tab.f(i+1,  urlA, urlB,'', signA, signB));
 		}
-		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i].processed));
+		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i].processed, order));
 	}
 }
 </script>
@@ -1370,8 +1588,12 @@ function generate_rating_section(){
 			</div>
 			<div  class="panel-collapse collapse in" id="trainingS">
 				<div class="panel-body">
-				<p> Please answer the following <b class="question_number_training"> 0 </b> questions. For each question, please carefully listen to the pair of clips and give your opinion about the quality of the <b>Clip B</b> relative to the quality of the Clip A using the following scale. <b>Note</b> that the scale will be activated when both clips played until the end. </p>
-				<p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
+				<p> Please answer the following <b class="question_number_training"> 0 </b> questions.
+					In this experiment you will hear pairs of speech samples that have been recorded to represent various telephone situations.
+					For each question, please carefully listen to the pair of clips and give your opinion about the quality of the <b style="background-color: #ff9999;">second clip</b> relative to the quality of the <b style="background-color: #66ccff;"> first clip </b> using the following scale. Both clips will be presented using a same audio controller one after each other with 1 second break. The audio controller shows which clip is playing now:</p>
+					<p><img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/ccr_clips.png" class="center" alt="ccs description" width="50%"></p>
+				   <p>What you will hear is one pair of sentences, a short period of silence, and another pair of sentences. You will evaluate the quality of the second pair of sentences compared to the quality of the first pair of sentences.  <b>Note</b> that the scale will be activated when clips played until the end. </p>
+				   <p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="trainingTabs">
@@ -1411,8 +1633,14 @@ function generate_rating_section(){
 				<h3 class="panel-title">Ratings</h3>
 			</div>
 			<div class="panel-body">
-				<p> Please answer the following <b class="question_number"> 0 </b> questions. For each question, please carefully listen to the pair of clips and give your opinion about the quality of the <b>Clip B</b> relative to the quality of the Clip A using the following scale. <b>Note</b> that the scale will be activated when both clips played until the end. </p>
-				<p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
+
+				<p> Please answer the following <b class="question_number"> 0 </b> questions.
+					In this experiment you will hear pairs of speech samples that have been recorded to represent various telephone situations.
+					For each question, please carefully listen to the pair of clips and give your opinion about the quality of the <b style="background-color: #ff9999;">second clip</b> relative to the quality of the <b style="background-color: #66ccff;"> first clip </b> using the following scale. Both clips will be presented using a same audio controller one after each other with 1 second break. The audio controller shows which clip is playing now:</p>
+					<p><img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/ccr_clips.png" class="center" alt="ccs description" width="50%"></p>
+				   <p>What you will hear is one pair of sentences, a short period of silence, and another pair of sentences. You will evaluate the quality of the second pair of sentences compared to the quality of the first pair of sentences.  <b>Note</b> that the scale will be activated when clips played until the end. </p>
+				   <p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
+
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
