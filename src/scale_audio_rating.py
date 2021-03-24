@@ -262,18 +262,15 @@ async def main(cfg, args):
     metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips)
 
     for metadata in metadata_lst:
+        file_urls = metadata['file_urls'].values()
+        attachments = list(map(lambda f: {"type": "audio", "content": f}, file_urls))
         task_obj = {
             "unique_id": args.project + "\\" + metadata['file_shortname'],
             "callback_url": "http://example.com/callback",
             "project": cfg.get("CommonAccountKeys", 'ScaleAccountName'),
             "instruction": "Please rate these audio files",
             "responses_required": args.num_responses_per_clip,
-            "attachments": [
-                {
-                    "type": "text",
-                    "content": "Please rate these audio files",
-                },
-            ],
+            "attachments": attachments,
             "fields": [
                 {
                     "field_id": "rating",
