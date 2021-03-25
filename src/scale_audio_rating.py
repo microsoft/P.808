@@ -164,7 +164,7 @@ class TrappingSamplesInStore(ClipsInAzureStorageAccount):
         return df
 
 
-async def prepare_metadata_per_task(cfg, clips, gold, trapping):
+async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
     """
     Merge different input files into one dataframe
     :param test_method
@@ -219,6 +219,8 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping):
         print('total trapping clips from store [{0}]'.format(len(await trapclipsstore.clip_names)))
 
     df_clips = df_clips.fillna('')
+    df_clips.to_csv(os.path.join(
+        output_dir, "Batch_{0}_tasks.csv".format(now.strftime("%m%d%Y"))))
     print('iterating through [{0}] clips'.format(len(df_clips)))
     for i in range(len(df_clips)):
         metadata = {'file_shortname': df_clips.index[i]}
@@ -257,9 +259,13 @@ async def post_task(scale_api_key, task_obj):
 
 
 async def main(cfg, args):
+    # create output folder
+    output_dir = args.project
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
 
     # prepare format
-    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips)
+    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips, output_dir)
 
     for metadata in metadata_lst:
         file_urls = metadata['file_urls'].values()
