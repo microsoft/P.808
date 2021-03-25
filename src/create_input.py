@@ -16,6 +16,7 @@ import random
 import numpy as np
 import re
 import collections
+from random import shuffle
 import itertools
 
 def validate_inputs(cfg, df, method):
@@ -140,8 +141,11 @@ def add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session
     # create the sessions
     np_blocks = blocked_df[column_names].to_numpy()
     np_blocks_reshaped = np.reshape(np_blocks, (-1, n_clips_per_session), order='c')
+    q_order = random.sample(range(n_clips_per_session),n_clips_per_session)
+    i = 0
     for q in range(n_clips_per_session):
-        output_df[f'Q{q}'] = np_blocks_reshaped[:, q]
+        output_df[f'Q{q}'] = np_blocks_reshaped[:, q_order[i]]
+        i += 1
     return output_df
 
 
@@ -252,8 +256,11 @@ def create_input_for_acr(cfg, df, output_path):
             print("more than one TP is not supported for now - continue with 1")
         # n_trappings = int(cfg['general']['number_of_trapping_per_session']) * n_sessions
         n_trappings = n_sessions
-        trap_source = df['trapping_clips'].dropna()
-        trap_ans_source = df['trapping_ans'].dropna()
+        tmp = df[['trapping_clips', 'trapping_ans']].copy()
+        tmp.dropna(inplace=True)
+        tmp = tmp.sample(n=n_trappings, replace=True)
+        trap_source = tmp['trapping_clips'].dropna()
+        trap_ans_source = tmp['trapping_ans'].dropna()
 
         full_trappings = np.tile(trap_source.to_numpy(), (n_trappings // trap_source.count()) + 1)[:n_trappings]
         full_trappings_answer = np.tile(trap_ans_source.to_numpy(), (n_trappings // trap_ans_source.count()) + 1)[
@@ -429,5 +436,3 @@ if __name__ == '__main__':
     output_file = os.path.splitext(row_input)[0]+'_'+exp_method+'_publish_batch.csv'
 
     create_input_for_mturk(cfg['general'], df, exp_method, output_file)
-
-

@@ -330,11 +330,14 @@ function addBrowserInfo(debug){
 	console.log(info);
 }
 
-//-------- check qual num online
+/*
+ Check if the answer given in qualification is correct.
+ The hash of the correct answers are stored in HTML to avoid misuse.
+*/
 function checkQualNumCorrect(given_ans, correct_hash){
 	return btoa(given_ans) == correct_hash;
 }
-// ------------------------ online check cmp
+
 
 /*
  check if the answer to a CMP question is correct.
@@ -407,6 +410,9 @@ function validateCMPSection(){
 	}
 }
 
+/*
+Remove the answers for all pair-comparision questions in the setup section.
+*/
 function makeAllCMPsUnChecked(){
 	// remove the listeners
 	$('#setup').find(':input').filter(':visible').each(function(){
@@ -614,6 +620,10 @@ function getSum(total, num) {
 //---------------- baudio.js -----------------
 // All functions needed for custom audio playback
 var audioElements=[];
+
+/*
+control the clicks on the audio elements (single clip)
+*/
 function clickManager(event) {
 	ae=event.data.ae;
 	var id=event.data.id;
@@ -625,7 +635,9 @@ function clickManager(event) {
 	}
 };
 
-//for double clips
+/*
+control the clicks on the audio elements (double clips)
+*/
 function clickManagerDC(event) {
 	dc=event.data.dc;
 	var id=event.data.id;
@@ -637,6 +649,9 @@ function clickManagerDC(event) {
 	}
 };
 
+/*
+	Plays the Audio Element and update the GUI
+*/
 function playAudio(audio){
 	audio.play();
 	var id='';
@@ -654,6 +669,9 @@ function playAudio(audio){
 	$("#audio_n_play_"+id).val(parseInt($("#audio_n_play_"+id).val())+1);
 }
 
+/*
+	Pause the Audio Element and update the GUI
+*/
 function pauseAudio(audio){
 	audio.pause();
 	var id ='';
@@ -669,6 +687,9 @@ function pauseAudio(audio){
 	$("#baudio_s_"+id).addClass("glyphicon-play");
 }
 
+/*
+	Pause all audios (create using baudio element)
+*/
 function pauseAll(){
 	for (i = 0; i < audioElements.length; i++) {
 		if (!audioElements[i].paused){
@@ -677,6 +698,9 @@ function pauseAll(){
 	}
 }
 
+/*
+	callback function, single_clip
+*/
 function canPlay(event){
 	console.log(this);
 	var ae=this;
@@ -686,6 +710,9 @@ function canPlay(event){
 	$("#baudio_"+id).removeClass("disabled");
 }
 
+/*
+	callback function, single_clip
+*/
 function timeUpdate(){
 	var ae=this;
 	var idText =this.id;
@@ -693,6 +720,9 @@ function timeUpdate(){
 	$("#baudio_l_c_"+id).text(ae.currentTime.toString().toMMSS());
 }
 
+/*
+	callback function, single_clip
+*/
 function isended(){
 	var ae=this;
 	var idText =this.id;
@@ -707,6 +737,9 @@ function isended(){
 	}
 }
 
+/*
+	callback function, double clips
+*/
 function doubleClipCanPlay(event){
 	if (!this.canPlay()){
 		return;
@@ -717,12 +750,18 @@ function doubleClipCanPlay(event){
 	$("#baudio_"+id).removeClass("disabled");
 }
 
+/*
+	callback function, double clips
+*/
 function doubleClipTimeUpdate(){
 	var ct=this.currentTime;
 	var id=this.id;
 	$("#baudio_l_c_"+id).text(ct.toString().toMMSS());
 }
 
+/*
+	callback function, double clips. it schedule playing the second clip after 1 sec. when the first clup ends.
+*/
 function doubleClipIsended(){
 	var id = this.id;
 
@@ -741,6 +780,9 @@ function doubleClipIsended(){
 	}
 }
 
+/*
+	helper tos tart the second clip
+*/
 function startSecondClip(){
 	this.ae2.play();
 	this.in_between = false;
@@ -750,7 +792,9 @@ function startSecondClip(){
 
 
 }
-
+/*
+	DoubleClip component, including two audio elements
+*/
 class DoubleClip {
 	ae1;
 	ae2;
@@ -833,7 +877,9 @@ class DoubleClip {
   }
 }
 
-// loading all baudio elements in the page
+/*
+	Loading all baudio elements on the page
+*/
 $(function() {
     $( ".baudio:not(.multi)" ).each(function(){
 		titleTextTemplate='<tr><td>{1}</td></tr>';
