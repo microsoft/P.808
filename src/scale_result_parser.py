@@ -50,7 +50,7 @@ def main(cfg, args):
         results, rater_stats = parse_acr(all_tasks, args.project)
         df = pd.DataFrame(results)
         df.to_csv(os.path.join(
-            output_dir, "Batch_{0}_per_clip_results.csv".format(now.strftime("%Y%m%d"))))
+            output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results.csv'), index=False)
 
         model_pivot_table = df.pivot_table(
             values='MOS', index='model', columns='clipset', margins=True, margins_name='Overall', aggfunc=[np.mean, len, np.std])
@@ -65,7 +65,7 @@ def main(cfg, args):
         model_pivot_table = model_pivot_table.sort_values(
             ('Overall', 'mean'), ascending=False).sort_index(axis=1, ascending=False)
         model_pivot_table.to_csv(os.path.join(
-            output_dir, "Batch_{0}_per_condition_results.csv".format(now.strftime("%Y%m%d"))))
+            output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_condition_results.csv'))
 
     elif args.method == 'echo':
         echo_results, deg_results, rater_stats = parse_echo(
@@ -113,6 +113,8 @@ def parse_acr(tasks, project):
             clip_dict['MOS'] = np.mean([rating['rating']
                                         for rating in ratings])
             clip_dict['n'] = len(ratings)
+            clip_dict['std'] = np.std([rating['rating'] for rating in ratings], ddof=1)
+            clip_dict['95%CI'] = 1.96 * clip_dict['std'] / np.sqrt(len(ratings))
 
             clipset_match = re.match(
                 '.*[/](?P<clipset>audioset|ms_realrec|noreverb_clnsp|reverb_clnsp|stationary)', clip_dict['file_url'])
