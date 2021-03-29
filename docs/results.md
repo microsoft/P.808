@@ -17,7 +17,12 @@ created in the first step ([preparation](preparation.md)).
     a file name,and `03` is the condition name. The pattern should be set to `.*_c(?P<condition_num>\d{1,2})_.*.wav` , 
     and the `condition_keys` to `condition_num`.
    
-
+    **Note**: You can activate the automatic outlier detection method per condition. To do so
+    open `YOUR_PROJECT_NAME_ccr_result_parser.cfg`, in section `[accept_and_use]` add `outlier_removal: true`. The [z-score
+    outlier detection method](https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm) is used i.e. all votes 
+    with an absolute z-score of 3.29 or higher will be considered as outlier and removed. It is specifically helpful in 
+    the CCR test.
+    
 1. Run `result_parser.py` 
         
     ``` bash
@@ -41,15 +46,19 @@ created in the first step ([preparation](preparation.md)).
     for each assignment which has a status of "submitted". 
     * `[downloaded_batch_result]_votes_per_clip.csv`: Aggregated result per clip, including MOS, standard deviations, and 95% Confidence Intervals.  
     * `[downloaded_batch_result]_votes_per_cond.csv`: Aggregated result per condition.
+    * `[downloaded_batch_result]_votes_per_worker.csv`: Long format of rating per clip, includes: HITId, workerid, file, vote and condition.
     * `[downloaded_batch_result]_quantity_bonus_report.csv`: List of workers who are eligible for quantity bonus with the amount of bonus (to be used with the mturk_utils.py).
     * `[downloaded_batch_result]_quality_bonus_report.csv`: List of workers who are eligible for quality bonus with the amount of bonus (to be used with the mturk_utils.py).
-    * `[downloaded_batch_result]_extending.csv`: List of HITIds with number of assignment per each which are needed to reach a specific number of votes per clip.   
+    * `[downloaded_batch_result]_extending.csv`: List of HITIds with number of assignment per each which are needed to reach a specific number of votes per clip. 
+    
+    
     
     Note:
-    * Votes in CCR test and the `CMOS` values should be interpreted as answer to following questions: The Quality of 
+    * Votes in CCR test and the calculated `CMOS` values should be interpreted as answer to following questions: The Quality of 
     the "processed" clip Compared to the Quality of the "reference/unprocessed" Clip is .. (Much Worse:-3 to Much Better:+3)."
-    On the loading time of Rating Section in the HIT APP order or processed and reference clips are randomized, but the sign
-    of vote is always corrected to answer the above-mentioned question. 
+    On the loading time of Rating Section in the HIT APP order of processed and reference clips are randomized, but the sign
+    of vote is always corrected to answer the above-mentioned question. Order of presentation is also saved in the downloaded
+    csv file from AMT per question in column `Answer.Qx_order` where x is the question's number. `rp` refers to refernce-processed. 
     
     Note for **P835** method:
     * for each of the `Signal`, `Background` and `Overall` quality scales, aggregated ratings will be stored in a separate csv file 

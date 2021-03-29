@@ -341,19 +341,16 @@ async def main(cfg, args):
         if args.method == 'echo':
             fields = ECHO_FIELDS
 
+        file_urls = metadata['file_urls'].values()
+        attachments = list(map(lambda f: {"type": "audio", "content": f}, file_urls))
         task_obj = {
             "unique_id": args.project + "\\" + metadata['file_shortname'],
             "callback_url": "http://example.com/callback",
             "project": cfg.get("CommonAccountKeys", 'ScaleAccountName'),
             "instruction": "Please rate these audio files",
             "responses_required": args.num_responses_per_clip,
-            "attachments": [
-                {
-                    "type": "text",
-                    "content": "Please rate these audio files",
-                },
-            ],
             "fields": fields,
+            "attachments": attachments,
             "metadata": metadata
         }
         task_obj['metadata']["group"] = args.project
