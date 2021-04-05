@@ -231,7 +231,7 @@ class TrappingSamplesInStore(ClipsInAzureStorageAccount):
         return df
 
 
-async def prepare_metadata_per_task(cfg, clips, gold, trapping, method, output_dir):
+async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
     """
     Merge different input files into one dataframe
     :param test_method
@@ -253,13 +253,6 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, method, output_d
             'RatingClips', 'RatingClipsConfigurations').split(',')
 
         metadata = pd.DataFrame()
-        """
-        if method == 'acr':
-            testclipsstore = ClipsInAzureStorageAccount(cfg['noisy'], 'noisy')
-            testclipsbasenames = [os.path.basename(clip) for clip in await testclipsstore.clip_names]
-            metadata = pd.DataFrame({'basename': testclipsbasenames})
-            metadata = metadata.set_index('basename')
-        """
         for model in rating_clips_stores:
             enhancedClip = ClipsInAzureStorageAccount(cfg[model], model)
             eclips = await enhancedClip.clip_names
@@ -339,7 +332,7 @@ async def main(cfg, args):
         os.mkdir(output_dir)
 
     # prepare format
-    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips, args.method, output_dir)
+    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips, output_dir)
 
     task_objs = list()
     for metadata in metadata_lst:
