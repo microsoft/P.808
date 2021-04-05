@@ -348,7 +348,8 @@ async def main(cfg, args):
             fields = ECHO_FIELDS
 
         file_urls = metadata['file_urls'].values()
-        attachments = list(map(lambda f: {"type": "audio", "content": f}, file_urls))
+        attachments = list(
+            map(lambda f: {"type": "audio", "content": f}, file_urls))
         task_obj = {
             "unique_id": args.project + "\\" + metadata['file_shortname'],
             "callback_url": "http://example.com/callback",
