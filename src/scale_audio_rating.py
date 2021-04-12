@@ -294,7 +294,7 @@ async def main(cfg, args):
             "unique_id": args.project + "\\" + metadata['file_shortname'],
             "callback_url": "http://example.com/callback",
             "project": cfg.get("CommonAccountKeys", 'ScaleAccountName'),
-            "batch":batch,
+            "batch": batch,
             "instruction": "Please rate these audio files",
             "responses_required": args.num_responses_per_clip,
             "attachments": attachments,
