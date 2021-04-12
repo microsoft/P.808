@@ -281,7 +281,8 @@ async def main(cfg, args):
 
     # create batch
     if args.create_batch:
-        batch = await create_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'),args.project,args.clips,)
+        batch = await create_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'),cfg.get("CommonAccountKeys", 'ScaleAccountName'),args.clips)
+
 
     # prepare format
     metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips, output_dir)
