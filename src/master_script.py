@@ -240,12 +240,12 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path):
     config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + \
                       int(cfg['create_input']['number_of_trapping_per_session'])
 
-    config['max_allowed_hits'] = cfg['dcr_ccr_html']['allowed_max_hit_in_project']
+    config['max_allowed_hits'] = cfg['hit_app_html']['allowed_max_hit_in_project']
 
-    config['quantity_hits_more_than'] = cfg['dcr_ccr_html']['quantity_hits_more_than']
-    config['quantity_bonus'] = cfg['dcr_ccr_html']['quantity_bonus']
-    config['quality_top_percentage'] = cfg['dcr_ccr_html']['quality_top_percentage']
-    config['quality_bonus'] = cfg['dcr_ccr_html']['quality_bonus']
+    config['quantity_hits_more_than'] = cfg['hit_app_html']['quantity_hits_more_than']
+    config['quantity_bonus'] = cfg['hit_app_html']['quantity_bonus']
+    config['quality_top_percentage'] = cfg['hit_app_html']['quality_top_percentage']
+    config['quality_bonus'] = cfg['hit_app_html']['quality_bonus']
     default_condition = '.*_c(?P<condition_num>\d{1,2})_.*.wav'
     default_keys = 'condition_num'
     config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
@@ -663,7 +663,7 @@ async def main(cfg, test_method, args):
         elif test_method == 'echo_impairment_test':
             cfg_hit_app = cfg['echo_impairment_test_html']
         else:
-            cfg_hit_app = cfg['dcr_ccr_html']
+            cfg_hit_app = cfg['hit_app_html']
 
     # check clip_packing_strategy
     clip_packing_strategy = "random"
