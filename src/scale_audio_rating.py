@@ -12,6 +12,7 @@ import configparser as CP
 import json
 import os
 import random
+import datetime
 
 import pandas as pd
 import requests
@@ -172,6 +173,12 @@ class ClipsInAzureStorageAccount(object):
         elif self._account_type == 'BlobStore':
             blobs = self.store_service.list_blobs(
                 self.container, self.clips_path)
+
+            if not self._SAS_token:
+                start = datetime.datetime.utcnow()
+                end = start + datetime.timedelta(days=14)
+                self._SAS_token = self.store_service.generate_container_shared_access_signature(
+                    self.container, permission='r', expiry=end, start=start)
             await self.retrieve_contents(blobs)
 
     def make_clip_url(self, filename):
@@ -180,7 +187,7 @@ class ClipsInAzureStorageAccount(object):
                 self.container, self.clips_path, filename, sas_token=self._SAS_token)
         elif self._account_type == 'BlobStore':
             source_url = self.store_service.make_blob_url(
-                self.container, filename)
+                self.container, filename, sas_token=self._SAS_token)
         return source_url
 
 
@@ -261,7 +268,7 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
             print('length of urls for store [{0}] is [{1}]'.format(model, len(await enhancedClip.clip_names)))
             model_df = pd.DataFrame({model: eclips_urls})
             model_df['basename'] = model_df.apply(
-                lambda x: os.path.basename(x[model]), axis=1)
+                lambda x: os.path.basename(remove_query_string_from_url(x[model])), axis=1)
             model_df = model_df.set_index('basename')
             metadata = pd.concat([metadata, model_df], axis=1)
 
@@ -285,7 +292,7 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
 
     df_clips = df_clips.fillna('')
     df_clips.to_csv(os.path.join(
-        output_dir, "Batch_{0}_tasks.csv".format(now.strftime("%m%d%Y"))))
+        output_dir, "Batch_{0}_tasks.csv".format(datetime.datetime.now().strftime("%m%d%Y"))))
     print('iterating through [{0}] clips'.format(len(df_clips)))
     for i in range(len(df_clips)):
         metadata = {'file_shortname': df_clips.index[i]}
@@ -312,6 +319,12 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
         metadata_lst.append(metadata)
 
     return metadata_lst
+
+
+# TODO: some sort of structured URL parsing is more reasonable than this hack
+def remove_query_string_from_url(url_series):
+    filename_cutoff_index = url_series.index('.wav') + 4
+    return url_series[:filename_cutoff_index]
 
 
 def post_task(scale_api_key, task_obj):
@@ -357,6 +370,7 @@ async def main(cfg, args):
 
         task_objs.append(task_obj)
 
+    assert False, json.dumps(task_objs[0])
     results = list()
     with ThreadPoolExecutor(max_workers=25) as executor:
         for res in executor.map(post_task, [cfg.get("CommonAccountKeys", 'ScaleAPIKey')] * len(task_objs), task_objs):
