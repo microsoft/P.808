@@ -10,6 +10,7 @@ import configparser as CP
 import os
 import re
 from datetime import datetime, timedelta
+import json
 
 import numpy as np
 import pandas as pd
@@ -46,8 +47,10 @@ def main(cfg, args):
         if (next_token == None):
             break
 
+    project_tasks = [task for task in all_tasks if task.param_dict['metadata']['group'] == args.project]
+    # assert False, json.dumps(project_tasks[0].param_dict)
     if args.method == 'acr':
-        results, rater_stats = parse_acr(all_tasks, args.project)
+        results, rater_stats = parse_acr(project_tasks, args.project)
         df = pd.DataFrame(results)
         df.to_csv(os.path.join(
             output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results.csv'), index=False)
@@ -69,7 +72,7 @@ def main(cfg, args):
 
     elif args.method == 'echo':
         echo_results, deg_results, rater_stats = parse_echo(
-            all_tasks, args.project)
+            project_tasks, args.project)
 
         df_echo = pd.DataFrame(echo_results)
         df_echo.to_csv(os.path.join(
@@ -78,21 +81,23 @@ def main(cfg, args):
         df_deg = pd.DataFrame(deg_results)
         df_deg.to_csv(os.path.join(
             output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results_deg.csv'), index=False)
+    elif args.method == 'p835':
+        p835_results, rater_stats = parse_p835(project_tasks)
+        
+        df = pd.DataFrame(p835_results)
+        df.to_csv(os.path.join(output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results.csv'), index=False)
     else:
-        raise Exception(f'Unknown method {cfg.method}')
+        raise Exception(f'Unknown method {args.method}')
 
     df_rater = pd.DataFrame(rater_stats)
     df_rater.to_csv(os.path.join(
         output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_rater_stats.csv'))
 
-
+# TODO: Use new method for getting numbers from ratings list
 def parse_acr(tasks, project):
     results = list()
     rater_stats = list()
     for task in tasks:
-        # Filter out results that are not a part of the interested project
-        if task.param_dict['metadata']['group'] != project:
-            continue
 
         for file_url in task.param_dict['metadata']['file_urls']:
             clip_dict = {
@@ -116,24 +121,70 @@ def parse_acr(tasks, project):
             clip_dict['std'] = np.std([rating['rating'] for rating in ratings], ddof=1)
             clip_dict['95%CI'] = 1.96 * clip_dict['std'] / np.sqrt(len(ratings))
 
+            """
             clipset_match = re.match(
                 '.*[/](?P<clipset>audioset|ms_realrec|noreverb_clnsp|reverb_clnsp|stationary)', clip_dict['file_url'])
             clip_dict['clipset'] = clipset_match.groupdict()['clipset']
+            """
 
             results.append(clip_dict)
 
     return results, rater_stats
 
 
+def parse_p835(tasks):
+    results = list()
+    rater_stats = list()
+
+    for task in tasks:
+        for file_url in task.param_dict['metadata']['file_urls']:
+            clip_dict = {
+                'short_file_name': task.param_dict['metadata']['file_shortname']}
+            clip_dict['model'] = file_url
+            clip_dict['file_url'] = task.param_dict['metadata']['file_urls'][file_url]
+            if 'response' not in task.param_dict:
+                print('Found task that has not been rated yet')
+                continue     
+
+            ratings = task.param_dict['response'][file_url]['responses']
+            rater_stats.extend(ratings)
+
+            clip_dict.update(get_labelled_rating(ratings, 'distortion'))
+            clip_dict.update(get_labelled_rating(ratings, 'background'))
+            clip_dict.update(get_labelled_rating(ratings, 'overall'))
+            results.append(clip_dict)
+
+    return results, rater_stats
+
+
+def get_labelled_rating(ratings, rating_label):
+    votes_dict = dict()
+
+    mos = np.mean([rating[rating_label] for rating in ratings])
+    num_votes = len(ratings)
+    stdev = np.std([rating[rating_label] for rating in ratings], ddof=1)
+    ci95 = 1.96 * stdev / np.sqrt(num_votes)
+
+    votes_dict = {
+        f'MOS_{rating_label}': mos,
+        'n': num_votes,
+        f'std_{rating_label}': stdev,
+        f'95%CI_{rating_label}': ci95,
+    }
+
+    for i, rating in enumerate(ratings):
+        votes_dict[f'vote_{rating_label}_{i+1}'] = rating[rating_label]
+    
+    return votes_dict
+
+
+# TODO: Use new method for getting numbers from ratings list
 def parse_echo(tasks, project):
     echo_results = list()
     deg_results = list()
     rater_stats = list()
 
     for task in tasks:
-        # Filter out results that are not a part of the interested project
-        if task.param_dict['metadata']['group'] != project:
-            continue
 
         for file_url in task.param_dict['metadata']['file_urls']:
             clip_dict = {
@@ -182,7 +233,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--ago", help="Number of days ago to start the search from", default=1, type=int)
     parser.add_argument('--method', default='acr', const='acr', nargs='?',
-                        choices=('acr', 'echo'), help='Use regular ACR questions or echo questions')
+                        choices=('acr', 'echo', 'p835'), help='Use regular ACR questions or echo questions')
 
     # check input arguments
     args = parser.parse_args()
