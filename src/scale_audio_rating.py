@@ -318,8 +318,7 @@ async def main(cfg, args):
                     ],
                 },
             ],
-            "metadata": metadata,
-            "tags":[metadata["group"]]
+            "metadata": metadata
         }
         task_obj['metadata']["group"] = args.project
 
