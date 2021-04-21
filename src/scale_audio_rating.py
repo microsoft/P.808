@@ -95,7 +95,8 @@ def parse_args():
                         help='Number of response per clip required', default=5, type=int)
     parser.add_argument('--method', default='acr', const='acr', nargs='?',
                         choices=('acr', 'echo'), help='Use regular ACR questions or echo questions')
-
+    parser.add_argument('--replace_modelname', default=None, help="If given, replace {replace_modelname} "
+        "in filenames with model name parsed from directory")
     return parser.parse_args()
 
 
@@ -238,7 +239,7 @@ class TrappingSamplesInStore(ClipsInAzureStorageAccount):
         return df
 
 
-async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
+async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir, replace_modelname):
     """
     Merge different input files into one dataframe
     :param test_method
@@ -269,6 +270,8 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
             model_df = pd.DataFrame({model: eclips_urls})
             model_df['basename'] = model_df.apply(
                 lambda x: os.path.basename(remove_query_string_from_url(x[model])), axis=1)
+            if replace_modelname is not None:
+                model_df["basename"] = model_df["basename"].apply(lambda x: x.replace("dec", model))
             model_df = model_df.set_index('basename')
             metadata = pd.concat([metadata, model_df], axis=1)
 
@@ -345,7 +348,8 @@ async def main(cfg, args):
         os.mkdir(output_dir)
 
     # prepare format
-    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips, output_dir)
+    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, 
+        args.trapping_clips, output_dir, args.replace_modelname)
 
     task_objs = list()
     for metadata in metadata_lst:
