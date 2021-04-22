@@ -249,6 +249,28 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
     return metadata_lst
 
 
+async def create_batch(scale_api_key,project_name,batch_name):
+    url = 'https://api.scale.com/v1/batches'
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "project":project_name,
+        "name":batch_name,
+        "callback_url": "http://example.com/callback",
+    }
+    r = s.post(url, data=payload, headers=headers, auth=(
+        scale_api_key, ''))
+    if r.status_code == 200:
+        return r.content.name
+
+
+async def finalize_batch(scale_api_key,batch_name):
+    url = f'https://api.scale.com/v1/batches/{batch_name}/finalize'
+    headers = {"Accept": "application/json"}
+    r = s.post(url, headers=headers, auth=(scale_api_key, ''))
+    if r.status_code == 200:
+        return print(f'batch {r.content.name} finalized')
+    
+
 async def post_task(scale_api_key, task_obj):
     url = 'https://api.scale.com/v1/task/textcollection'
     headers = {"Content-Type": "application/json"}
@@ -264,6 +286,9 @@ async def main(cfg, args):
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
+    # create batch
+    batch = await create_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'),cfg.get("CommonAccountKeys", 'ScaleAccountName'),args.project)
+
     # prepare format
     metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips, output_dir)
 
@@ -274,6 +299,7 @@ async def main(cfg, args):
             "unique_id": args.project + "\\" + metadata['file_shortname'],
             "callback_url": "http://example.com/callback",
             "project": cfg.get("CommonAccountKeys", 'ScaleAccountName'),
+            "batch": batch,
             "instruction": "Please rate these audio files",
             "responses_required": args.num_responses_per_clip,
             "attachments": attachments,
@@ -297,6 +323,8 @@ async def main(cfg, args):
         task_obj['metadata']["group"] = args.project
 
         await post_task(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), task_obj)
+
+    await finalize_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), batch)
 
 
 if __name__ == '__main__':
