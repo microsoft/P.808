@@ -51,10 +51,6 @@ def main(cfg, args):
     rater_stats = []
 
     for task in all_tasks:
-        # Filter out results that are not a part of the interested project
-        if task.param_dict['metadata']['group'] != args.project:
-            continue
-
         for file_url in task.param_dict['metadata']['file_urls']:
             clip_dict = {
                 'short_file_name': task.param_dict['metadata']['file_shortname']}
