@@ -34,7 +34,8 @@ def main(cfg, args):
 
     while (True):
         tasks = client.tasks(
-            start_time=(now - timedelta(days=args.ago)).strftime("%Y-%m-%d"),
+            batch=args.project,
+            status='completed',
             next_token=next_token,
             project=cfg.get("CommonAccountKeys", 'ScaleAccountName'),
         )
@@ -98,8 +99,6 @@ if __name__ == '__main__':
         "--project", help="Name of the batch to club results by", required=True)
     parser.add_argument(
         "--cfg", help="Configuration file, see master.cfg", required=True)
-    parser.add_argument(
-        "--ago", help="Number of days ago to start the search from", default=1, type=int)
 
     # check input arguments
     args = parser.parse_args()
