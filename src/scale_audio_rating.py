@@ -97,7 +97,7 @@ def parse_args():
     parser.add_argument('--method', default='acr', const='acr', nargs='?',
                         choices=('acr', 'echo'), help='Use regular ACR questions or echo questions')
     parser.add_argument('--replace_modelname', default=None, help="If given, replace {replace_modelname} "
-        "in filenames with model name parsed from directory")
+                        "in filenames with model name parsed from directory")
     return parser.parse_args()
 
 
@@ -272,7 +272,8 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir, repl
             model_df['basename'] = model_df.apply(
                 lambda x: os.path.basename(remove_query_string_from_url(x[model])), axis=1)
             if replace_modelname is not None:
-                model_df["basename"] = model_df["basename"].apply(lambda x: x.replace("dec", model))
+                model_df["basename"] = model_df["basename"].apply(
+                    lambda x: x.replace("dec", model))
             model_df = model_df.set_index('basename')
             metadata = pd.concat([metadata, model_df], axis=1)
 
@@ -331,6 +332,28 @@ def remove_query_string_from_url(url_series):
     return url_series[:filename_cutoff_index]
 
 
+async def create_batch(scale_api_key, project_name, batch_name):
+    url = 'https://api.scale.com/v1/batches'
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "project": project_name,
+        "name": batch_name,
+        "callback_url": "http://example.com/callback",
+    }
+    r = s.post(url, data=payload, headers=headers, auth=(
+        scale_api_key, ''))
+    if r.status_code == 200:
+        return r.content.name
+
+
+async def finalize_batch(scale_api_key, batch_name):
+    url = f'https://api.scale.com/v1/batches/{batch_name}/finalize'
+    headers = {"Accept": "application/json"}
+    r = s.post(url, headers=headers, auth=(scale_api_key, ''))
+    if r.status_code == 200:
+        return print(f'batch {r.content.name} finalized')
+
+
 def post_task(scale_api_key, task_obj):
     url = 'https://api.scale.com/v1/task/textcollection'
     headers = {"Content-Type": "application/json"}
@@ -349,8 +372,11 @@ async def main(cfg, args):
         os.mkdir(output_dir)
 
     # prepare format
-    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, 
-        args.trapping_clips, output_dir, args.replace_modelname)
+    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips,
+                                                   args.trapping_clips, output_dir, args.replace_modelname)
+
+    # create batch
+    batch = await create_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), cfg.get("CommonAccountKeys", 'ScaleAccountName'), args.project)
 
     task_objs = list()
     for metadata in metadata_lst:
@@ -365,6 +391,7 @@ async def main(cfg, args):
             "unique_id": args.project + "\\" + metadata['file_shortname'],
             "callback_url": "http://example.com/callback",
             "project": cfg.get("CommonAccountKeys", 'ScaleAccountName'),
+            "batch": batch,
             "instruction": "Please rate these audio files",
             "responses_required": args.num_responses_per_clip,
             "fields": fields,
@@ -375,14 +402,14 @@ async def main(cfg, args):
 
         task_objs.append(task_obj)
 
-    assert False, json.dumps(task_objs[0])
-    results = list()
-    with ThreadPoolExecutor(max_workers=25) as executor:
-        for res in executor.map(post_task, [cfg.get("CommonAccountKeys", 'ScaleAPIKey')] * len(task_objs), task_objs):
-            results.append(res)
-
-    failed = [x for x in results if x]
+    executor = ThreadPoolExecutor(max_workers=25)
+    results = executor.map(post_task, [cfg.get(
+        "CommonAccountKeys", 'ScaleAPIKey')] * len(task_objs), task_objs)
+    failed = [result for result in results if result]
     print(failed)
+
+    # TODO: What if some failed?
+    await finalize_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), batch)
 
 
 if __name__ == '__main__':

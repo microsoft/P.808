@@ -35,7 +35,8 @@ def main(cfg, args):
 
     while (True):
         tasks = client.tasks(
-            start_time=(now - timedelta(days=args.ago)).strftime("%Y-%m-%d"),
+            batch=args.project,
+            status='completed',
             next_token=next_token,
             project=cfg.get("CommonAccountKeys", 'ScaleAccountName'),
         )
@@ -47,7 +48,8 @@ def main(cfg, args):
         if (next_token == None):
             break
 
-    project_tasks = [task for task in all_tasks if task.param_dict['metadata']['group'] == args.project]
+    project_tasks = [
+        task for task in all_tasks if task.param_dict['metadata']['group'] == args.project]
     # assert False, json.dumps(project_tasks[0].param_dict)
     if args.method == 'acr':
         results, rater_stats = parse_acr(project_tasks, args.project)
@@ -83,9 +85,10 @@ def main(cfg, args):
             output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results_deg.csv'), index=False)
     elif args.method == 'p835':
         p835_results, rater_stats = parse_p835(project_tasks)
-        
+
         df = pd.DataFrame(p835_results)
-        df.to_csv(os.path.join(output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results.csv'), index=False)
+        df.to_csv(os.path.join(
+            output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results.csv'), index=False)
     else:
         raise Exception(f'Unknown method {args.method}')
 
@@ -93,7 +96,7 @@ def main(cfg, args):
     df_rater.to_csv(os.path.join(
         output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_rater_stats.csv'))
 
-# TODO: Use new method for getting numbers from ratings list
+
 def parse_acr(tasks, project):
     results = list()
     rater_stats = list()
@@ -118,8 +121,10 @@ def parse_acr(tasks, project):
             clip_dict['MOS'] = np.mean([rating['rating']
                                         for rating in ratings])
             clip_dict['n'] = len(ratings)
-            clip_dict['std'] = np.std([rating['rating'] for rating in ratings], ddof=1)
-            clip_dict['95%CI'] = 1.96 * clip_dict['std'] / np.sqrt(len(ratings))
+            clip_dict['std'] = np.std([rating['rating']
+                                      for rating in ratings], ddof=1)
+            clip_dict['95%CI'] = 1.96 * \
+                clip_dict['std'] / np.sqrt(len(ratings))
 
             """
             clipset_match = re.match(
@@ -144,7 +149,7 @@ def parse_p835(tasks):
             clip_dict['file_url'] = task.param_dict['metadata']['file_urls'][file_url]
             if 'response' not in task.param_dict:
                 print('Found task that has not been rated yet')
-                continue     
+                continue
 
             ratings = task.param_dict['response'][file_url]['responses']
             rater_stats.extend(ratings)
@@ -174,11 +179,10 @@ def get_labelled_rating(ratings, rating_label):
 
     for i, rating in enumerate(ratings):
         votes_dict[f'vote_{rating_label}_{i+1}'] = rating[rating_label]
-    
+
     return votes_dict
 
 
-# TODO: Use new method for getting numbers from ratings list
 def parse_echo(tasks, project):
     echo_results = list()
     deg_results = list()
@@ -208,15 +212,19 @@ def parse_echo(tasks, project):
             clip_dict_echo['MOS_ECHO'] = np.mean(
                 [rating['rating_echo'] for rating in ratings])
             clip_dict_echo['n'] = len(ratings)
-            clip_dict_echo['std_echo'] = np.std([rating['rating_echo'] for rating in ratings], ddof=1)
-            clip_dict_echo['95%CI_echo'] = 1.96 * clip_dict_echo['std_echo'] / np.sqrt(len(ratings))
+            clip_dict_echo['std_echo'] = np.std(
+                [rating['rating_echo'] for rating in ratings], ddof=1)
+            clip_dict_echo['95%CI_echo'] = 1.96 * \
+                clip_dict_echo['std_echo'] / np.sqrt(len(ratings))
             echo_results.append(clip_dict_echo)
 
             clip_dict_deg['MOS_OTHER'] = np.mean(
                 [rating['rating_deg'] for rating in ratings])
             clip_dict_deg['n'] = len(ratings)
-            clip_dict_deg['std_other'] = np.std([rating['rating_deg'] for rating in ratings], ddof=1)
-            clip_dict_deg['95%CI_other'] = 1.96 * clip_dict_deg['std_other'] / np.sqrt(len(ratings))
+            clip_dict_deg['std_other'] = np.std(
+                [rating['rating_deg'] for rating in ratings], ddof=1)
+            clip_dict_deg['95%CI_other'] = 1.96 * \
+                clip_dict_deg['std_other'] / np.sqrt(len(ratings))
             deg_results.append(clip_dict_deg)
 
     return echo_results, deg_results, rater_stats
@@ -230,18 +238,14 @@ if __name__ == '__main__':
         "--project", help="Name of the batch to club results by", required=True)
     parser.add_argument(
         "--cfg", help="Configuration file, see master.cfg", required=True)
-    parser.add_argument(
-        "--ago", help="Number of days ago to start the search from", default=1, type=int)
-    parser.add_argument('--method', default='acr', const='acr', nargs='?',
-                        choices=('acr', 'echo', 'p835'), help='Use regular ACR questions or echo questions')
 
-    # check input arguments
-    args = parser.parse_args()
+# check input arguments
+args = parser.parse_args()
 
-    assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
+assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
 
-    cfg = CP.ConfigParser()
-    cfg._interpolation = CP.ExtendedInterpolation()
-    cfg.read(args.cfg)
+cfg = CP.ConfigParser()
+cfg._interpolation = CP.ExtendedInterpolation()
+cfg.read(args.cfg)
 
-    main(cfg, args)
+main(cfg, args)
