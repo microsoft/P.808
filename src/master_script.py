@@ -85,13 +85,18 @@ class ClipsInAzureStorageAccount(object):
             await self.retrieve_contents(files)
         elif self._account_type == 'BlobStore':
             blobs = self.store_service.list_blobs(self.container, self.clips_path)
+            if not self._SAS_token:
+                start = datetime.datetime.utcnow()
+                end = start + datetime.timedelta(days=14)
+                self._SAS_token = self.store_service.generate_container_shared_access_signature(
+                    self.container, permission='r', expiry=end, start=start)
             await self.retrieve_contents(blobs)
 
     def make_clip_url(self, filename):
         if self._account_type == 'FileStore':
             source_url = self.store_service.make_file_url(self.container, self.clips_path, filename, sas_token=self._SAS_token)
         elif self._account_type == 'BlobStore':
-            source_url = self.store_service.make_blob_url(self.container, filename)
+            source_url = self.store_service.make_blob_url(self.container, filename, sas_token=self._SAS_token)
         return source_url
 
 
