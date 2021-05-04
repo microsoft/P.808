@@ -8,160 +8,24 @@
 
 import argparse
 import asyncio
-import configparser as CP
 import json
 import os
-import random
-
-import pandas as pd
 import requests
-from azure.storage.blob import (AppendBlobService, BlockBlobService,
-                                PageBlobService)
-from azure.storage.file import FileService
-from jinja2 import Template
+import datetime
+
+import configparser as CP
+import pandas as pd
+
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-
-import create_input as ca
+from azure_clip_storage import AzureClipStorage, TrappingSamplesInStore, GoldSamplesInStore
 
 s = requests.Session()
 retries = Retry(total=5,
             backoff_factor=0.1,
-            status_forcelist=[ 500, 502, 503, 504 ])
+            status_forcelist=[500, 502, 503, 504])
 
 s.mount('https://', HTTPAdapter(max_retries=retries))
-
-class ClipsInAzureStorageAccount(object):
-    def __init__(self, config, alg):
-        self._account_name = os.path.basename(
-            config['StorageUrl']).split('.')[0]
-        if '.file.core.windows.net' in config['StorageUrl']:
-            self._account_type = 'FileStore'
-        elif '.blob.core.windows.net' in config['StorageUrl']:
-            self._account_type = 'BlobStore'
-        self._account_key = config['StorageAccountKey']
-        self._container = config['Container']
-        self._alg = alg
-        self._clips_path = config['Path'].lstrip('/')
-        self._clip_names = []
-        self._modified_clip_names = []
-        self._SAS_token = ''
-
-    @property
-    def container(self):
-        return self._container
-
-    @property
-    def alg(self):
-        return self._alg
-
-    @property
-    def clips_path(self):
-        return self._clips_path
-
-    @property
-    async def clip_names(self):
-        if len(self._clip_names) <= 0:
-            await self.get_clips()
-        return self._clip_names
-
-    @property
-    def store_service(self):
-        if self._account_type == 'FileStore':
-            return FileService(account_name=self._account_name, account_key=self._account_key)
-        elif self._account_type == 'BlobStore':
-            return BlockBlobService(account_name=self._account_name, account_key=self._account_key)
-
-    @property
-    def modified_clip_names(self):
-        self._modified_clip_names = [
-            os.path.basename(clip) for clip in self._clip_names]
-        return self._modified_clip_names
-
-    async def traverse_down_filestore(self, dirname):
-        files = self.store_service.list_directories_and_files(
-            self.container, os.path.join(self.clips_path, dirname))
-        await self.retrieve_contents(files, dirname)
-
-    async def retrieve_contents(self, list_generator, dirname=''):
-        for e in list_generator:
-            if '.wav' in e.name:
-                if not dirname:
-                    self._clip_names.append(e.name)
-                else:
-                    self._clip_names.append(
-                        posixpath.join(dirname.lstrip('/'), e.name))
-            else:
-                await self.traverse_down_filestore(e.name)
-
-    async def get_clips(self):
-        if self._account_type == 'FileStore':
-            files = self.store_service.list_directories_and_files(
-                self.container, self.clips_path)
-            if not self._SAS_token:
-                self._SAS_token = self.store_service.generate_share_shared_access_signature(
-                    self.container, permission='read', expiry=datetime.datetime(2019, 10, 30, 12, 30), start=datetime.datetime.now())
-            await self.retrieve_contents(files)
-        elif self._account_type == 'BlobStore':
-            blobs = self.store_service.list_blobs(
-                self.container, self.clips_path)
-            await self.retrieve_contents(blobs)
-
-    def make_clip_url(self, filename):
-        if self._account_type == 'FileStore':
-            source_url = self.store_service.make_file_url(
-                self.container, self.clips_path, filename, sas_token=self._SAS_token)
-        elif self._account_type == 'BlobStore':
-            source_url = self.store_service.make_blob_url(
-                self.container, filename)
-        return source_url
-
-
-class GoldSamplesInStore(ClipsInAzureStorageAccount):
-    def __init__(self, config, alg):
-        super().__init__(config, alg)
-        self._SAS_token = ''
-
-    async def get_dataframe(self):
-        clips = await self.clip_names
-        df = pd.DataFrame(columns=['gold_clips', 'gold_clips_ans'])
-        clipsList = []
-        for clip in clips:
-            clipUrl = self.make_clip_url(clip)
-            rating = 5
-            if 'noisy' in clipUrl.lower():
-                rating = 1
-
-            clipsList.append({'gold_clips': clipUrl, 'gold_clips_ans': rating})
-
-        df = df.append(clipsList)
-        return df
-
-
-class TrappingSamplesInStore(ClipsInAzureStorageAccount):
-    async def get_dataframe(self):
-        clips = await self.clip_names
-        df = pd.DataFrame(columns=['trapping_clips', 'trapping_ans'])
-        clipsList = []
-        for clip in clips:
-            clipUrl = self.make_clip_url(clip)
-            rating = 0
-            if '_bad_' in clip.lower():
-                rating = 1
-            elif '_poor_' in clip.lower():
-                rating = 2
-            elif '_fair_' in clip.lower():
-                rating = 3
-            elif '_good_' in clip.lower():
-                rating = 4
-            elif '_excellent_' in clip.lower():
-                rating = 5
-
-            clipsList.append(
-                {'trapping_clips': clipUrl, 'trapping_ans': rating})
-
-        df = df.append(clipsList)
-        return df
 
 
 async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
@@ -184,12 +48,12 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
     else:
         rating_clips_stores = cfg.get(
             'RatingClips', 'RatingClipsConfigurations').split(',')
-        testclipsstore = ClipsInAzureStorageAccount(cfg['noisy'], 'noisy')
+        testclipsstore = AzureClipStorage(cfg['noisy'], 'noisy')
         testclipsbasenames = [os.path.basename(clip) for clip in await testclipsstore.clip_names]
         metadata = pd.DataFrame({'basename': testclipsbasenames})
         metadata = metadata.set_index('basename')
         for model in rating_clips_stores:
-            enhancedClip = ClipsInAzureStorageAccount(cfg[model], model)
+            enhancedClip = AzureClipStorage(cfg[model], model)
             eclips = await enhancedClip.clip_names
             eclips_urls = [enhancedClip.make_clip_url(clip) for clip in eclips]
 
@@ -220,7 +84,7 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
 
     df_clips = df_clips.fillna('')
     df_clips.to_csv(os.path.join(
-        output_dir, "Batch_{0}_tasks.csv".format(now.strftime("%m%d%Y"))))
+        output_dir, "Batch_{0}_tasks.csv".format(datetime.datetime.utcnow().strftime("%m%d%Y"))))
     print('iterating through [{0}] clips'.format(len(df_clips)))
     for i in range(len(df_clips)):
         metadata = {'file_shortname': df_clips.index[i]}
@@ -249,12 +113,12 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
     return metadata_lst
 
 
-async def create_batch(scale_api_key,project_name,batch_name):
+async def create_batch(scale_api_key, project_name, batch_name):
     url = 'https://api.scale.com/v1/batches'
     headers = {"Content-Type": "application/json"}
     payload = {
-        "project":project_name,
-        "name":batch_name,
+        "project": project_name,
+        "name": batch_name,
         "callback_url": "http://example.com/callback",
     }
     r = s.post(url, data=payload, headers=headers, auth=(
@@ -263,7 +127,7 @@ async def create_batch(scale_api_key,project_name,batch_name):
         return r.content.name
 
 
-async def finalize_batch(scale_api_key,batch_name):
+async def finalize_batch(scale_api_key, batch_name):
     url = f'https://api.scale.com/v1/batches/{batch_name}/finalize'
     headers = {"Accept": "application/json"}
     r = s.post(url, headers=headers, auth=(scale_api_key, ''))
