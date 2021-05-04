@@ -239,13 +239,13 @@ if __name__ == '__main__':
     parser.add_argument(
         "--cfg", help="Configuration file, see master.cfg", required=True)
 
-# check input arguments
-args = parser.parse_args()
+    # check input arguments
+    args = parser.parse_args()
 
-assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
+    assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
 
-cfg = CP.ConfigParser()
-cfg._interpolation = CP.ExtendedInterpolation()
-cfg.read(args.cfg)
+    cfg = CP.ConfigParser()
+    cfg._interpolation = CP.ExtendedInterpolation()
+    cfg.read(args.cfg)
 
-main(cfg, args)
+    main(cfg, args)
