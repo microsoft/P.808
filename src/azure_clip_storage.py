@@ -5,18 +5,12 @@ import posixpath
 import pandas as pd
 
 from azure.storage.blob import BlobServiceClient, generate_container_sas, ContainerSasPermissions
-from azure.storage.file import FileService
 
 
 class AzureClipStorage:
     def __init__(self, config, alg):
         self._account_name = os.path.basename(
             config['StorageUrl']).split('.')[0]
-
-        if '.file.core.windows.net' in config['StorageUrl']:
-            self._account_type = 'FileStore'
-        elif '.blob.core.windows.net' in config['StorageUrl']:
-            self._account_type = 'BlobStore'
 
         self._account_key = config['StorageAccountKey']
         self._container = config['Container']
@@ -46,12 +40,9 @@ class AzureClipStorage:
 
     @property
     def store_service(self):
-        if self._account_type == 'FileStore':
-            return FileService(account_name=self._account_name, account_key=self._account_key)
-        elif self._account_type == 'BlobStore':
-            blob_service = BlobServiceClient(
-                account_url=f"https://{self._account_name}.blob.core.windows.net/", credential=self._account_key)
-            return blob_service.get_container_client(container=self._container)
+        blob_service = BlobServiceClient(
+            account_url=f"https://{self._account_name}.blob.core.windows.net/", credential=self._account_key)
+        return blob_service.get_container_client(container=self._container)
 
     @property
     def modified_clip_names(self):
@@ -59,52 +50,34 @@ class AzureClipStorage:
             os.path.basename(clip) for clip in self._clip_names]
         return self._modified_clip_names
 
-    async def traverse_down_filestore(self, dirname):
-        files = self.store_service.list_directories_and_files(
-            self.container, os.path.join(self.clips_path, dirname))
-        await self.retrieve_contents(files, dirname)
-
     async def retrieve_contents(self, list_generator, dirname=''):
         for e in list_generator:
-            if '.wav' in e.name:
-                if not dirname:
-                    self._clip_names.append(e.name)
-                else:
-                    self._clip_names.append(
-                        posixpath.join(dirname.lstrip('/'), e.name))
+            if not '.wav' in e.name:
+                continue
+
+            if dirname:
+                self._clip_names.append(e.name)
             else:
-                await self.traverse_down_filestore(e.name)
+                clip_path = posixpath.join(dirname.lstrip('/'), e.name)
+                self._clip_names.append(clip_path)
 
     async def get_clips(self):
-        if self._account_type == 'FileStore':
-            files = self.store_service.list_directories_and_files(
-                self.container, self.clips_path)
-            if not self._SAS_token:
-                self._SAS_token = self.store_service.generate_share_shared_access_signature(
-                    self.container, permission='read', expiry=datetime.datetime(2019, 10, 30, 12, 30), start=datetime.datetime.now())
-            await self.retrieve_contents(files)
-        elif self._account_type == 'BlobStore':
-            blobs = self.store_service.list_blobs(
-                name_starts_with=self.clips_path)
+        blobs = self.store_service.list_blobs(
+            name_starts_with=self.clips_path)
 
-            if not self._SAS_token:
-                self._SAS_token = generate_container_sas(
-                    account_name=self._account_name,
-                    container_name=self._container,
-                    account_key=self._account_key,
-                    permission=ContainerSasPermissions(read=True),
-                    expiry=datetime.datetime.utcnow() + datetime.timedelta(days=14)
-                )
+        if not self._SAS_token:
+            self._SAS_token = generate_container_sas(
+                account_name=self._account_name,
+                container_name=self._container,
+                account_key=self._account_key,
+                permission=ContainerSasPermissions(read=True),
+                expiry=datetime.datetime.utcnow() + datetime.timedelta(days=14)
+            )
 
-            await self.retrieve_contents(blobs)
+        await self.retrieve_contents(blobs)
 
     def make_clip_url(self, filename):
-        if self._account_type == 'FileStore':
-            source_url = self.store_service.make_file_url(
-                self.container, self.clips_path, filename, sas_token=self._SAS_token)
-        elif self._account_type == 'BlobStore':
-            source_url = f"https://{self._account_name}.blob.core.windows.net/{self._container}/{filename}?{self._SAS_token}"
-        return source_url
+        return f"https://{self._account_name}.blob.core.windows.net/{self._container}/{filename}?{self._SAS_token}"
 
 
 class GoldSamplesInStore(AzureClipStorage):
