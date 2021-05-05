@@ -15,20 +15,89 @@ import datetime
 
 import configparser as CP
 import pandas as pd
+import create_input as ca
 
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from azure_clip_storage import AzureClipStorage, TrappingSamplesInStore, GoldSamplesInStore
+from concurrent.futures import ThreadPoolExecutor
+
 
 s = requests.Session()
 retries = Retry(total=5,
-            backoff_factor=0.1,
-            status_forcelist=[500, 502, 503, 504])
+                backoff_factor=0.1,
+                status_forcelist=[500, 502, 503, 504])
 
 s.mount('https://', HTTPAdapter(max_retries=retries))
 
+ECHO_FIELDS = [
+    {
+        "field_id": "rating_echo",
+        "title": "How would you rate the level of acoustic echo in this file?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "Very annoying - 1", "value": "1"},
+            {"label": "Annoying - 2", "value": "2"},
+            {"label": "Slightly annoying - 3", "value": "3"},
+            {"label": "Perceptible, but not annoying - 4", "value": "4"},
+            {"label": "Imperceptible - 5", "value": "5"},
+        ],
+    },
+    {
+        "field_id": "rating_deg",
+        "title": "How would you rate the level of other degradations (missing audio, distortions, cut-outs)?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "Very annoying - 1", "value": "1"},
+            {"label": "Annoying - 2", "value": "2"},
+            {"label": "Slightly annoying - 3", "value": "3"},
+            {"label": "Perceptible, but not annoying - 4", "value": "4"},
+            {"label": "Imperceptible - 5", "value": "5"},
+        ]
+    }
+]
 
-async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
+FIELDS = [
+    {
+        "field_id": "rating",
+        "title": "Please rate the audio file",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "Bad - 1", "value": "1"},
+            {"label": "Poor - 2", "value": "2"},
+            {"label": "Fair - 3", "value": "3"},
+            {"label": "Good - 4", "value": "4"},
+            {"label": "Excellent - 5", "value": "5"},
+        ],
+    },
+]
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Script for submitting clips to Scale for ratings')
+    parser.add_argument("--project", help="Name of the project", required=True)
+    parser.add_argument(
+        "--cfg", help="Configuration file, see master.cfg", required=True)
+    parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
+                                        "case of ccr/dcr it should also contain a column for 'references'")
+    parser.add_argument("--gold_clips", help="A csv containing urls of all gold clips in column 'gold_clips' and their "
+                                             "answer in column 'gold_clips_ans'")
+    parser.add_argument("--trapping_clips", help="A csv containing urls of all trapping clips. Columns 'trapping_clips'"
+                                                 "and 'trapping_ans'")
+    parser.add_argument('--num_responses_per_clip',
+                        help='Number of response per clip required', default=5, type=int)
+    parser.add_argument('--method', default='acr', const='acr', nargs='?',
+                        choices=('acr', 'echo'), help='Use regular ACR questions or echo questions')
+    parser.add_argument('--replace_modelname', default=None, help="If given, replace {replace_modelname} "
+                        "in filenames with model name parsed from directory")
+    return parser.parse_args()
+
+
+async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir, replace_modelname):
     """
     Merge different input files into one dataframe
     :param test_method
@@ -48,10 +117,8 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
     else:
         rating_clips_stores = cfg.get(
             'RatingClips', 'RatingClipsConfigurations').split(',')
-        testclipsstore = AzureClipStorage(cfg['noisy'], 'noisy')
-        testclipsbasenames = [os.path.basename(clip) for clip in await testclipsstore.clip_names]
-        metadata = pd.DataFrame({'basename': testclipsbasenames})
-        metadata = metadata.set_index('basename')
+
+        metadata = pd.DataFrame()
         for model in rating_clips_stores:
             enhancedClip = AzureClipStorage(cfg[model], model)
             eclips = await enhancedClip.clip_names
@@ -60,7 +127,10 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
             print('length of urls for store [{0}] is [{1}]'.format(model, len(await enhancedClip.clip_names)))
             model_df = pd.DataFrame({model: eclips_urls})
             model_df['basename'] = model_df.apply(
-                lambda x: os.path.basename(x[model]), axis=1)
+                lambda x: os.path.basename(remove_query_string_from_url(x[model])), axis=1)
+            if replace_modelname is not None:
+                model_df["basename"] = model_df["basename"].apply(
+                    lambda x: x.replace("dec", model))
             model_df = model_df.set_index('basename')
             metadata = pd.concat([metadata, model_df], axis=1)
 
@@ -113,6 +183,12 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
     return metadata_lst
 
 
+# TODO: some sort of structured URL parsing is more reasonable than this hack
+def remove_query_string_from_url(url_series):
+    filename_cutoff_index = url_series.index('.wav') + 4
+    return url_series[:filename_cutoff_index]
+
+
 async def create_batch(scale_api_key, project_name, batch_name):
     url = 'https://api.scale.com/v1/batches'
     headers = {"Content-Type": "application/json"}
@@ -133,15 +209,17 @@ async def finalize_batch(scale_api_key, batch_name):
     r = s.post(url, headers=headers, auth=(scale_api_key, ''))
     if r.status_code == 200:
         return print(f'batch {r.content.name} finalized')
-    
 
-async def post_task(scale_api_key, task_obj):
+
+def post_task(scale_api_key, task_obj):
     url = 'https://api.scale.com/v1/task/textcollection'
     headers = {"Content-Type": "application/json"}
+
     r = s.post(url, data=json.dumps(task_obj), headers=headers, auth=(
         scale_api_key, ''))
     if r.status_code != 200:
-        print(r.content)
+        return task_obj['unique_id'], r.content
+    return None
 
 
 async def main(cfg, args):
@@ -150,15 +228,22 @@ async def main(cfg, args):
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
-    # create batch
-    batch = await create_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'),cfg.get("CommonAccountKeys", 'ScaleAccountName'),args.project)
-
     # prepare format
-    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips, args.trapping_clips, output_dir)
+    metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips,
+                                                   args.trapping_clips, output_dir, args.replace_modelname)
 
+    # create batch
+    batch = await create_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), cfg.get("CommonAccountKeys", 'ScaleAccountName'), args.project)
+
+    task_objs = list()
     for metadata in metadata_lst:
+        fields = FIELDS
+        if args.method == 'echo':
+            fields = ECHO_FIELDS
+
         file_urls = metadata['file_urls'].values()
-        attachments = list(map(lambda f: {"type": "audio", "content": f}, file_urls))
+        attachments = list(
+            map(lambda f: {"type": "audio", "content": f}, file_urls))
         task_obj = {
             "unique_id": args.project + "\\" + metadata['file_shortname'],
             "callback_url": "http://example.com/callback",
@@ -166,49 +251,27 @@ async def main(cfg, args):
             "batch": batch,
             "instruction": "Please rate these audio files",
             "responses_required": args.num_responses_per_clip,
+            "fields": fields,
             "attachments": attachments,
-            "fields": [
-                {
-                    "field_id": "rating",
-                    "title": "Please rate the audio file",
-                    "required": True,
-                    "type": "category",
-                    "choices": [
-                        {"label": "Bad - 1", "value": "1"},
-                        {"label": "Poor - 2", "value": "2"},
-                        {"label": "Fair - 3", "value": "3"},
-                        {"label": "Good - 4", "value": "4"},
-                        {"label": "Excellent - 5", "value": "5"},
-                    ],
-                },
-            ],
             "metadata": metadata
         }
         task_obj['metadata']["group"] = args.project
 
-        await post_task(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), task_obj)
+        task_objs.append(task_obj)
 
+    executor = ThreadPoolExecutor(max_workers=25)
+    results = executor.map(post_task, [cfg.get(
+        "CommonAccountKeys", 'ScaleAPIKey')] * len(task_objs), task_objs)
+    failed = [result for result in results if result]
+    print(failed)
+
+    # TODO: What if some failed?
     await finalize_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), batch)
 
 
 if __name__ == '__main__':
     print("Welcome to the Master script for ACR test.")
-    parser = argparse.ArgumentParser(
-        description='Master script to prepare the ACR test')
-    parser.add_argument("--project", help="Name of the project", required=True)
-    parser.add_argument(
-        "--cfg", help="Configuration file, see master.cfg", required=True)
-    parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
-                                        "case of ccr/dcr it should also contain a column for 'references'")
-    parser.add_argument("--gold_clips", help="A csv containing urls of all gold clips in column 'gold_clips' and their "
-                                             "answer in column 'gold_clips_ans'")
-    parser.add_argument("--trapping_clips", help="A csv containing urls of all trapping clips. Columns 'trapping_clips'"
-                                                 "and 'trapping_ans'")
-    parser.add_argument('--num_responses_per_clip',
-                        help='Number of response per clip required', default=5, type=int)
-    # check input arguments
-    args = parser.parse_args()
-
+    args = parse_args()
     assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
 
     cfg = CP.ConfigParser()
