@@ -205,8 +205,8 @@ async def create_batch(scale_api_key, project_name, batch_name):
     if r.status_code == 200:
         return response_body["name"]
     
-    if r.status_code == 409 and response_body["status"] == "staging":
-        # Already exists, but not finalized, all is good
+    if r.status_code == 409:
+        # Already exists, no idea if it's finalized or not, but we'll assume it's not
         return batch_name
 
 
