@@ -215,7 +215,7 @@ async def finalize_batch(scale_api_key, batch_name):
     headers = {"Accept": "application/json"}
     r = s.post(url, headers=headers, auth=(scale_api_key, ''))
     if r.status_code == 200:
-        return print(f'batch {r.content.name} finalized')
+        return print(f'batch {r.json()["name"]} finalized')
 
 
 def post_task(scale_api_key, task_obj):
