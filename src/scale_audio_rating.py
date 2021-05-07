@@ -270,10 +270,11 @@ async def main(cfg, args):
     results = executor.map(post_task, [cfg.get(
         "CommonAccountKeys", 'ScaleAPIKey')] * len(task_objs), task_objs)
     failed = [result for result in results if result]
-    print(failed)
+    print("Failed to submit: ", failed)
 
-    # TODO: What if some failed?
-    await finalize_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), batch)
+    # Don't finalize batch if there are files that failed to submit
+    if len(failed) == 0:
+        await finalize_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), batch)
 
 
 if __name__ == '__main__':
