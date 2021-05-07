@@ -197,10 +197,17 @@ async def create_batch(scale_api_key, project_name, batch_name):
         "name": batch_name,
         "callback_url": "http://example.com/callback",
     }
-    r = s.post(url, data=payload, headers=headers, auth=(
+    r = s.post(url, json=payload, headers=headers, auth=(
         scale_api_key, ''))
+
+    response_body = r.json()
+    
     if r.status_code == 200:
-        return r.content.name
+        return response_body["name"]
+    
+    if r.status_code == 409 and response_body["status"] == "staging":
+        # Already exists, but not finalized, all is good
+        return batch_name
 
 
 async def finalize_batch(scale_api_key, batch_name):
