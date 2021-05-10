@@ -19,9 +19,8 @@ import scaleapi
 now = datetime.now()  # current date and time
 
 
-def main(cfg, args):
-    scaleapi_key = cfg.get("CommonAccountKeys", 'ScaleAPIKey')
-    client = scaleapi.ScaleClient(scaleapi_key)
+def main(args, scale_api_key, scale_account_name):
+    client = scaleapi.ScaleClient(scale_api_key)
 
     # create output folder
     output_dir = args.project
@@ -38,7 +37,7 @@ def main(cfg, args):
             batch=args.project,
             status='completed',
             next_token=next_token,
-            project=cfg.get("CommonAccountKeys", 'ScaleAccountName'),
+            project=scale_account_name,
         )
         for task in tasks:
             counter += 1
@@ -122,7 +121,7 @@ def parse_acr(tasks, project):
                                         for rating in ratings])
             clip_dict['n'] = len(ratings)
             clip_dict['std'] = np.std([rating['rating']
-                                      for rating in ratings], ddof=1)
+                                       for rating in ratings], ddof=1)
             clip_dict['95%CI'] = 1.96 * \
                 clip_dict['std'] / np.sqrt(len(ratings))
 
@@ -248,4 +247,8 @@ if __name__ == '__main__':
     cfg._interpolation = CP.ExtendedInterpolation()
     cfg.read(args.cfg)
 
-    main(cfg, args)
+    main(
+        args=args,
+        scale_api_key = cfg.get("CommonAccountKeys", 'ScaleAPIKey'),
+        scale_account_name = cfg.get("CommonAccountKeys", 'ScaleAccountName')
+    )
