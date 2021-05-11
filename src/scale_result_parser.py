@@ -8,9 +8,7 @@
 import argparse
 import configparser as CP
 import os
-import re
-from datetime import datetime, timedelta
-import json
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -47,15 +45,14 @@ def main(args, scale_api_key, scale_account_name):
         if (next_token == None):
             break
 
-    project_tasks = [
-        task for task in all_tasks if task.param_dict['metadata']['group'] == args.project]
-    # assert False, json.dumps(project_tasks[0].param_dict)
     if args.method == 'acr':
-        results, rater_stats = parse_acr(project_tasks, args.project)
+        results, rater_stats = parse_acr(all_tasks)
         df = pd.DataFrame(results)
         df.to_csv(os.path.join(
             output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results.csv'), index=False)
 
+        # TODO: This doesn't mesh well with other uses of P.808 ratings, something needs to be figured out
+        """
         model_pivot_table = df.pivot_table(
             values='MOS', index='model', columns='clipset', margins=True, margins_name='Overall', aggfunc=[np.mean, len, np.std])
         model_pivot_table = model_pivot_table.swaplevel(axis=1)
@@ -70,10 +67,10 @@ def main(args, scale_api_key, scale_account_name):
             ('Overall', 'mean'), ascending=False).sort_index(axis=1, ascending=False)
         model_pivot_table.to_csv(os.path.join(
             output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_condition_results.csv'))
+        """
 
     elif args.method == 'echo':
-        echo_results, deg_results, rater_stats = parse_echo(
-            project_tasks, args.project)
+        echo_results, deg_results, rater_stats = parse_echo(all_tasks)
 
         df_echo = pd.DataFrame(echo_results)
         df_echo.to_csv(os.path.join(
@@ -83,7 +80,7 @@ def main(args, scale_api_key, scale_account_name):
         df_deg.to_csv(os.path.join(
             output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results_deg.csv'), index=False)
     elif args.method == 'p835':
-        p835_results, rater_stats = parse_p835(project_tasks)
+        p835_results, rater_stats = parse_p835(all_tasks)
 
         df = pd.DataFrame(p835_results)
         df.to_csv(os.path.join(
@@ -96,21 +93,21 @@ def main(args, scale_api_key, scale_account_name):
         output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_rater_stats.csv'))
 
 
-def parse_acr(tasks, project):
+def parse_acr(tasks):
     results = list()
     rater_stats = list()
     for task in tasks:
 
-        for file_url in task.param_dict['metadata']['file_urls']:
+        for file_url in task.as_dict()['metadata']['file_urls']:
             clip_dict = {
-                'short_file_name': task.param_dict['metadata']['file_shortname']}
+                'short_file_name': task.as_dict()['metadata']['file_shortname']}
             clip_dict['model'] = file_url
-            clip_dict['file_url'] = task.param_dict['metadata']['file_urls'][file_url]
-            if 'response' not in task.param_dict:
+            clip_dict['file_url'] = task.as_dict()['metadata']['file_urls'][file_url]
+            if 'response' not in task.as_dict():
                 print('Found task that has not been rated yet')
                 continue
 
-            ratings = task.param_dict['response'][file_url]['responses']
+            ratings = task.as_dict()['response'][file_url]['responses']
             rater_stats.extend(ratings)
 
             for i in range(len(ratings)):
@@ -141,16 +138,16 @@ def parse_p835(tasks):
     rater_stats = list()
 
     for task in tasks:
-        for file_url in task.param_dict['metadata']['file_urls']:
+        for file_url in task.as_dict()['metadata']['file_urls']:
             clip_dict = {
-                'short_file_name': task.param_dict['metadata']['file_shortname']}
+                'short_file_name': task.as_dict()['metadata']['file_shortname']}
             clip_dict['model'] = file_url
-            clip_dict['file_url'] = task.param_dict['metadata']['file_urls'][file_url]
-            if 'response' not in task.param_dict:
+            clip_dict['file_url'] = task.as_dict()['metadata']['file_urls'][file_url]
+            if 'response' not in task.as_dict():
                 print('Found task that has not been rated yet')
                 continue
 
-            ratings = task.param_dict['response'][file_url]['responses']
+            ratings = task.as_dict()['response'][file_url]['responses']
             rater_stats.extend(ratings)
 
             clip_dict.update(get_labelled_rating(ratings, 'distortion'))
@@ -182,23 +179,24 @@ def get_labelled_rating(ratings, rating_label):
     return votes_dict
 
 
-def parse_echo(tasks, project):
+def parse_echo(tasks):
     echo_results = list()
     deg_results = list()
     rater_stats = list()
 
     for task in tasks:
 
-        for file_url in task.param_dict['metadata']['file_urls']:
+        for file_url in task.as_dict()['metadata']['file_urls']:
             clip_dict = {
-                'short_file_name': task.param_dict['metadata']['file_shortname']}
+                'short_file_name': task.as_dict()['metadata']['file_shortname']}
             clip_dict['model'] = file_url
-            clip_dict['file_url'] = task.param_dict['metadata']['file_urls'][file_url]
-            if 'response' not in task.param_dict:
+            clip_dict['file_url'] = remove_query_string_from_url(task.as_dict()['metadata']['file_urls'][file_url])
+            if 'response' not in task.as_dict():
                 print('Found task that has not been rated yet')
                 continue
 
-            ratings = task.param_dict['response'][file_url]['responses']
+            ratings = task.as_dict()['response'][file_url]['responses']
+            print(ratings)
             rater_stats.extend(ratings)
 
             clip_dict_echo = dict(clip_dict)
@@ -229,6 +227,12 @@ def parse_echo(tasks, project):
     return echo_results, deg_results, rater_stats
 
 
+# TODO: some sort of structured URL parsing is more reasonable than this hack
+def remove_query_string_from_url(url):
+    filename_cutoff_index = url.index('.wav') + 4
+    return url[:filename_cutoff_index]
+
+
 if __name__ == '__main__':
     print("Welcome to the Scale result parsing script for ACR test.")
     parser = argparse.ArgumentParser(
@@ -237,6 +241,9 @@ if __name__ == '__main__':
         "--project", help="Name of the batch to club results by", required=True)
     parser.add_argument(
         "--cfg", help="Configuration file, see master.cfg", required=True)
+    parser.add_argument(
+        "--method", default="acr", const="acr", nargs="?",
+        choices=("acr", "echo", "p835"), help="Use regular ACR questions or echo questions")
 
     # check input arguments
     args = parser.parse_args()
