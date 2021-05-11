@@ -92,12 +92,10 @@ def parse_args():
                         help='Number of response per clip required', default=5, type=int)
     parser.add_argument('--method', default='acr', const='acr', nargs='?',
                         choices=('acr', 'echo'), help='Use regular ACR questions or echo questions')
-    parser.add_argument('--replace_modelname', default=None, help="If given, replace {replace_modelname} "
-                        "in filenames with model name parsed from directory")
     return parser.parse_args()
 
 
-async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir, replace_modelname):
+async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
     """
     Merge different input files into one dataframe
     :param test_method
@@ -128,9 +126,6 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir, repl
             model_df = pd.DataFrame({model: eclips_urls})
             model_df['basename'] = model_df.apply(
                 lambda x: os.path.basename(remove_query_string_from_url(x[model])), axis=1)
-            if replace_modelname is not None:
-                model_df["basename"] = model_df["basename"].apply(
-                    lambda x: x.replace("dec", model))
             model_df = model_df.set_index('basename')
             metadata = pd.concat([metadata, model_df], axis=1)
 
@@ -237,7 +232,7 @@ async def main(cfg, args):
 
     # prepare format
     metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips,
-                                                   args.trapping_clips, output_dir, args.replace_modelname)
+                                                   args.trapping_clips, output_dir)
 
     # create batch
     batch = await create_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), cfg.get("CommonAccountKeys", 'ScaleAccountName'), args.project)
