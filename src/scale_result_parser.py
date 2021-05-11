@@ -196,7 +196,6 @@ def parse_echo(tasks):
                 continue
 
             ratings = task.as_dict()['response'][file_url]['responses']
-            print(ratings)
             rater_stats.extend(ratings)
 
             clip_dict_echo = dict(clip_dict)
