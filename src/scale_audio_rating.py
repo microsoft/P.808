@@ -8,24 +8,20 @@
 
 import argparse
 import asyncio
-import configparser as CP
 import json
 import os
-import random
-import datetime
-import posixpath
-
-import pandas as pd
 import requests
-from azure.storage.blob import (AppendBlobService, BlockBlobService,
-                                PageBlobService)
-from azure.storage.file import FileService
-from jinja2 import Template
+import datetime
+
+import configparser as CP
+import pandas as pd
+import create_input as ca
+
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from azure_clip_storage import AzureClipStorage, TrappingSamplesInStore, GoldSamplesInStore
 from concurrent.futures import ThreadPoolExecutor
 
-import create_input as ca
 
 s = requests.Session()
 retries = Retry(total=5,
@@ -82,7 +78,7 @@ FIELDS = [
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Master script to prepare the ACR test')
+        description='Script for submitting clips to Scale for ratings')
     parser.add_argument("--project", help="Name of the project", required=True)
     parser.add_argument(
         "--cfg", help="Configuration file, see master.cfg", required=True)
@@ -96,151 +92,10 @@ def parse_args():
                         help='Number of response per clip required', default=5, type=int)
     parser.add_argument('--method', default='acr', const='acr', nargs='?',
                         choices=('acr', 'echo'), help='Use regular ACR questions or echo questions')
-    parser.add_argument('--replace_modelname', default=None, help="If given, replace {replace_modelname} "
-                        "in filenames with model name parsed from directory")
     return parser.parse_args()
 
 
-class ClipsInAzureStorageAccount(object):
-    def __init__(self, config, alg):
-        self._account_name = os.path.basename(
-            config['StorageUrl']).split('.')[0]
-        if '.file.core.windows.net' in config['StorageUrl']:
-            self._account_type = 'FileStore'
-        elif '.blob.core.windows.net' in config['StorageUrl']:
-            self._account_type = 'BlobStore'
-        self._account_key = config['StorageAccountKey']
-        self._container = config['Container']
-        self._alg = alg
-        self._clips_path = config['Path'].lstrip('/')
-        self._clip_names = []
-        self._modified_clip_names = []
-        self._SAS_token = ''
-
-    @property
-    def container(self):
-        return self._container
-
-    @property
-    def alg(self):
-        return self._alg
-
-    @property
-    def clips_path(self):
-        return self._clips_path
-
-    @property
-    async def clip_names(self):
-        if len(self._clip_names) <= 0:
-            await self.get_clips()
-        return self._clip_names
-
-    @property
-    def store_service(self):
-        if self._account_type == 'FileStore':
-            return FileService(account_name=self._account_name, account_key=self._account_key)
-        elif self._account_type == 'BlobStore':
-            return BlockBlobService(account_name=self._account_name, account_key=self._account_key)
-
-    @property
-    def modified_clip_names(self):
-        self._modified_clip_names = [
-            os.path.basename(clip) for clip in self._clip_names]
-        return self._modified_clip_names
-
-    async def traverse_down_filestore(self, dirname):
-        files = self.store_service.list_directories_and_files(
-            self.container, os.path.join(self.clips_path, dirname))
-        await self.retrieve_contents(files, dirname)
-
-    async def retrieve_contents(self, list_generator, dirname=''):
-        for e in list_generator:
-            if '.wav' in e.name:
-                if not dirname:
-                    self._clip_names.append(e.name)
-                else:
-                    self._clip_names.append(
-                        posixpath.join(dirname.lstrip('/'), e.name))
-            else:
-                await self.traverse_down_filestore(e.name)
-
-    async def get_clips(self):
-        if self._account_type == 'FileStore':
-            files = self.store_service.list_directories_and_files(
-                self.container, self.clips_path)
-            if not self._SAS_token:
-                self._SAS_token = self.store_service.generate_share_shared_access_signature(
-                    self.container, permission='read', expiry=datetime.datetime(2019, 10, 30, 12, 30), start=datetime.datetime.now())
-            await self.retrieve_contents(files)
-        elif self._account_type == 'BlobStore':
-            blobs = self.store_service.list_blobs(
-                self.container, self.clips_path)
-
-            if not self._SAS_token:
-                start = datetime.datetime.utcnow()
-                end = start + datetime.timedelta(days=14)
-                self._SAS_token = self.store_service.generate_container_shared_access_signature(
-                    self.container, permission='r', expiry=end, start=start)
-            await self.retrieve_contents(blobs)
-
-    def make_clip_url(self, filename):
-        if self._account_type == 'FileStore':
-            source_url = self.store_service.make_file_url(
-                self.container, self.clips_path, filename, sas_token=self._SAS_token)
-        elif self._account_type == 'BlobStore':
-            source_url = self.store_service.make_blob_url(
-                self.container, filename, sas_token=self._SAS_token)
-        return source_url
-
-
-class GoldSamplesInStore(ClipsInAzureStorageAccount):
-    def __init__(self, config, alg):
-        super().__init__(config, alg)
-        self._SAS_token = ''
-
-    async def get_dataframe(self):
-        clips = await self.clip_names
-        df = pd.DataFrame(columns=['gold_clips', 'gold_clips_ans'])
-        clipsList = []
-        for clip in clips:
-            clipUrl = self.make_clip_url(clip)
-            rating = 5
-            if 'noisy' in clipUrl.lower():
-                rating = 1
-
-            clipsList.append({'gold_clips': clipUrl, 'gold_clips_ans': rating})
-
-        df = df.append(clipsList)
-        return df
-
-
-class TrappingSamplesInStore(ClipsInAzureStorageAccount):
-    async def get_dataframe(self):
-        clips = await self.clip_names
-        df = pd.DataFrame(columns=['trapping_clips', 'trapping_ans'])
-        clipsList = []
-        for clip in clips:
-            clipUrl = self.make_clip_url(clip)
-            rating = 0
-            if '_bad_' in clip.lower():
-                rating = 1
-            elif '_poor_' in clip.lower():
-                rating = 2
-            elif '_fair_' in clip.lower():
-                rating = 3
-            elif '_good_' in clip.lower():
-                rating = 4
-            elif '_excellent_' in clip.lower():
-                rating = 5
-
-            clipsList.append(
-                {'trapping_clips': clipUrl, 'trapping_ans': rating})
-
-        df = df.append(clipsList)
-        return df
-
-
-async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir, replace_modelname):
+async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
     """
     Merge different input files into one dataframe
     :param test_method
@@ -263,7 +118,7 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir, repl
 
         metadata = pd.DataFrame()
         for model in rating_clips_stores:
-            enhancedClip = ClipsInAzureStorageAccount(cfg[model], model)
+            enhancedClip = AzureClipStorage(cfg[model], model)
             eclips = await enhancedClip.clip_names
             eclips_urls = [enhancedClip.make_clip_url(clip) for clip in eclips]
 
@@ -271,9 +126,6 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir, repl
             model_df = pd.DataFrame({model: eclips_urls})
             model_df['basename'] = model_df.apply(
                 lambda x: os.path.basename(remove_query_string_from_url(x[model])), axis=1)
-            if replace_modelname is not None:
-                model_df["basename"] = model_df["basename"].apply(
-                    lambda x: x.replace("dec", model))
             model_df = model_df.set_index('basename')
             metadata = pd.concat([metadata, model_df], axis=1)
 
@@ -297,7 +149,7 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir, repl
 
     df_clips = df_clips.fillna('')
     df_clips.to_csv(os.path.join(
-        output_dir, "Batch_{0}_tasks.csv".format(datetime.datetime.now().strftime("%m%d%Y"))))
+        output_dir, "Batch_{0}_tasks.csv".format(datetime.datetime.utcnow().strftime("%m%d%Y"))))
     print('iterating through [{0}] clips'.format(len(df_clips)))
     for i in range(len(df_clips)):
         metadata = {'file_shortname': df_clips.index[i]}
@@ -340,10 +192,17 @@ async def create_batch(scale_api_key, project_name, batch_name):
         "name": batch_name,
         "callback_url": "http://example.com/callback",
     }
-    r = s.post(url, data=payload, headers=headers, auth=(
+    r = s.post(url, json=payload, headers=headers, auth=(
         scale_api_key, ''))
+
+    response_body = r.json()
+    
     if r.status_code == 200:
-        return r.content.name
+        return response_body["name"]
+    
+    if r.status_code == 409:
+        # Already exists, no idea if it's finalized or not, but we'll assume it's not
+        return batch_name
 
 
 async def finalize_batch(scale_api_key, batch_name):
@@ -351,7 +210,7 @@ async def finalize_batch(scale_api_key, batch_name):
     headers = {"Accept": "application/json"}
     r = s.post(url, headers=headers, auth=(scale_api_key, ''))
     if r.status_code == 200:
-        return print(f'batch {r.content.name} finalized')
+        return print(f'batch {r.json()["name"]} finalized')
 
 
 def post_task(scale_api_key, task_obj):
@@ -373,7 +232,7 @@ async def main(cfg, args):
 
     # prepare format
     metadata_lst = await prepare_metadata_per_task(cfg, args.clips, args.gold_clips,
-                                                   args.trapping_clips, output_dir, args.replace_modelname)
+                                                   args.trapping_clips, output_dir)
 
     # create batch
     batch = await create_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), cfg.get("CommonAccountKeys", 'ScaleAccountName'), args.project)
@@ -406,10 +265,11 @@ async def main(cfg, args):
     results = executor.map(post_task, [cfg.get(
         "CommonAccountKeys", 'ScaleAPIKey')] * len(task_objs), task_objs)
     failed = [result for result in results if result]
-    print(failed)
+    print("Failed to submit: ", failed)
 
-    # TODO: What if some failed?
-    await finalize_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), batch)
+    # Don't finalize batch if there are files that failed to submit
+    if len(failed) == 0:
+        await finalize_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), batch)
 
 
 if __name__ == '__main__':

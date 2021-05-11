@@ -8,154 +8,16 @@
 
 import argparse
 import os
-import configparser as CP
-from jinja2 import Template
-import pandas as pd
-import create_input as ca
-from azure.storage.blob import BlockBlobService, PageBlobService, AppendBlobService
-from azure.storage.file import FileService
 import asyncio
 import base64
-import datetime
 
-class ClipsInAzureStorageAccount(object):
-    def __init__(self, config, alg):
-        self._account_name = os.path.basename(config['StorageUrl']).split('.')[0]
-        if '.file.core.windows.net' in config['StorageUrl']:
-            self._account_type = 'FileStore'
-        elif '.blob.core.windows.net' in config['StorageUrl']:
-            self._account_type = 'BlobStore'
-        self._account_key = config['StorageAccountKey']
-        self._container = config['Container']
-        self._alg = alg
-        self._clips_path = config['Path'].lstrip('/')
-        self._clip_names = []
-        self._modified_clip_names = []
-        self._SAS_token = ''
+import configparser as CP
+import pandas as pd
+import create_input as ca
 
-    @property
-    def container(self):
-        return self._container
+from jinja2 import Template
+from azure_clip_storage import AzureClipStorage, TrappingSamplesInStore, GoldSamplesInStore, PairComparisonSamplesInStore
 
-    @property
-    def alg(self):
-        return self._alg
-
-    @property
-    def clips_path(self):
-        return self._clips_path
-
-    @property
-    async def clip_names(self):
-        if len(self._clip_names) <= 0:
-            await self.get_clips()
-        return self._clip_names
-
-    @property
-    def store_service(self):
-        if self._account_type == 'FileStore':
-            return FileService(account_name = self._account_name, account_key = self._account_key)
-        elif self._account_type == 'BlobStore':
-            return BlockBlobService(account_name=self._account_name, account_key=self._account_key)
-
-    @property
-    def modified_clip_names(self):
-        self._modified_clip_names = [os.path.basename(clip) for clip in self._clip_names]
-        return self._modified_clip_names
-
-    async def traverse_down_filestore(self, dirname):
-        files = self.store_service.list_directories_and_files(self.container, os.path.join(self.clips_path, dirname))
-        await self.retrieve_contents(files, dirname)
-
-    async def retrieve_contents(self, list_generator, dirname=''):
-        for e in list_generator:
-            if '.wav' in e.name:
-                if not dirname:
-                    self._clip_names.append(e.name)
-                else:
-                    self._clip_names.append(posixpath.join(dirname.lstrip('/'), e.name))
-            else:
-                await self.traverse_down_filestore(e.name)
-
-    async def get_clips(self):
-        if self._account_type == 'FileStore':
-            files = self.store_service.list_directories_and_files(self.container, self.clips_path)
-            if not self._SAS_token:
-                self._SAS_token = self.store_service.generate_share_shared_access_signature(self.container, permission='read', expiry=datetime.datetime(2019, 10, 30, 12, 30), start=datetime.datetime.now())
-            await self.retrieve_contents(files)
-        elif self._account_type == 'BlobStore':
-            blobs = self.store_service.list_blobs(self.container, self.clips_path)
-            if not self._SAS_token:
-                start = datetime.datetime.utcnow()
-                end = start + datetime.timedelta(days=14)
-                self._SAS_token = self.store_service.generate_container_shared_access_signature(
-                    self.container, permission='r', expiry=end, start=start)
-            await self.retrieve_contents(blobs)
-
-    def make_clip_url(self, filename):
-        if self._account_type == 'FileStore':
-            source_url = self.store_service.make_file_url(self.container, self.clips_path, filename, sas_token=self._SAS_token)
-        elif self._account_type == 'BlobStore':
-            source_url = self.store_service.make_blob_url(self.container, filename, sas_token=self._SAS_token)
-        return source_url
-
-
-class GoldSamplesInStore(ClipsInAzureStorageAccount):
-    def __init__(self, config, alg):
-        super().__init__(config, alg)
-        self._SAS_token = ''
-
-    async def get_dataframe(self):
-        clips = await self.clip_names
-        df = pd.DataFrame(columns=['gold_clips', 'gold_clips_ans'])
-        clipsList = []
-        for clip in clips:
-            clipUrl = self.make_clip_url(clip)
-            rating = 5
-            if 'noisy' in clipUrl.lower():
-                rating = 1
-
-            clipsList.append({'gold_clips':clipUrl, 'gold_clips_ans':rating})
-
-        df = df.append(clipsList)
-        return df
-
-
-class TrappingSamplesInStore(ClipsInAzureStorageAccount):
-    async def get_dataframe(self):
-        clips = await self.clip_names
-        df = pd.DataFrame(columns=['trapping_clips', 'trapping_ans'])
-        clipsList = []
-        for clip in clips:
-            clipUrl = self.make_clip_url(clip)
-            rating = 0
-            if '_bad_' in clip.lower() or '_1_short' in clip.lower():
-                rating = 1
-            elif '_poor_' in clip.lower() or '_2_short' in clip.lower():
-                rating = 2
-            elif '_fair_' in clip.lower() or '_3_short' in clip.lower():
-                rating = 3
-            elif '_good_' in clip.lower() or '_4_short' in clip.lower():
-                rating = 4
-            elif '_excellent_' in clip.lower() or '_5_short' in clip.lower():
-                rating = 5
-            if rating == 0:
-                print(f"  TrappingSamplesInStore: could not extract correct rating for this trapping clip: {clip.lower()}")
-            else:
-                clipsList.append({'trapping_clips': clipUrl, 'trapping_ans': rating})
-
-        df = df.append(clipsList)
-        return df
-
-
-class PairComparisonSamplesInStore(ClipsInAzureStorageAccount):
-    async def get_dataframe(self):
-        clips = await self.clip_names
-        pair_a_clips = [self.make_clip_url(clip) for clip in clips if '40S_' in clip]
-        pair_b_clips = [clip.replace('40S_', '50S_') for clip in pair_a_clips]
-
-        df = pd.DataFrame({'pair_a':pair_a_clips, 'pair_b':pair_b_clips})
-        return df
 
 """
 def create_analyzer_cfg_acr(cfg, template_path, out_path):
@@ -192,6 +54,7 @@ def create_analyzer_cfg_acr(cfg, template_path, out_path):
     print(f"  [{out_path}] is created")
 """
 
+
 def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path):
     """
     create cfg file to be used by analyzer script (acr, p835, and echo_impairment_test method)
@@ -214,7 +77,7 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path):
     config['quantity_bonus'] = cfg_section['quantity_bonus']
     config['quality_top_percentage'] = cfg_section['quality_top_percentage']
     config['quality_bonus'] = cfg_section['quality_bonus']
-    default_condition = '.*_c(?P<condition_num>\d{1,2})_.*.wav'
+    default_condition = r'.*_c(?P<condition_num>\d{1,2})_.*.wav'
     default_keys = 'condition_num'
     config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
     config['condition_keys'] = cfg['create_input'].get("condition_keys", default_keys)
@@ -251,7 +114,7 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path):
     config['quantity_bonus'] = cfg['hit_app_html']['quantity_bonus']
     config['quality_top_percentage'] = cfg['hit_app_html']['quality_top_percentage']
     config['quality_bonus'] = cfg['hit_app_html']['quality_bonus']
-    default_condition = '.*_c(?P<condition_num>\d{1,2})_.*.wav'
+    default_condition = r'.*_c(?P<condition_num>\d{1,2})_.*.wav'
     default_keys = 'condition_num'
     config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
     config['condition_keys'] = cfg['create_input'].get("condition_keys", default_keys)
@@ -297,7 +160,7 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     rating_urls = []
     n_clips = int(cfg_g['number_of_clips_per_session'])
     n_traps = int(cfg_g['number_of_trapping_per_session'])
-    #'dummy':'dummy' is added becuase of current bug in AMT for replacing variable names. See issue #6
+    # 'dummy':'dummy' is added becuase of current bug in AMT for replacing variable names. See issue #6
     for i in range(0, n_clips):
         rating_urls.append({"ref": f"${{Q{i}_R}}", "processed": f"${{Q{i}_P}}", 'dummy': 'dummy'})
 
@@ -312,7 +175,7 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     df_train = pd.read_csv(training_path)
     train_urls = []
     train_ref = None
-    for index, row in df_train.iterrows():
+    for _, row in df_train.iterrows():
         if train_ref is None:
             train_ref = row['training_references']
         train_urls.append({"ref": f"{row['training_references']}", "processed": f"{row['training_clips']}"})
@@ -351,7 +214,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     # trapping clips are required, at list 1 clip should be available here
     if len(df_trap.index) < 1 and int(cfg_g['number_of_clips_per_session']) > 0:
         raise ("At least one trapping clip is required")
-    for index, row in df_trap.head(n=1).iterrows():
+    for _, row in df_trap.head(n=1).iterrows():
         trap_url = row['trapping_clips']
         trap_ans = row['trapping_ans']
 
@@ -362,7 +225,6 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     config['training_trap_urls'] = trap_url
     config['training_trap_ans'] = trap_ans
     config['contact_email'] = cfg["contact_email"] if "contact_email" in cfg else "ic3ai@outlook.com"
-
 
     config['hit_base_payment'] = cfg['hit_base_payment']
     config['quantity_hits_more_than'] = cfg['quantity_hits_more_than']
@@ -375,7 +237,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
 
     df_train = pd.read_csv(training_path)
     train = []
-    for index, row in df_train.iterrows():
+    for _, row in df_train.iterrows():
         train.append(row['training_clips'])
     train.append(trap_url)
     config['training_urls'] = train
@@ -386,7 +248,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     n_traps = int(cfg_g['number_of_trapping_per_session'])
     n_gold_clips = int(cfg_g['number_of_gold_clips_per_session'])
 
-    for i in range(0, n_clips ):
+    for i in range(0, n_clips):
         rating_urls.append('${Q'+str(i)+'}')
     if n_traps > 1:
         raise Exception("more than 1 trapping clips question is not supported.")
@@ -429,7 +291,7 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     # trapping clips are required, at list 1 clip should be available here
     if len(df_trap.index) < 1 and int(cfg_g['number_of_clips_per_session']) > 0:
         raise (f"At least one trapping clip is required")
-    for index, row in df_trap.head(n=1).iterrows():
+    for _, row in df_trap.head(n=1).iterrows():
         trap_url = row['trapping_clips']
         trap_ans = row['trapping_ans']
 
@@ -452,7 +314,7 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
 
     df_train = pd.read_csv(training_path)
     train = []
-    for index, row in df_train.iterrows():
+    for _, row in df_train.iterrows():
         train.append(row['training_clips'])
     train.append(trap_url)
     config['training_urls'] = train
@@ -508,7 +370,7 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
     else:
         rating_clips_stores = cfg.get('RatingClips', 'RatingClipsConfigurations').split(',')
         for model in rating_clips_stores:
-            enhancedClip = ClipsInAzureStorageAccount(cfg[model], model)
+            enhancedClip = AzureClipStorage(cfg[model], model)
             eclips = await enhancedClip.clip_names
             eclips_urls = [enhancedClip.make_clip_url(clip) for clip in eclips]
 
@@ -535,7 +397,7 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
     else:
         df_gold = None
         if not os.path.exists(clips):
-            testclipsstore = ClipsInAzureStorageAccount(cfg['noisy'], 'noisy')
+            testclipsstore = AzureClipStorage(cfg['noisy'], 'noisy')
             testclipsurls = [testclipsstore.make_clip_url(clip) for clip in await testclipsstore.clip_names]
             print('The total test clips for our study is [{0}]'.format(len(testclipsurls)))
 
@@ -576,7 +438,7 @@ def prepare_basic_cfg(df):
                             "hearing_test_ans": clear_sample_ans}, ignore_index=True)
     sample["hearing_test_ans"] = sample["hearing_test_ans"].apply(lambda x: str(int(x)))
     i = 2
-    for x, row in sample.iterrows():
+    for _, row in sample.iterrows():
         ans = row["hearing_test_ans"]
         if ans == clear_sample_ans:
             index = 1
