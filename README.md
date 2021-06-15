@@ -15,10 +15,16 @@ Relevant ITU-T Recommendations are :
 
 * [ITU-T Recommendation P.831 _Subjective performance evaluation of network echo cancellers._](https://www.itu.int/rec/T-REC-P.831/en) Geneva: International Telecommunication Union, 1998.
 
-A technical description of the implementation and validation is given in this paper:
+Technical description of the implementation and validation are given in these papers:
 
 * [An Open Source Implementation of ITU-T Recommendation P.808 with Validation.](https://arxiv.org/pdf/2005.08138.pdf)
-Babak Naderi, Ross Cutler, 2020.
+Babak Naderi, Ross Cutler, INTERSPEECH 2020.
+
+* [Crowdsourcing approach for subjective evaluation of echo impairment.](https://arxiv.org/pdf/2010.13063.pdf)
+Ross Cutler, Babak Nadari, Markus Loide, Sten Sootla, Ando Saabas, ICASSP 2021.
+
+* [Subjective Evaluation of Noise Suppression Algorithms in Crowdsourcing. How we label the data for the DNS challenge.](https://arxiv.org/pdf/2010.13200.pdf)
+Babak Naderi, Ross Cutler, INTERSPEECH 2021.
 
 ## Citation
 If you use this tool in your research please cite it with the following references:
