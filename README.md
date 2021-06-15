@@ -21,15 +21,36 @@ A technical description of the implementation and validation is given in this pa
 Babak Naderi, Ross Cutler, 2020.
 
 ## Citation
-If you use this tool in your research please cite it with the following reference:
+If you use this tool in your research please cite it with the following references:
 
 ```BibTex
 @article{naderi2020,
-  title={An Open source Implementation of ITU-T Recommendation P. 808 with Validation},
+  title={An Open source Implementation of ITU-T Recommendation P.808 with Validation},
   author={Naderi, Babak and Cutler, Ross},
   journal={Proc. Interspeech},
   year={2020}
 }
+```
+
+```BibTex
+@inproceedings{cutler2021crowdsourcing,
+  title={Crowdsourcing approach for subjective evaluation of echo impairment},
+  author={Cutler, Ross and Nadari, Babak and Loide, Markus and Sootla, Sten and Saabas, Ando},
+  booktitle={ICASSP 2021-2021 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
+  pages={406--410},
+  year={2021},
+  organization={IEEE}
+}
+```
+
+```BibTex
+@article{naderi2021,
+  title={Subjective Evaluation of Noise Suppression Algorithms in Crowdsourcing},
+  author={Naderi, Babak and Cutler, Ross},
+  journal={Proc. Interspeech},
+  year={2021}
+}
+
 ```
 
 ## Getting Started
