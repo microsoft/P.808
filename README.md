@@ -1,15 +1,19 @@
 # P.808 Toolkit
 The P.808 Toolkit is a software package that enables users to run subjective speech quality assessment test
-in Amazon Mechanical Turk (AMT) crowdsourcing platform, according to the ITU-T Recommendation P.808. It extends P.808 in the following ways:
+in Amazon Mechanical Turk (AMT) crowdsourcing platform, according to the ITU-T Recommendation P.808. 
+It includes following test methods:
+* Absolute Category Rating (ACR) -- Annex A, P.808
+* Degradation Category Ratings (DCR) -- Annex B, P.808
+* Comparison Category Ratings (CCR) -- Annex C, P.808
+* Evaluating the subjective quality of speech in noise (i.e. implementation of ITU-T Rec. P.835 approach in crowdsourcing) -- Annex D, P.808
+ 
+ 
+It also extends P.808 in the following ways:
 
-* Includes Degradation Category Ratings (DCR) 
-* Includes Comparison Category Ratings (CCR)
-* Significantly speeds up the test process by integrating the participant qualification step into the main rating task compared to a two-stage qualification and rating solution
-* Includes implementation of the ITU-T Rec. P.835 for the crowdsourcing approach is also provided based on the recommendations given in the ITU-T Rec. P.808.
 * Includes implementation of the ITU-T Rec. P.831 for the crowdsourcing approach is also provided based on the recommendations given in the ITU-T Rec. P.808.
 
 Relevant ITU-T Recommendations are :
-* [ITU-T Recommendation P.808, _Subjective evaluation of speech quality with a crowdsourcing approach._](https://www.itu.int/rec/T-REC-P.808/en) Geneva: International Telecommunication Union, 2018.
+* [ITU-T Recommendation P.808, _Subjective evaluation of speech quality with a crowdsourcing approach._](https://www.itu.int/rec/T-REC-P.808/en) Geneva: International Telecommunication Union, 2021.
 
 * [ITU-T Recommendation P.835, _Subjective test methodology for evaluating speech communication systems that include noise suppression algorithm._](https://www.itu.int/rec/T-REC-P.835/en) Geneva: International Telecommunication Union, 2003.
 
@@ -64,6 +68,10 @@ If you use this tool in your research please cite it with the following referenc
 * [Running the Test on Amazon Mechanical Turk](docs/running_test_mturk.md)
 * [Analyzing Data](docs/results.md)
 
+
+## News
+++ An update for the ITU-T Rec. P.808 was accepted by the ITU-T Study Group 12 and will publish soon. This package already 
+covers all the updates. 
 
 ## Troubleshooting
 For bug reports and issues with this code, please see the 
