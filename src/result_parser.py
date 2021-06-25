@@ -241,6 +241,18 @@ def check_gold_question(method, row):
     return correct_gq
 
 
+def digitsum(x):
+    """
+    sum of the digits in a string
+    :param x:
+    :return:
+    """
+    total = 0
+    for letter in str(x):
+        total += int(letter)
+    return total
+
+
 def check_math(input, output, audio_played):
     """
     check if the math question is answered correctly
@@ -252,9 +264,13 @@ def check_math(input, output, audio_played):
     if audio_played == 0:
         return False
     keys = list(config['math'].keys())
+    ans = int(float(output))
+    # it could be a case that participant typed in the 2 or 3 numbers that they heard rather their sum.
+    if ans > 9:
+        ans = digitsum(ans)
     try:
         for key in keys:
-            if key in input and int(config['math'][key]) == int(output):
+            if key in input and int(config['math'][key]) == ans:
                 return True
     except:
         return False
