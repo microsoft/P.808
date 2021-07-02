@@ -97,38 +97,38 @@ def parse_acr(tasks):
     results = list()
     rater_stats = list()
     for task in tasks:
+        if 'response' not in task.as_dict():
+                    print('Found task that has not been rated yet')
+                    continue
+        for file_url in task.as_dict()['response']:
+            if(file_url != 'annotations' and file_url != 'is_customer_fix'):
+                clip_dict = {
+                    'short_file_name': task.as_dict()['metadata']['file_shortname']}
+                clip_dict['model'] = file_url
+                clip_dict['file_url'] = task.as_dict()['metadata']['file_urls'][file_url]
 
-        for file_url in task.as_dict()['metadata']['file_urls']:
-            clip_dict = {
-                'short_file_name': task.as_dict()['metadata']['file_shortname']}
-            clip_dict['model'] = file_url
-            clip_dict['file_url'] = task.as_dict()['metadata']['file_urls'][file_url]
-            if 'response' not in task.as_dict():
-                print('Found task that has not been rated yet')
-                continue
+                ratings = task.as_dict()['response'][file_url]['responses']
+                rater_stats.extend(ratings)
 
-            ratings = task.as_dict()['response'][file_url]['responses']
-            rater_stats.extend(ratings)
+                for i in range(len(ratings)):
+                    vote = 'vote_' + str(i+1)
+                    clip_dict[vote] = ratings[i]['rating']
 
-            for i in range(len(ratings)):
-                vote = 'vote_' + str(i+1)
-                clip_dict[vote] = ratings[i]['rating']
+                clip_dict['MOS'] = np.mean([rating['rating']
+                                            for rating in ratings])
+                clip_dict['n'] = len(ratings)
+                clip_dict['std'] = np.std([rating['rating']
+                                        for rating in ratings], ddof=1)
+                clip_dict['95%CI'] = 1.96 * \
+                    clip_dict['std'] / np.sqrt(len(ratings))
 
-            clip_dict['MOS'] = np.mean([rating['rating']
-                                        for rating in ratings])
-            clip_dict['n'] = len(ratings)
-            clip_dict['std'] = np.std([rating['rating']
-                                       for rating in ratings], ddof=1)
-            clip_dict['95%CI'] = 1.96 * \
-                clip_dict['std'] / np.sqrt(len(ratings))
+                """
+                clipset_match = re.match(
+                    '.*[/](?P<clipset>audioset|ms_realrec|noreverb_clnsp|reverb_clnsp|stationary)', clip_dict['file_url'])
+                clip_dict['clipset'] = clipset_match.groupdict()['clipset']
+                """
 
-            """
-            clipset_match = re.match(
-                '.*[/](?P<clipset>audioset|ms_realrec|noreverb_clnsp|reverb_clnsp|stationary)', clip_dict['file_url'])
-            clip_dict['clipset'] = clipset_match.groupdict()['clipset']
-            """
-
-            results.append(clip_dict)
+                results.append(clip_dict)
 
     return results, rater_stats
 
