@@ -97,15 +97,14 @@ def parse_acr(tasks):
     results = list()
     rater_stats = list()
     for task in tasks:
-
-        for file_url in task.as_dict()['metadata']['file_urls']:
-            clip_dict = {
-                'short_file_name': task.as_dict()['metadata']['file_shortname']}
+        if 'response' not in task.as_dict():
+                    print('Found task that has not been rated yet')
+                    continue
+        valid_file_urls = [f for f in task['response'] if f != 'annotations' and f != 'is_customer_fix']
+        for file_url in valid_file_urls:
+            clip_dict = {'short_file_name': task.as_dict()['metadata']['file_shortname']}
             clip_dict['model'] = file_url
             clip_dict['file_url'] = task.as_dict()['metadata']['file_urls'][file_url]
-            if 'response' not in task.as_dict():
-                print('Found task that has not been rated yet')
-                continue
 
             ratings = task.as_dict()['response'][file_url]['responses']
             rater_stats.extend(ratings)
@@ -118,7 +117,7 @@ def parse_acr(tasks):
                                         for rating in ratings])
             clip_dict['n'] = len(ratings)
             clip_dict['std'] = np.std([rating['rating']
-                                       for rating in ratings], ddof=1)
+                                    for rating in ratings], ddof=1)
             clip_dict['95%CI'] = 1.96 * \
                 clip_dict['std'] / np.sqrt(len(ratings))
 
