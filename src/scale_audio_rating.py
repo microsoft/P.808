@@ -30,6 +30,51 @@ retries = Retry(total=5,
 
 s.mount('https://', HTTPAdapter(max_retries=retries))
 
+P835_FIELDS = [
+    {
+        "field_id": "distortion",
+        "title": "Distortion",
+        "description": "Referring to the previous file, how would you judge the SPEECH SIGNAL/DISTORTION of the speaker?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            { "label": "5 - Not distorted", "value": "5" },
+            { "label": "4 - Slightly distorted", "value": "4" },
+            { "label": "3 - Somewhat distorted", "value": "3" },
+            { "label": "2 - Fairly distorted", "value": "2" },
+            { "label": "1 - Very distorted", "value": "1" },
+        ],
+    },
+    {
+        "field_id": "background",
+        "title": "Background Noise",
+        "description": "Referring to the previous file, how would you judge the BACKGROUND NOISE of the file?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            { "label": "5 - Not noticeable", "value": "5" },
+            { "label": "4 - Slightly noticeable", "value": "4" },
+            { "label": "3 - Noticeable but not intrusive", "value": "3" },
+            { "label": "2 - Somewhat intrusive", "value": "2" },
+            { "label": "1 - Very intrusive", "value": "1" },
+        ],
+    },
+    {
+        "field_id": "overall",
+        "title": "Overall",
+        "description": "Referring to the previous file, how would you judge the OVERALL quality of the file?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            { "label": "5 - Excellent", "value": "5" },
+            { "label": "4 - Good", "value": "4" },
+            { "label": "3 - Fair", "value": "3" },
+            { "label": "2 - Poor", "value": "2" },
+            { "label": "1 - Bad", "value": "1" },
+        ],
+    },
+]
+
 ECHO_FIELDS = [
     {
         "field_id": "rating_echo",
@@ -91,7 +136,7 @@ def parse_args():
     parser.add_argument('--num_responses_per_clip',
                         help='Number of response per clip required', default=5, type=int)
     parser.add_argument('--method', default='acr', const='acr', nargs='?',
-                        choices=('acr', 'echo'), help='Use regular ACR questions or echo questions')
+                        choices=('acr', 'echo', 'p835'), help='Use regular ACR questions or echo questions')
     return parser.parse_args()
 
 
@@ -242,6 +287,8 @@ async def main(cfg, args):
         fields = FIELDS
         if args.method == 'echo':
             fields = ECHO_FIELDS
+        elif args.method == 'p835':
+            fields = P835_FIELDS
 
         file_urls = metadata['file_urls'].values()
         for file in file_urls:
