@@ -229,13 +229,13 @@ def remove_query_string_from_url(url_series):
     return url_series[:filename_cutoff_index]
 
 
-async def create_batch(scale_api_key, project_name, batch_name):
+async def create_batch(scale_api_key, project_name, batch_name, callback_url=''):
     url = 'https://api.scale.com/v1/batches'
     headers = {"Content-Type": "application/json"}
     payload = {
         "project": project_name,
         "name": batch_name,
-        "callback_url": "http://example.com/callback",
+        "callback_url": callback_url,
     }
     r = s.post(url, json=payload, headers=headers, auth=(
         scale_api_key, ''))
@@ -270,8 +270,17 @@ def post_task(scale_api_key, task_obj):
 
 
 async def main(cfg, args):
+    api_key = cfg.get("CommonAccountKeys", 'ScaleAPIKey')
+    scale_project_name = cfg.get("CommonAccountKeys", 'ScaleAccountName')
+    scale_batch_name =  args.project
+    callback_url = (
+        cfg.get("CommonAccountKeys", "CallbackURL")
+        if cfg.has_option("CommonAccountKeys", "CallbackURL")
+        else 'http://example.com/callback'
+    )
+
     # create output folder
-    output_dir = args.project
+    output_dir = scale_batch_name
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
@@ -280,7 +289,7 @@ async def main(cfg, args):
                                                    args.trapping_clips, output_dir)
 
     # create batch
-    batch = await create_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), cfg.get("CommonAccountKeys", 'ScaleAccountName'), args.project)
+    batch = await create_batch(api_key, scale_project_name, scale_batch_name,callback_url)
 
     task_objs = list()
     for metadata in metadata_lst:
@@ -294,9 +303,9 @@ async def main(cfg, args):
         for file in file_urls:
             attachments = [{"type": "audio", "content": file}]
             task_obj = {
-                "unique_id": args.project + "\\" + metadata['file_shortname'],
+                "unique_id": scale_batch_name + "\\" + metadata['file_shortname'],
                 "callback_url": "http://example.com/callback",
-                "project": cfg.get("CommonAccountKeys", 'ScaleAccountName'),
+                "project": scale_project_name,
                 "batch": batch,
                 "instruction": "Please rate these audio files",
                 "responses_required": args.num_responses_per_clip,
@@ -304,7 +313,7 @@ async def main(cfg, args):
                 "attachments": attachments,
                 "metadata": metadata
             }
-            task_obj['metadata']["group"] = args.project
+            task_obj['metadata']["group"] = scale_batch_name
 
             task_objs.append(task_obj)
 
@@ -316,7 +325,7 @@ async def main(cfg, args):
 
     # Don't finalize batch if there are files that failed to submit
     if len(failed) == 0:
-        await finalize_batch(cfg.get("CommonAccountKeys", 'ScaleAPIKey'), batch)
+        await finalize_batch(api_key, batch)
 
 
 if __name__ == '__main__':
