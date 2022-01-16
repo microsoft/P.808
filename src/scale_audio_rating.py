@@ -201,7 +201,10 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
         metadata['file_urls'] = {}
         for col in df_clips.columns:
             if df_clips.loc[df_clips.index[i], col] != '':
-                metadata['file_urls'][col] = df_clips.loc[df_clips.index[i], col]
+                if col == 'reference':
+                    metadata['reference_url'] = df_clips.loc[df_clips.index[i], col]
+                else:
+                    metadata['file_urls'][col] = df_clips.loc[df_clips.index[i], col]
         metadata['ground_truth'] = []
         random_gold_sample = df_gold.sample()
         random_trap_sample = df_trap.sample()
