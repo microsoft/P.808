@@ -104,6 +104,34 @@ ECHO_FIELDS = [
     }
 ]
 
+
+CCR_SIMILARITY_FIELDS = [
+    {
+      "type": "form",
+      "field_id": "field_form",
+      "title": "Compare the following audios",
+      "fields": [
+            {
+                "type": "category",
+                "field_id": "ccr",
+                "title": "Which sample has better quality compared to the other one?",
+                "description": "Compare the samples in terms of audio quality and intelligibility.",
+                "required": True,
+                "choices": [
+                    {"label": "Quality of Sample A is much better.", "value": "a_much_better"},
+                    {"label": "Quality of Sample A is better.", "value": "a_better"},
+                    {"label": "Quality of Sample A is slightly better.", "value": "a_slightly_better"},
+                    {"label": "Both samples are about the same.", "value": "same"},
+                    {"label": "Quality of Sample B is slightly better.", "value": "b_slightly_better"},
+                    {"label": "Quality of Sample B is better.", "value": "b_better"},
+                    {"label": "Quality of Sample B is much better.", "value": "b_much_better"},
+                ],
+            }
+        ]
+    }
+]
+
+
 FIELDS = [
     {
         "field_id": "rating",
@@ -197,7 +225,7 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
         output_dir, "Batch_{0}_tasks.csv".format(datetime.datetime.utcnow().strftime("%m%d%Y"))))
     print('iterating through [{0}] clips'.format(len(df_clips)))
     for i in range(len(df_clips)):
-        metadata = {'file_shortname': df_clips.index[i]}
+        metadata = {'file_shortname': os.path.basename(df_clips.iloc[i]['rating_clips'])}
         metadata['file_urls'] = {}
         for col in df_clips.columns:
             if df_clips.loc[df_clips.index[i], col] != '':
@@ -301,10 +329,23 @@ async def main(cfg, args):
             fields = ECHO_FIELDS
         elif args.method == 'p835':
             fields = P835_FIELDS
+        elif args.method == 'ccr':
+            fields = CCR_SIMILARITY_FIELDS
 
         file_urls = metadata['file_urls'].values()
-        for file in file_urls:
-            attachments = [{"type": "audio", "content": file}]
+
+        if args.method == 'ccr':
+            attachments = [{"forms": ["field_form"],
+                            "type": "audio",
+                            "blocking": True,
+                            "caption": "### Sample A",
+                            "content": metadata['file_urls']['rating_clips']},
+                           {"forms": ["field_form"],
+                            "type": "audio",
+                            "blocking": True,
+                            "caption": "### Sample B",
+                            "content": metadata['file_urls']['rating_clips_reference']}
+                           ]
             task_obj = {
                 "unique_id": scale_batch_name + "\\" + metadata['file_shortname'],
                 "callback_url": "http://example.com/callback",
@@ -314,11 +355,30 @@ async def main(cfg, args):
                 "responses_required": args.num_responses_per_clip,
                 "fields": fields,
                 "attachments": attachments,
-                "metadata": metadata
+                "metadata": {
+                    "audio_1": metadata['file_urls']['rating_clips'],
+                    "audio_2": metadata['file_urls']['rating_clips_reference']
+                },
             }
-            task_obj['metadata']["group"] = scale_batch_name
 
             task_objs.append(task_obj)
+        else:
+            for file in file_urls:
+                attachments = [{"type": "audio", "content": file}]
+                task_obj = {
+                    "unique_id": scale_batch_name + "\\" + metadata['file_shortname'],
+                    "callback_url": "http://example.com/callback",
+                    "project": scale_project_name,
+                    "batch": batch,
+                    "instruction": "Please rate these audio files",
+                    "responses_required": args.num_responses_per_clip,
+                    "fields": fields,
+                    "attachments": attachments,
+                    "metadata": metadata
+                }
+                task_obj['metadata']["group"] = scale_batch_name
+
+                task_objs.append(task_obj)
 
     executor = ThreadPoolExecutor(max_workers=25)
     results = executor.map(post_task, [cfg.get(

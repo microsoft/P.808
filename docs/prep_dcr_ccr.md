@@ -12,7 +12,7 @@ without being artificially processed.
 
 1. Upload your **speech clips** and the references in a cloud server and create the `rating_clips.csv` file which 
 contains all URLs to speech clips in a column named `rating_clips` and URLs to the corresponding reference clips in 
-`references`. (see [rating_clips_ccr.csv](../src/test_inputs/rating_clips_ccr.csv) as an example).
+`rating_clips_reference`. (see [rating_clips_ccr.csv](../src/test_inputs/rating_clips_ccr.csv) as an example).
 
     **Note about file names**:
     * Later in the analyzes, clip's file name will be used as a unique key and appears in the results.    

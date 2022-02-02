@@ -85,6 +85,11 @@ def main(args, scale_api_key, scale_account_name):
         df = pd.DataFrame(p835_results)
         df.to_csv(os.path.join(
             output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_per_clip_results.csv'), index=False)
+    elif args.method == 'ccr':
+        ccr_results, rater_stats = parse_ccr(all_tasks)
+        df_ccr = pd.DataFrame(ccr_results)
+        df_ccr.to_csv(os.path.join(
+            output_dir, f'{args.project}_Batch_{now.strftime("%Y%m%d")}_ccr_per_clip_results.csv'), index=False)
     else:
         raise Exception(f'Unknown method {args.method}')
 
@@ -223,6 +228,47 @@ def parse_echo(tasks):
             deg_results.append(clip_dict_deg)
 
     return echo_results, deg_results, rater_stats
+
+
+def parse_ccr(tasks):
+    ccr_results = list()
+    rater_stats = list()
+
+    for task in tasks:
+        responses = [x['ccr'][0] for x in task.as_dict()['response']['responses']]
+        percentage_a_much_better = np.array([x == 'a_much_better' for x in responses]).sum() / len(responses)
+        percentage_a_better = np.array([x == 'a_better' for x in responses]).sum() / len(responses)
+        percentage_a_slightly_better = np.array([x == 'a_slightly_better' for x in responses]).sum() / len(responses)
+        percentage_same = np.array([x == 'same' for x in responses]).sum() / len(responses)
+        percentage_b_much_better = np.array([x == 'b_much_better' for x in responses]).sum() / len(responses)
+        percentage_b_better = np.array([x == 'b_better' for x in responses]).sum() / len(responses)
+        percentage_b_slightly_better = np.array([x == 'b_slightly_better' for x in responses]).sum() / len(responses)
+
+        agreement_scores = task.as_dict()['response']['agreementScores']['field_form']['ccr']
+        confidence_scores = task.as_dict()['response']['confidenceScores']['field_form']['ccr']
+        weighted_confidence = task.as_dict()['response']['taskWeightedConfidenceScore']
+
+        ccr_results.append({
+            'sample_a': task.as_dict()['metadata']['audio_1'],
+            'sample_b': task.as_dict()['metadata']['audio_2'],
+            "responses": responses,
+            "percentage_a_much_better": percentage_a_much_better,
+            "percentage_a_better": percentage_a_better,
+            "percentage_a_slightly_better": percentage_a_slightly_better,
+            "percentage_same": percentage_same,
+            "percentage_b_much_better": percentage_b_much_better,
+            "percentage_b_better": percentage_b_better,
+            "percentage_b_slightly_better": percentage_b_slightly_better
+        })
+
+        rater_stats.append({
+            "agreement_scores": agreement_scores,
+            "confidence_scores": confidence_scores,
+            "weighted_confidence": weighted_confidence
+        })
+
+    return ccr_results, rater_stats
+
 
 
 # TODO: some sort of structured URL parsing is more reasonable than this hack
