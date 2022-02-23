@@ -225,7 +225,7 @@ async def prepare_metadata_per_task(cfg, clips, gold, trapping, output_dir):
         output_dir, "Batch_{0}_tasks.csv".format(datetime.datetime.utcnow().strftime("%m%d%Y"))))
     print('iterating through [{0}] clips'.format(len(df_clips)))
     for i in range(len(df_clips)):
-        metadata = {'file_shortname': os.path.basename(df_clips.iloc[i]['rating_clips'])}
+        metadata = {'file_shortname': df_clips.iloc[i]['basename']}
         metadata['file_urls'] = {}
         for col in df_clips.columns:
             if df_clips.loc[df_clips.index[i], col] != '':

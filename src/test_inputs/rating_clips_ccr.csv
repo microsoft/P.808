@@ -1,6 +1,6 @@
-rating_clips,rating_clips_reference
-https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F8432.wav,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F01S78.wav
-https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3FB632.wav,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F02S78.wav
-https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M2032.wav,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_M01S78.wav
-https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M5232.wav,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_M02S78.wav
-https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F8533.wav,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F01S79.wav
+basename,rating_clips,rating_clips_reference
+sup23/exp3,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F8432.wav,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F01S78.wav
+sup23/exp3,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3FB632.wav,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F02S78.wav
+sup23/exp3,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M2032.wav,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_M01S78.wav
+sup23/exp3,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3M5232.wav,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_M02S78.wav
+sup23/exp3,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/OE3F8533.wav,https://audiosamplesp808.blob.core.windows.net/sup23/exp3/deg/O_F01S79.wav
