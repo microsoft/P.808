@@ -45,7 +45,7 @@ If you use this tool in your research please cite it with the following referenc
 ```BibTex
 @inproceedings{cutler2021crowdsourcing,
   title={Crowdsourcing approach for subjective evaluation of echo impairment},
-  author={Cutler, Ross and Nadari, Babak and Loide, Markus and Sootla, Sten and Saabas, Ando},
+  author={Cutler, Ross and Naderi, Babak and Loide, Markus and Sootla, Sten and Saabas, Ando},
   booktitle={ICASSP 2021-2021 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
   pages={406--410},
   year={2021},
