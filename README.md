@@ -25,7 +25,7 @@ Technical description of the implementation and validation are given in these pa
 Babak Naderi, Ross Cutler, INTERSPEECH 2020.
 
 * [Crowdsourcing approach for subjective evaluation of echo impairment.](https://arxiv.org/pdf/2010.13063.pdf)
-Ross Cutler, Babak Nadari, Markus Loide, Sten Sootla, Ando Saabas, ICASSP 2021.
+Ross Cutler, Babak Naderi, Markus Loide, Sten Sootla, Ando Saabas, ICASSP 2021.
 
 * [Subjective Evaluation of Noise Suppression Algorithms in Crowdsourcing. How we label the data for the DNS challenge.](https://arxiv.org/pdf/2010.13200.pdf)
 Babak Naderi, Ross Cutler, INTERSPEECH 2021.
