@@ -302,11 +302,10 @@ async def main(cfg, args):
         elif args.method == 'p835':
             fields = P835_FIELDS
 
-        file_urls = metadata['file_urls'].values()
-        for file in file_urls:
+        for key, file in metadata['file_urls']:
             attachments = [{"type": "audio", "content": file}]
             task_obj = {
-                "unique_id": scale_batch_name + "\\" + metadata['file_shortname'],
+                "unique_id": scale_batch_name + "\\" + metadata['file_shortname'] + "\\" + key,
                 "callback_url": "http://example.com/callback",
                 "project": scale_project_name,
                 "batch": batch,
@@ -316,6 +315,7 @@ async def main(cfg, args):
                 "attachments": attachments,
                 "metadata": metadata
             }
+            task_obj['metadata']["file_urls"] = {key: file}
             task_obj['metadata']["group"] = scale_batch_name
 
             task_objs.append(task_obj)
