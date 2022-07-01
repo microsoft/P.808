@@ -302,7 +302,7 @@ async def main(cfg, args):
         elif args.method == 'p835':
             fields = P835_FIELDS
 
-        for key, file in metadata['file_urls']:
+        for key, file in metadata['file_urls'].items():
             attachments = [{"type": "audio", "content": file}]
             task_obj = {
                 "unique_id": scale_batch_name + "\\" + metadata['file_shortname'] + "\\" + key,
