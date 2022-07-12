@@ -12,6 +12,7 @@ import json
 import os
 import requests
 import datetime
+import copy
 
 import configparser as CP
 import pandas as pd
@@ -313,7 +314,7 @@ async def main(cfg, args):
                 "responses_required": args.num_responses_per_clip,
                 "fields": fields,
                 "attachments": attachments,
-                "metadata": metadata
+                "metadata": copy.deepcopy(metadata)
             }
             task_obj['metadata']["file_urls"] = {key: file}
             task_obj['metadata']["group"] = scale_batch_name
