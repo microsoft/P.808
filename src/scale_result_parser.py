@@ -100,7 +100,7 @@ def parse_acr(tasks):
         if 'response' not in task.as_dict():
                     print('Found task that has not been rated yet')
                     continue
-        valid_file_urls = [f for f in task['response'] if f != 'annotations' and f != 'is_customer_fix']
+        valid_file_urls = [f for f in task.as_dict()['response'] if f != 'annotations' and f != 'is_customer_fix']
         for file_url in valid_file_urls:
             clip_dict = {'short_file_name': task.as_dict()['metadata']['file_shortname']}
             clip_dict['model'] = file_url
