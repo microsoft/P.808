@@ -31,95 +31,192 @@ retries = Retry(total=5,
 
 s.mount('https://', HTTPAdapter(max_retries=retries))
 
-P835_FIELDS = [
-    {
-        "field_id": "distortion",
-        "title": "Distortion",
-        "description": "Referring to the previous file, how would you judge the SPEECH SIGNAL/DISTORTION of the speaker?",
-        "required": True,
-        "type": "category",
-        "choices": [
-            { "label": "5 - Not distorted", "value": "5" },
-            { "label": "4 - Slightly distorted", "value": "4" },
-            { "label": "3 - Somewhat distorted", "value": "3" },
-            { "label": "2 - Fairly distorted", "value": "2" },
-            { "label": "1 - Very distorted", "value": "1" },
-        ],
-    },
-    {
-        "field_id": "background",
-        "title": "Background Noise",
-        "description": "Referring to the previous file, how would you judge the BACKGROUND NOISE of the file?",
-        "required": True,
-        "type": "category",
-        "choices": [
-            { "label": "5 - Not noticeable", "value": "5" },
-            { "label": "4 - Slightly noticeable", "value": "4" },
-            { "label": "3 - Noticeable but not intrusive", "value": "3" },
-            { "label": "2 - Somewhat intrusive", "value": "2" },
-            { "label": "1 - Very intrusive", "value": "1" },
-        ],
-    },
-    {
-        "field_id": "overall",
-        "title": "Overall",
-        "description": "Referring to the previous file, how would you judge the OVERALL quality of the file?",
-        "required": True,
-        "type": "category",
-        "choices": [
-            { "label": "5 - Excellent", "value": "5" },
-            { "label": "4 - Good", "value": "4" },
-            { "label": "3 - Fair", "value": "3" },
-            { "label": "2 - Poor", "value": "2" },
-            { "label": "1 - Bad", "value": "1" },
-        ],
-    },
-]
+P835_INSTRUCTIONS = '''
+  ### Instructions for Melon Audio Rating - Advanced
+  In each task, you will **first** listen to a **clean reference audio file** to give you a context of what a baseline clean audio should sound like and allow you to identify who the **main speaker** of the audio file is (as distinct from any background speakers), and **then** you will rate the audio quality of several files in comparison to that reference file based on background noise and speech signal distortion. You will provide the following ratings for each audio sample:
+  * **Distortion**: focus on the speech signal and rate how distorted the speech signal sounds to you. This can include garbled voices and audio cutouts, and is unrelated to background noise. 
+  * **Background Noise**: Focus on the background and rate how noticeable or intrusive the background noise sounds to you. Be sure to **distinguish** between the speech of the **main speaker** you heard in the reference audio file and any other speakers that might be talking in the background. Speech from **other speakers** should be considered background noise and evaluated accordingly
+  * **Overall**: attend to the entire sample (both the speech signal and the background) and rate your opinion of the OVERALL QUALITY of the sample for purposes of everyday speech communication. Most importantly, rate based on how well you're able to understand the speaker. There may be situations where there is little or no background noise, but the distortions result in lower scores.
 
-ECHO_FIELDS = [
-    {
-        "field_id": "rating_echo",
-        "title": "How would you rate the level of acoustic echo in this file?",
-        "required": True,
-        "type": "category",
-        "choices": [
-            {"label": "Very annoying - 1", "value": "1"},
-            {"label": "Annoying - 2", "value": "2"},
-            {"label": "Slightly annoying - 3", "value": "3"},
-            {"label": "Perceptible, but not annoying - 4", "value": "4"},
-            {"label": "Imperceptible - 5", "value": "5"},
-        ],
-    },
-    {
-        "field_id": "rating_deg",
-        "title": "How would you rate the level of other degradations (missing audio, distortions, cut-outs)?",
-        "required": True,
-        "type": "category",
-        "choices": [
-            {"label": "Very annoying - 1", "value": "1"},
-            {"label": "Annoying - 2", "value": "2"},
-            {"label": "Slightly annoying - 3", "value": "3"},
-            {"label": "Perceptible, but not annoying - 4", "value": "4"},
-            {"label": "Imperceptible - 5", "value": "5"},
+  ### Conditions 
+  * You must perform the task in a **quiet environment** like at home.
+  * You must use **headphones**.
+  * Note that **loudspeakers** are **not acceptable**.
+
+  Feel free to refer back to the courses for examples!
+  [Overall course](https://www.remotasks.com/course?id=melon-audio-rating_alternate_intro)
+  [Distortion course](https://www.remotasks.com/course?id=melon-audio-rating-distortion)
+  '''
+
+ECHO_INSTRUCTIONS = '''
+  ### Instructions for Melon Audio Rating - Echo (Mono - Singletalk)
+  In each clip, you will hear a single person speaking. In some cases, you may hear an echo of the person in the background. In some cases, you may hear the person’s voice degraded or missing.
+  
+  Please do the following as you rate each audio sample:
+  * listen for any **acoustic echo** (and distortions *from* Echo)
+  * listen for any **other degradations** (missing/fading audio, cut-outs, background noise, non-Echo distortions). Their source *must not be from Echo*.
+  
+  ### Important Tips
+  * As echoes or degradations present may be subtle, so be sure to rate 3 or lower when appropriate!
+  * **Note that the Echo and Degradation ratings should be evaluated independently!**
+---
+  * If there is audible **full-blown echo** (even if soft in volume) throughout the clip, Echo rating should be **at most 1**.
+  * If there is a **short burst** of echo in the clip, Echo rating should be **at most 3**.
+  * If there is a **short burst** of echo-related distortion, Echo rating should be **at most 3**.
+
+  Please refer to the [course](https://www.remotasks.com/course?id=melon-audio-rating-echo-stereo) for additional/updated examples!
+
+  ### Examples to help you calibrate 
+  Here are a few examples:
+  ![](https://deepechoblob.blob.core.windows.net/p808-runs/improved_accuracy_experiments_20201210/vqe_lync_seeded3/icassp-2021-aec-challenge-blind-test-set/farend-singletalk/clean/JT6MoCMn9kmXsieQZCPMmA_farend_singletalk_--_vqe_lync_seeded3_--_mixed.wav)
+  **Rating:** Imperceptible echo (5), no degradation (5)
+
+  ![](https://deepechoblob.blob.core.windows.net/p808-runs/improved_accuracy_experiments_20201210/vqe_lync_seeded3/icassp-2021-aec-challenge-blind-test-set/farend-singletalk/noisy/a9DUm7Qvb0m7C7jtOGh9oA_farend_singletalk_with_movement_--_vqe_lync_seeded3_--_mixed.wav)
+  **Rating:** Barely perceptible echo (4), severe degradation (1)
+
+  ![](https://deepechoblob.blob.core.windows.net/p808-runs/improved_accuracy_experiments_20201210/vqe_lync_seeded3/icassp-2021-aec-challenge-blind-test-set/farend-singletalk/clean/eBFafcGQ40WeuETghasPmw_farend_singletalk_with_movement_--_vqe_lync_seeded3_--_mixed.wav)
+  **Rating:** Slight echo (3), no degradation (5)
+
+  ![](https://deepechoblob.blob.core.windows.net/p808-runs/accuracy_test_20201110/farend-singletalk/clean/VlTD-2fGSU6RL2eDvwzxOA_farend_singletalk_with_movement_--_vqe_lync_seeded3_--_mixed.wav)
+  **Rating:** Moderate echo (2), slight degradation (4)
+
+  ![](https://deepechoblob.blob.core.windows.net/p808-runs/improved_accuracy_experiments_20201210/vqe_lync_seeded3/icassp-2021-aec-challenge-blind-test-set/farend-singletalk/noisy/DNb0qIMRg0iwJqiYFx6RbA_farend_singletalk_with_movement_--_vqe_lync_seeded3_--_mixed.wav)
+  **Rating:** Severe echo (1), high degradation (2)
+
+  ### Low echo ratings here!
+  <audio controls="controls"><source type="audio/wav" src="https://attachments.labeling-data.net/6032ba2e5bc91300118aafb3%2F%2F505cb61f-7799-4be4-877c-caab7378456b?Expires=2207520000&Key-Pair-Id=APKAIGOZDNNPITVQK2FQ&Signature=PRkehgLMRGo8QGkiZ1GR3VoclYJZXCF0FEGHNRXB5rsgVk4RWKwzJYsoHxpfF3QBeqiGUmfUT4zHxSw1XXt7LMbzzeIsRvTnadZJxSQHMAknnbOG~yYyUQnqRbORbg6eWCC29pr0VjeQZnwcRynmWAzX4PvDg1PeoqnvtdzOTBhTQH5gs2LsfSRtE9bv5n2lZ4CL98UPVQBVVoTL9Wi21jUqPf4~r69lRiEav6anN1Qlb1h1C~y5OfJogIVVvQljTFDg28DfulPh101rX4hH2Ye4q62jH5RIV~bJJIIYKNM0cAcX0Qq201XrZkaci2juXO6Vuj40Qh9Xok~Yd8iIjA__"></source></audio>
+  There is **persistent, full-blown echo**, so rate 1
+
+  <audio controls="controls"><source type="audio/wav" src="https://attachments.labeling-data.net/6032ba2e5bc91300118aafb3%2F%2F759ffa97-da53-43bd-b3a1-d20a9597b3bc?Expires=2207520000&Key-Pair-Id=APKAIGOZDNNPITVQK2FQ&Signature=aHkANj5GQDln1aeaQ4sqCtaCJJ7rB-1w1Pf8Zts-K~DL~uWss4GNXEpT98Ghd0fi3hK~BmSZ45jMFoW3wgl02QybQVwK-Y27S0xNd094Ikraqa8M3U1vi2Fi-GYTlSyRUHnD7tvigaiIDa3kFWsfery~5USxY0pIyUDbALbqe4wgOWSUXyzNKpFvGalCtEymRzeJv5nPHy9wJwysmjDHTe0Rki8Z1ntlFDAzGS-b4d-iX2yHl-O5P5dcFJ-EprV0NSnzwN8gX8UOdTfcnC-3oHsEEQidsLA~QhTLZjsyHuwGOJI4ZZ8QtczWg9IwKjfvawgCkBjH6Ss5HySMx1bzcw__"></source></audio>
+  There is a **short burst of echo**, so rate 3 or 2
+
+  <audio controls="controls"><source type="audio/wav" src="https://attachments.labeling-data.net/6032ba2e5bc91300118aafb3%2F%2F79e4c6ca-8cc5-4df3-9742-3270d03b13e4?Expires=2207520000&Key-Pair-Id=APKAIGOZDNNPITVQK2FQ&Signature=cGMmwWV8uAZx7i-XoybreHXuJPsATfzW-gvGunXk3Y5dXk58PfJUTiXt3l8eAWk40R~UjhbNFYEFyDhGID3YYTtjVwSgzy4DjWJ-lhgxSszR6vxucv5GYDfE-5dT1mGfcH3RxHGjGexiJk8FLuyhDRonRAuRtwkOwrvJDNyzLZlObYApgmZMEuxPvTd8ICnEQXINzOumARVPUKp9Et8yImaPw~rAj5unpt-YbJH8atNkQBSVvJKgPFaNZjPkgpSWBg9B9No~y8LUvrKnxpHK5tWsqoBA6hL-Bse7rOCbFPqf95~ZCVT5~O94mEDE88TqcsA73jtC3bPPN327BwivcA__"></source></audio>
+  There is a **short burst of echo-rated distortion**, so rate 3 or 2
+  '''
+
+ACR_INSTRUCTIONS = '''
+  ### Instructions for Melon Audio Rating - Alternate
+  In this experiment, you will be rating the quality of speech samples. Each trial will include 6-8 audio samples containing one or more sentences. In each task, you will be rating the overall audio quality of several files, based on background noise and speech distortion. Most importantly, rate based on how well you’re able to understand the speaker. There may be situations where there is little or no background noise, but the distortions result in lower scores.
+
+  ### Conditions
+  * You must perform the task in a **quiet environment** like at home.
+  * You must use **headphones**.
+  * Note that **loudspeakers** are **not acceptable**.
+  
+  ### Examples
+  Excellent (5) examples
+  ![](https://noisesuppeastusblobstore.blob.core.windows.net/aml-inference/sensitivity-study-v3/600_testclips_validated_plus_100_stationary_enhanced_PHASENv134_4_55_24000/noreverb_clnsp176_chair_154380_0_snr19_tl-32_fileid_35.wav)
+  ![](https://noisesuppeastusblobstore.blob.core.windows.net/jbc-share/new_samples/FiveStar/test_sample_1535.wav)
+  ![](https://noisesuppeastusblobstore.blob.core.windows.net/jbc-share/new_samples/FiveStar/test_sample_121.wav)
+ 
+  Bad (1) Examples
+  ![](https://noisesuppeastusblobstore.blob.core.windows.net/jbc-share/new_samples/OneStarCompress/test_sample_1567.wav)
+  ![](https://noisesuppeastusblobstore.blob.core.windows.net/aml-inference/nsnet-sensitivity-study-Feb_25/noisy_700_testclips_validated_adsp_filtered/noreverb_clnsp156_water_320289_2_snr3_tl-19_fileid_125.wav)
+  ![](https://noisesuppeastusblobstore.blob.core.windows.net/jbc-share/new_samples/OneStarHeal/test_sample_4877.wav)
+
+  Feel free to refer back to the courses for more examples!
+  [Intro course](https://www.remotasks.com/course?id=melon-audio-rating_alternate_intro)
+  [Packet loss course](https://www.remotasks.com/course?id=melon-audio-rating-packet-loss)
+  '''
+
+
+def get_fields(audio):
+    fields = [
+        {
+            "field_id": "rating",
+            "title": '''\n\n<audio controls="controls">
+          <source type="audio/wav" src="{}"></source>
+        </audio> \n\nPlease rate the audio file'''.format(audio),
+            "required": True,
+            "type": "category",
+            "choices": [
+                {"label": "Bad - 1", "value": "1"},
+                {"label": "Poor - 2", "value": "2"},
+                {"label": "Fair - 3", "value": "3"},
+                {"label": "Good - 4", "value": "4"},
+                {"label": "Excellent - 5", "value": "5"},
+            ],
+        },
+    ]
+    if args.method == 'echo':
+        fields = [
+            {
+                "field_id": "rating_echo",
+                "title": '''\n\n<audio controls="controls">
+          <source type="audio/wav" src="{}"></source>
+        </audio> \n\nHow would you rate the level of acoustic echo in this file?'''.format(audio),
+                "required": True,
+                "type": "category",
+                "choices": [
+                    {"label": "Very annoying - 1", "value": "1"},
+                    {"label": "Annoying - 2", "value": "2"},
+                    {"label": "Slightly annoying - 3", "value": "3"},
+                    {"label": "Perceptible, but not annoying - 4", "value": "4"},
+                    {"label": "Imperceptible - 5", "value": "5"},
+                ],
+            },
+            {
+                "field_id": "rating_deg",
+                "title": "How would you rate the level of other degradations (missing audio, distortions, cut-outs)?",
+                "required": True,
+                "type": "category",
+                "choices": [
+                    {"label": "Very annoying - 1", "value": "1"},
+                    {"label": "Annoying - 2", "value": "2"},
+                    {"label": "Slightly annoying - 3", "value": "3"},
+                    {"label": "Perceptible, but not annoying - 4", "value": "4"},
+                    {"label": "Imperceptible - 5", "value": "5"},
+                ]
+            }
         ]
-    }
-]
-
-FIELDS = [
-    {
-        "field_id": "rating",
-        "title": "Please rate the audio file",
-        "required": True,
-        "type": "category",
-        "choices": [
-            {"label": "Bad - 1", "value": "1"},
-            {"label": "Poor - 2", "value": "2"},
-            {"label": "Fair - 3", "value": "3"},
-            {"label": "Good - 4", "value": "4"},
-            {"label": "Excellent - 5", "value": "5"},
-        ],
-    },
-]
+    elif args.method == 'p835':
+        fields = [
+            {
+                "field_id": "distortion",
+                "title": '''\n\n<audio controls="controls">
+          <source type="audio/wav" src="{}"></source>
+        </audio> \n\nDistortion'''.format(audio),
+                "description": "Referring to the previous file, how would you judge the SPEECH SIGNAL/DISTORTION of the speaker?",
+                "required": True,
+                "type": "category",
+                "choices": [
+                    {"label": "5 - Not distorted", "value": "5"},
+                    {"label": "4 - Slightly distorted", "value": "4"},
+                    {"label": "3 - Somewhat distorted", "value": "3"},
+                    {"label": "2 - Fairly distorted", "value": "2"},
+                    {"label": "1 - Very distorted", "value": "1"},
+                ],
+            },
+            {
+                "field_id": "background",
+                "title": "Background Noise",
+                "description": "Referring to the previous file, how would you judge the BACKGROUND NOISE of the file?",
+                "required": True,
+                "type": "category",
+                "choices": [
+                    {"label": "5 - Not noticeable", "value": "5"},
+                    {"label": "4 - Slightly noticeable", "value": "4"},
+                    {"label": "3 - Noticeable but not intrusive", "value": "3"},
+                    {"label": "2 - Somewhat intrusive", "value": "2"},
+                    {"label": "1 - Very intrusive", "value": "1"},
+                ],
+            },
+            {
+                "field_id": "overall",
+                "title": "Overall",
+                "description": "Referring to the previous file, how would you judge the OVERALL quality of the file?",
+                "required": True,
+                "type": "category",
+                "choices": [
+                    {"label": "5 - Excellent", "value": "5"},
+                    {"label": "4 - Good", "value": "4"},
+                    {"label": "3 - Fair", "value": "3"},
+                    {"label": "2 - Poor", "value": "2"},
+                    {"label": "1 - Bad", "value": "1"},
+                ],
+            },
+        ]
+    return fields
 
 
 def parse_args():
@@ -138,6 +235,8 @@ def parse_args():
                         help='Number of response per clip required', default=5, type=int)
     parser.add_argument('--method', default='acr', const='acr', nargs='?',
                         choices=('acr', 'echo', 'p835'), help='Use regular ACR questions or echo questions')
+    parser.add_argument('--batch',
+                        help='Name of batch for inputted tasks')
     return parser.parse_args()
 
 
@@ -245,10 +344,10 @@ async def create_batch(scale_api_key, project_name, batch_name, callback_url='')
         scale_api_key, ''))
 
     response_body = r.json()
-    
+
     if r.status_code == 200:
         return response_body["name"]
-    
+
     if r.status_code == 409:
         # Already exists, no idea if it's finalized or not, but we'll assume it's not
         return batch_name
@@ -276,7 +375,7 @@ def post_task(scale_api_key, task_obj):
 async def main(cfg, args):
     api_key = cfg.get("CommonAccountKeys", 'ScaleAPIKey')
     scale_project_name = cfg.get("CommonAccountKeys", 'ScaleAccountName')
-    scale_batch_name =  args.project
+    scale_batch_name = args.batch
     callback_url = (
         cfg.get("CommonAccountKeys", "CallbackURL")
         if cfg.has_option("CommonAccountKeys", "CallbackURL")
@@ -293,20 +392,21 @@ async def main(cfg, args):
                                                    args.trapping_clips, output_dir)
 
     # create batch
-    batch = await create_batch(api_key, scale_project_name, scale_batch_name,callback_url)
+    batch = await create_batch(api_key, scale_project_name, scale_batch_name, callback_url)
 
     task_objs = list()
     for metadata in metadata_lst:
-        fields = FIELDS
+        attachment = ACR_INSTRUCTIONS
         if args.method == 'echo':
-            fields = ECHO_FIELDS
+            attachment = ECHO_INSTRUCTIONS
         elif args.method == 'p835':
-            fields = P835_FIELDS
+            attachment = P835_INSTRUCTIONS
 
         for key, file in metadata['file_urls'].items():
-            attachments = [{"type": "audio", "content": file}]
+            fields = get_fields(file)
+            attachments = [{"type": "text", "content": attachment}]
             task_obj = {
-                "unique_id": scale_batch_name + "\\" + metadata['file_shortname'] + "\\" + key,
+                "unique_id": scale_batch_name + "\\" + str(metadata['file_shortname']) + "\\" + key,
                 "callback_url": "http://example.com/callback",
                 "project": scale_project_name,
                 "batch": batch,
