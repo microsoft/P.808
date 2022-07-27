@@ -119,104 +119,95 @@ ACR_INSTRUCTIONS = '''
   [Packet loss course](https://www.remotasks.com/course?id=melon-audio-rating-packet-loss)
   '''
 
+P835_FIELDS = [
+    {
+        "field_id": "distortion",
+        "title": "Distortion",
+        "description": "Referring to the previous file, how would you judge the SPEECH SIGNAL/DISTORTION of the speaker?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "5 - Not distorted", "value": "5"},
+            {"label": "4 - Slightly distorted", "value": "4"},
+            {"label": "3 - Somewhat distorted", "value": "3"},
+            {"label": "2 - Fairly distorted", "value": "2"},
+            {"label": "1 - Very distorted", "value": "1"},
+        ],
+    },
+    {
+        "field_id": "background",
+        "title": "Background Noise",
+        "description": "Referring to the previous file, how would you judge the BACKGROUND NOISE of the file?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "5 - Not noticeable", "value": "5"},
+            {"label": "4 - Slightly noticeable", "value": "4"},
+            {"label": "3 - Noticeable but not intrusive", "value": "3"},
+            {"label": "2 - Somewhat intrusive", "value": "2"},
+            {"label": "1 - Very intrusive", "value": "1"},
+        ],
+    },
+    {
+        "field_id": "overall",
+        "title": "Overall",
+        "description": "Referring to the previous file, how would you judge the OVERALL quality of the file?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "5 - Excellent", "value": "5"},
+            {"label": "4 - Good", "value": "4"},
+            {"label": "3 - Fair", "value": "3"},
+            {"label": "2 - Poor", "value": "2"},
+            {"label": "1 - Bad", "value": "1"},
+        ],
+    },
+]
 
-def get_fields(audio):
-    fields = [
-        {
-            "field_id": "rating",
-            "title": '''\n\n<audio controls="controls">
-          <source type="audio/wav" src="{}"></source>
-        </audio> \n\nPlease rate the audio file'''.format(audio),
-            "required": True,
-            "type": "category",
-            "choices": [
-                {"label": "Bad - 1", "value": "1"},
-                {"label": "Poor - 2", "value": "2"},
-                {"label": "Fair - 3", "value": "3"},
-                {"label": "Good - 4", "value": "4"},
-                {"label": "Excellent - 5", "value": "5"},
-            ],
-        },
-    ]
-    if args.method == 'echo':
-        fields = [
-            {
-                "field_id": "rating_echo",
-                "title": '''\n\n<audio controls="controls">
-          <source type="audio/wav" src="{}"></source>
-        </audio> \n\nHow would you rate the level of acoustic echo in this file?'''.format(audio),
-                "required": True,
-                "type": "category",
-                "choices": [
-                    {"label": "Very annoying - 1", "value": "1"},
-                    {"label": "Annoying - 2", "value": "2"},
-                    {"label": "Slightly annoying - 3", "value": "3"},
-                    {"label": "Perceptible, but not annoying - 4", "value": "4"},
-                    {"label": "Imperceptible - 5", "value": "5"},
-                ],
-            },
-            {
-                "field_id": "rating_deg",
-                "title": "How would you rate the level of other degradations (missing audio, distortions, cut-outs)?",
-                "required": True,
-                "type": "category",
-                "choices": [
-                    {"label": "Very annoying - 1", "value": "1"},
-                    {"label": "Annoying - 2", "value": "2"},
-                    {"label": "Slightly annoying - 3", "value": "3"},
-                    {"label": "Perceptible, but not annoying - 4", "value": "4"},
-                    {"label": "Imperceptible - 5", "value": "5"},
-                ]
-            }
-        ]
-    elif args.method == 'p835':
-        fields = [
-            {
-                "field_id": "distortion",
-                "title": '''\n\n<audio controls="controls">
-          <source type="audio/wav" src="{}"></source>
-        </audio> \n\nDistortion'''.format(audio),
-                "description": "Referring to the previous file, how would you judge the SPEECH SIGNAL/DISTORTION of the speaker?",
-                "required": True,
-                "type": "category",
-                "choices": [
-                    {"label": "5 - Not distorted", "value": "5"},
-                    {"label": "4 - Slightly distorted", "value": "4"},
-                    {"label": "3 - Somewhat distorted", "value": "3"},
-                    {"label": "2 - Fairly distorted", "value": "2"},
-                    {"label": "1 - Very distorted", "value": "1"},
-                ],
-            },
-            {
-                "field_id": "background",
-                "title": "Background Noise",
-                "description": "Referring to the previous file, how would you judge the BACKGROUND NOISE of the file?",
-                "required": True,
-                "type": "category",
-                "choices": [
-                    {"label": "5 - Not noticeable", "value": "5"},
-                    {"label": "4 - Slightly noticeable", "value": "4"},
-                    {"label": "3 - Noticeable but not intrusive", "value": "3"},
-                    {"label": "2 - Somewhat intrusive", "value": "2"},
-                    {"label": "1 - Very intrusive", "value": "1"},
-                ],
-            },
-            {
-                "field_id": "overall",
-                "title": "Overall",
-                "description": "Referring to the previous file, how would you judge the OVERALL quality of the file?",
-                "required": True,
-                "type": "category",
-                "choices": [
-                    {"label": "5 - Excellent", "value": "5"},
-                    {"label": "4 - Good", "value": "4"},
-                    {"label": "3 - Fair", "value": "3"},
-                    {"label": "2 - Poor", "value": "2"},
-                    {"label": "1 - Bad", "value": "1"},
-                ],
-            },
-        ]
-    return fields
+ECHO_FIELDS = [
+    {
+        "field_id": "rating_echo",
+        "title": "How would you rate the level of acoustic echo in this file?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "Very annoying - 1", "value": "1"},
+            {"label": "Annoying - 2", "value": "2"},
+            {"label": "Slightly annoying - 3", "value": "3"},
+            {"label": "Perceptible, but not annoying - 4", "value": "4"},
+            {"label": "Imperceptible - 5", "value": "5"},
+        ],
+    },
+    {
+        "field_id": "rating_deg",
+        "title": "How would you rate the level of other degradations (missing audio, distortions, cut-outs)?",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "Very annoying - 1", "value": "1"},
+            {"label": "Annoying - 2", "value": "2"},
+            {"label": "Slightly annoying - 3", "value": "3"},
+            {"label": "Perceptible, but not annoying - 4", "value": "4"},
+            {"label": "Imperceptible - 5", "value": "5"},
+        ],
+    },
+]
+
+FIELDS = [
+    {
+        "field_id": "rating",
+        "title": "Please rate the audio file",
+        "required": True,
+        "type": "category",
+        "choices": [
+            {"label": "Bad - 1", "value": "1"},
+            {"label": "Poor - 2", "value": "2"},
+            {"label": "Fair - 3", "value": "3"},
+            {"label": "Good - 4", "value": "4"},
+            {"label": "Excellent - 5", "value": "5"},
+        ],
+    },
+]
 
 
 def parse_args():
@@ -396,15 +387,18 @@ async def main(cfg, args):
 
     task_objs = list()
     for metadata in metadata_lst:
-        attachment = ACR_INSTRUCTIONS
+        instructions = ACR_INSTRUCTIONS
+        fields = FIELDS
         if args.method == 'echo':
-            attachment = ECHO_INSTRUCTIONS
+            instructions = ECHO_INSTRUCTIONS
+            fields = ECHO_FIELDS
         elif args.method == 'p835':
-            attachment = P835_INSTRUCTIONS
+            instructions = P835_INSTRUCTIONS
+            fields = P835_FIELDS
 
         for key, file in metadata['file_urls'].items():
-            fields = get_fields(file)
-            attachments = [{"type": "text", "content": attachment}]
+            attachments = [{"type": "audio", "content": file},
+                           {"type": "text", "content": instructions}]
             task_obj = {
                 "unique_id": scale_batch_name + "\\" + str(metadata['file_shortname']) + "\\" + key,
                 "callback_url": "http://example.com/callback",
@@ -414,7 +408,8 @@ async def main(cfg, args):
                 "responses_required": args.num_responses_per_clip,
                 "fields": fields,
                 "attachments": attachments,
-                "metadata": copy.deepcopy(metadata)
+                "metadata": copy.deepcopy(metadata),
+                "force_stacked": True,
             }
             task_obj['metadata']["file_urls"] = {key: file}
             task_obj['metadata']["group"] = scale_batch_name
