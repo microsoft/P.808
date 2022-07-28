@@ -226,8 +226,6 @@ def parse_args():
                         help='Number of response per clip required', default=5, type=int)
     parser.add_argument('--method', default='acr', const='acr', nargs='?',
                         choices=('acr', 'echo', 'p835'), help='Use regular ACR questions or echo questions')
-    parser.add_argument('--batch',
-                        help='Name of batch for inputted tasks')
     return parser.parse_args()
 
 
@@ -366,7 +364,7 @@ def post_task(scale_api_key, task_obj):
 async def main(cfg, args):
     api_key = cfg.get("CommonAccountKeys", 'ScaleAPIKey')
     scale_project_name = cfg.get("CommonAccountKeys", 'ScaleAccountName')
-    scale_batch_name = args.batch
+    scale_batch_name = args.project
     callback_url = (
         cfg.get("CommonAccountKeys", "CallbackURL")
         if cfg.has_option("CommonAccountKeys", "CallbackURL")
