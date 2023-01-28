@@ -663,6 +663,7 @@ if __name__ == '__main__':
         region_name=mturk_general['region_name'],
         aws_access_key_id=mturk_general['aws_access_key_id'],
         aws_secret_access_key=mturk_general['aws_secret_access_key'],
+        aws_session_token=mturk_general['aws_session_token'],
         )
 
     if args.send_emails is not None:
