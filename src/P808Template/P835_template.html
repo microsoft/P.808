@@ -112,7 +112,10 @@ var config ={
 	cmp_correct_answers: {{cfg.cmp_correct_answers}},
 	cmp_max_n_feedback : {{cfg.cmp_max_n_feedback}},
 	cmp_pass_threshold: {{cfg.cmp_pass_threshold}},
-	emailAddress: "{{cfg.contact_email}}"
+	emailAddress: "{{cfg.contact_email}}",
+	// set allowed bandwidth range: "NB-WB", "SWB", "FB"
+	bw_min: "{{cfg.bw_min}}",
+	bw_max: "{{cfg.bw_max}}",
 }
 
 // if performing of this assignment is already counted
@@ -266,7 +269,7 @@ function isQualificationDone(){
 	qualification_ans.add(this.name);
 	console.log("check if the qualification is done"+this.name+","+qualification_ans.size);
 	validateQualificationAnswer();
-	if (qualification_ans.size==13)
+	if (qualification_ans.size==18)
 		validateQualificationAnswer();
 }
 
@@ -300,11 +303,54 @@ function validateQualificationAnswer(){
 	if (checkQualNumCorrect($("input[name='num5']").val().trim(),config.qualification.num5))
 		count_correct_ht ++;
 	//console.log("count_correct_ht:"+count_correct_ht);
-	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check &&
+	bw_check = validate_bw_test();
+	console.log('BW ans:' +bw_check);
+	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check && bw_check &&
 		count_correct_ht>= 3;
 	console.log(passed);
 	// add a qualification for 'qualificationValidFor' minutes
 	createCookie(config.qualificationCookieName,passed,config.qualificationValidFor);
+}
+
+bw_v2_test_data ={
+		// from 3.5 to 24 kHz
+        "comb_bw1":'dq',
+		// from +8kHz to 24 kHz
+        "comb_bw2":'dq',
+		// from 15 to 24 kHz
+        "comb_bw3":'dq',
+        "comb_bw4":'sq',
+        "comb_bw5":'sq',   
+    }
+
+/**
+ * Validate the band-width check
+ **/
+function validate_bw_test() {
+	data = bw_v2_test_data;
+	count_correct = 0;
+	ans_array = Array(5).fill(0);
+	for (var i = 1; i <6; i++) {
+		q_name = 'comb_bw'+i;			
+		ans = $("input[name='"+q_name+"']:checked").val();
+		if (ans == data[q_name]) 
+			ans_array[i-1] = 1;			
+		else
+			ans_array[i-1] = 0;
+	}
+	console.log(ans_array);
+	bw_min = config['bw_min'].toUpperCase();
+	bw_max = config['bw_max'].toUpperCase();
+
+	if (ans_array[0] + ans_array[3] + ans_array[4] !=3)
+		// failed in trapping of obvious questions
+		return false;
+	if ((bw_min == 'SWB' && ans_array[1] != 1) || (bw_min == 'FB' && ans_array[1]+ans_array[2] != 2))
+		return false;
+
+	if ((bw_max == 'NB-WB' && ans_array[1]+ans_array[2] != 0) || (bw_max == 'SWB' && ans_array[2] != 0))
+		return false;	
+	return true;
 }
 
 /*
@@ -317,7 +363,15 @@ function randomizeHearingtestItems(){
 		var target2 = Math.floor(Math.random() * cards.length -1) +1;
 		cards.eq(target).before(cards.eq(target2));
     }
+
+	var cards = $(".rnd4");
+	for(var i = 0; i < cards.length; i++){
+		var target = Math.floor(Math.random() * cards.length -1) + 1;
+		var target2 = Math.floor(Math.random() * cards.length -1) +1;
+		cards.eq(target).before(cards.eq(target2));
+    }
 }
+
 /*
 	Make a checkbox group to be required
 */
@@ -1453,6 +1507,83 @@ function questionName2Text(qName){
 			</div>
 
 		</fieldset>
+
+		<fieldset class="qualificationFieldset"><label>11.&nbsp;  For this HIT, your hardware should be able to produce different audio details, and you should be able to hear them. Listen to the following samples. Each sample has two parts separated by a "beep". For each sample, please select if the quality of both parts is the same or different.				
+		</label>
+
+
+		<div class="row" style="margin: 30px;">
+			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
+				<div class="row" style="text-align:center;">
+					<span class="baudio" id="comb_bw1" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g1_cmb.wav" >&nbsp;</span>
+				</div>
+				<div class="row" style="margin-left:20px" >
+				<div class="radio">
+					<label><input type="radio" name="comb_bw1" value="sq" required="">Same quality</label>
+				</div>
+				<div class="radio">
+					<label><input type="radio" name="comb_bw1" value="dq">Different quality</label>								
+				</div>
+				</div>
+			</div>
+
+			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4" >
+				<div class="row" style="text-align:center;">
+					<span class="baudio" id="comb_bw2" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g2_cmb.wav">&nbsp;</span>
+				</div>
+				<div class="row" style="margin-left:20px" >
+				<div class="radio">
+					<label><input type="radio" name="comb_bw2" value="sq" required="">Same quality</label>
+				</div>
+				<div class="radio">
+					<label><input type="radio" name="comb_bw2" value="dq">Different quality</label>
+				</div>
+				</div>
+			</div>
+			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+				<div class="row" style="text-align:center;">
+					<span class="baudio" id="comb_bw3" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g3_cmb.wav">&nbsp;</span>
+				</div>
+				<div class="row" style="margin-left:20px" >
+					<div class="radio">
+						<label><input type="radio" name="comb_bw3" value="sq" required="">Same quality</label>
+					</div>
+					<div class="radio">
+						<label><input type="radio" name="comb_bw3" value="dq">Different quality</label>									
+					</div>
+				</div>
+			</div>
+			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+				<div class="row" style="text-align:center;">
+					<span class="baudio" id="comb_bw4" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g4_cmb.wav">&nbsp;</span>
+				</div>
+				<div class="row" style="margin-left:20px" >
+					<div class="radio">
+						<label><input type="radio" name="comb_bw4" value="sq" required="">Same quality</label>
+					</div>
+					<div class="radio">
+						<label><input type="radio" name="comb_bw4" value="dq">Different quality</label>
+					</div>
+				</div>
+			</div>
+			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+				<div class="row" style="text-align:center;">
+					<span class="baudio" id="comb_bw5" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g5_cmb.wav">&nbsp;</span>
+				</div>
+				<div class="row" style="margin-left:20px" >
+					<div class="radio">
+						<label><input type="radio" name="comb_bw5" value="sq" required="">Same quality</label>
+					</div>
+					<div class="radio">
+						<label><input type="radio" name="comb_bw5" value="dq">Different quality</label>
+					</div>
+				</div>
+			</div>
+		</div>
+
+	</fieldset>
+
+
 	  </div>
   </div>
 </div>

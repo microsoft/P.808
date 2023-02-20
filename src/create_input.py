@@ -197,7 +197,7 @@ def add_clips_random_ccr(clips, refs, n_clips_per_session, output_df):
         output_df[f'Q{q}_R'] = refs_sessions[:, q]
 
 
-def create_input_for_acr(cfg, df, output_path):
+def create_input_for_acr(cfg, df, output_path, hearing_cfg):
     """
     create the input for the acr methods
     :param cfg:
@@ -278,6 +278,7 @@ def create_input_for_acr(cfg, df, output_path):
         if int(cfg['number_of_gold_clips_per_session']) > 1:
             print("more than one gold_clip is not supported for now - continue with 1")
         n_gold_clips = n_sessions
+        """
         gold_clip_source = df['gold_clips'].dropna()
         gold_clip_ans_source = df['gold_clips_ans'].dropna()
 
@@ -291,7 +292,19 @@ def create_input_for_acr(cfg, df, output_path):
         full_gold_clips, full_gold_clips_answer = zip(*full_gc)
         output_df['gold_clips'] = full_gold_clips
         output_df['gold_clips_ans'] = full_gold_clips_answer
+        """
+        tmp = df[['gold_clips', 'gold_clips_ans']]
+        tmp = tmp.dropna(subset=['gold_clips'])            
+        tmp = tmp.sample(frac=1, ignore_index=True)
+        # get dataframe lenght
+        size = len(tmp)
+        g_clips = tmp.copy()
+        for i in range (1, (n_gold_clips//size)+1):
+            g_clips = pd.concat([g_clips, tmp], axis=0, ignore_index=True)
+        g_clips = g_clips.head(n_gold_clips)
+        g_clips = g_clips.sample(frac=1, ignore_index=True)
 
+        output_df = pd.concat([output_df, g_clips], axis=1)
     output_df.to_csv(output_path, index=False)
     return len(output_df)
 
@@ -385,7 +398,7 @@ def create_input_for_dcrccr(cfg, df, output_path):
     return len(output_df)
 
 
-def create_input_for_mturk(cfg, df, method, output_path):
+def create_input_for_mturk(cfg, df, method, output_path, hearing_cfg):
     """
     Create input.csv for MTurk
     :param cfg: configuration  file
@@ -393,9 +406,9 @@ def create_input_for_mturk(cfg, df, method, output_path):
     :param output_path: path to output file
     """
     if method in ['acr', 'p835', 'echo_impairment_test']:
-        return create_input_for_acr(cfg, df, output_path)
+        return create_input_for_acr(cfg, df, output_path, hearing_cfg)
     else:
-        return create_input_for_dcrccr(cfg, df, output_path)
+        return create_input_for_dcrccr(cfg, df, output_path, hearing_cfg)
 
 
 if __name__ == '__main__':
