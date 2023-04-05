@@ -364,7 +364,9 @@ def data_cleaning(filename, method):
     not_using_further_reasons = []
     for row in reader:
         correct_cmp_ans = 0
-        qualification_was_hidden = row['answer.8_hearing'] is None
+        print(row['answer.8_hearing'] is None)
+        print(row['answer.8_hearing'] is None or len(row['answer.8_hearing'].strip()) == 0)
+        qualification_was_hidden = (row['answer.8_hearing'] is None) or len(row['answer.8_hearing'].strip()) == 0
         setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
 
         d = dict()
