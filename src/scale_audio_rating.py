@@ -164,7 +164,7 @@ def parse_args():
     parser.add_argument('--num_responses_per_clip',
                         help='Number of response per clip required', default=5, type=int)
     parser.add_argument('--method', default='acr', const='acr', nargs='?',
-                        choices=('acr', 'echo', 'p835'), help='Use regular ACR questions or echo questions')
+                        choices=('acr', 'echo', 'p835', 'ccr'), help='Use regular ACR questions or echo questions')
     return parser.parse_args()
 
 
