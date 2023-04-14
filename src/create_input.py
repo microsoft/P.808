@@ -309,7 +309,7 @@ def create_input_for_acr(cfg, df, output_path, hearing_cfg):
     return len(output_df)
 
 
-def create_input_for_dcrccr(cfg, df, output_path):
+def create_input_for_dcrccr(cfg, df, output_path, hearing_cfg):
     """
     create the input for the dcr and ccr method
     :param cfg:

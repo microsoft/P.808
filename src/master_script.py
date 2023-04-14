@@ -112,7 +112,7 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + \
                       int(cfg['create_input']['number_of_trapping_per_session'])
 
-    config['max_allowed_hits'] = cfg_section["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg_section else n_HITs
+    config['max_allowed_hits'] = cfg["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg else n_HITs
 
     config['quantity_hits_more_than'] = cfg['hit_app_html']['quantity_hits_more_than']
     config['quantity_bonus'] = cfg['hit_app_html']['quantity_bonus']
