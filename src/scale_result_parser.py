@@ -287,7 +287,7 @@ if __name__ == '__main__':
         "--cfg", help="Configuration file, see master.cfg", required=True)
     parser.add_argument(
         "--method", default="acr", const="acr", nargs="?",
-        choices=("acr", "echo", "p835"), help="Use regular ACR questions or echo questions")
+        choices=("acr", "echo", "p835", "ccr"), help="Use regular ACR questions or echo questions")
 
     # check input arguments
     args = parser.parse_args()
