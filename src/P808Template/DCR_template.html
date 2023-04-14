@@ -105,7 +105,10 @@ var config ={
 	cmp_correct_answers: {{cfg.cmp_correct_answers}},
 	cmp_max_n_feedback : {{cfg.cmp_max_n_feedback}},
 	cmp_pass_threshold: {{cfg.cmp_pass_threshold}},
-	emailAddress: "{{cfg.contact_email}}"
+	emailAddress: "{{cfg.contact_email}}",
+	// set allowed bandwidth range: "NB-WB", "SWB", "FB"
+	bw_min: "{{cfg.bw_min}}",
+	bw_max: "{{cfg.bw_max}}",
 }
 
 // if performing of this assignment is already counted
@@ -210,7 +213,7 @@ function isQualificationDone(){
 	qualification_ans.add(this.name);
 	console.log("check if the qualification is done"+this.name+","+qualification_ans.size);
 	validateQualificationAnswer();
-	if (qualification_ans.size==13)
+	if (qualification_ans.size==18)
 		validateQualificationAnswer();
 }
 
@@ -243,12 +246,67 @@ function validateQualificationAnswer(){
 		count_correct_ht ++;
 	if (checkQualNumCorrect($("input[name='num5']").val().trim(),config.qualification.num5))
 		count_correct_ht ++;
+	bw_check = validate_bw_test();
 	//console.log("count_correct_ht:"+count_correct_ht);
-	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check &&
+	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check && bw_check &&
 		count_correct_ht>= 3;
 	console.log(passed);
 	// add a qualification for 1 year
 	createCookie(config.qualificationCookieName,passed,config.qualificationValidFor);
+}
+
+bw_v2_test_data ={
+        "comb_bw1":'dq',
+        "comb_bw2":'dq',
+        "comb_bw3":'dq',
+        "comb_bw4":'sq',
+        "comb_bw5":'sq',   
+    }
+/**
+ * Validate the band-width check
+ **/
+function validate_bw_test() {
+	data = bw_v2_test_data;
+	count_correct = 0;
+	ans_array = Array(5).fill(0);
+	for (var i = 1; i <6; i++) {
+		q_name = 'comb_bw'+i;			
+		ans = $("input[name='"+q_name+"']:checked").val();
+		if (ans == data[q_name]) 
+			ans_array[i-1] = 1;			
+		else
+			ans_array[i-1] = 0;
+	}
+	console.log(ans_array);
+	bw_min = config['bw_min'].toUpperCase();
+	bw_max = config['bw_max'].toUpperCase();
+	// convert ans_array to string
+
+	$('#bw_check_details').val(ans_array.join(','));
+	
+
+	if (ans_array[0] + ans_array[3] + ans_array[4] !=3){
+		// failed in trapping of obvious questions
+		bw_text = 'failed'
+		$('#bw_check').val(bw_text);
+		return false;
+	}
+	if (ans_array[1]+ans_array[2] == 2){
+			bw_text = 'FB'			
+		}
+	else if (ans_array[1]+ans_array[2] == 1){
+			bw_text = 'SWB'
+	} else
+			bw_text = 'NB-WB'
+	$('#bw_check').val(bw_text);
+
+	if ((bw_min == 'SWB' && ans_array[1] != 1) || (bw_min == 'FB' && ans_array[1]+ans_array[2] != 2)){		
+		return false;
+	}
+		
+	if ((bw_max == 'NB-WB' && ans_array[1]+ans_array[2] != 0) || (bw_max == 'SWB' && ans_array[2] != 0))
+		return false;	
+	return true;
 }
 
 /*
@@ -256,6 +314,13 @@ function validateQualificationAnswer(){
 */
 function randomizeHearingtestItems(){
     var cards = $(".rnd");
+	for(var i = 0; i < cards.length; i++){
+		var target = Math.floor(Math.random() * cards.length -1) + 1;
+		var target2 = Math.floor(Math.random() * cards.length -1) +1;
+		cards.eq(target).before(cards.eq(target2));
+    }
+
+	var cards = $(".rnd4");
 	for(var i = 0; i < cards.length; i++){
 		var target = Math.floor(Math.random() * cards.length -1) + 1;
 		var target2 = Math.floor(Math.random() * cards.length -1) +1;
@@ -959,7 +1024,7 @@ function generate_rating_section(){
 				<!--<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/process_2.png" alt="scale" class="center" width="300px">-->
 				<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/process_3.png" alt="scale" class="center" style='width: 60%' >
 
-				  <p>Welcome! You are about to participate in our speech quality assessment experiment! This HIT has two + two (just every now and then) sections:</p>
+				  <p>Welcome to this Data Labeling task! You are about to participate in our speech quality assessment task! It is a data labeling HIT in which you are responsible for providing reliable labels that pass our quality checks otherwise submissions might be rejected. This HIT has two + two (just every now and then) sections:</p>
 				<ul>
 					<li><b>Qualification (just once):</b> Check if you are eligible to perform this HITs</li>
 					<li><b>Setup (every <b class="setup_time"> 0</b> minutes):</b> Configure your system and validate it by answering to 6 questions</li>
@@ -979,12 +1044,17 @@ function generate_rating_section(){
 				<p>For this experiment, we will pay a base reward of <b>${{cfg.hit_base_payment}}/HIT</b> for every accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You will receive a bonus of:</p>
 
 				<ul>
-				  <li>${{cfg.quantity_bonus}}/HIT (for a total of <b>${{cfg.sum_quantity}}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs</b> or</li>
+				  <li>${{cfg.quantity_bonus}}/HIT (for a total of <b>${{cfg.sum_quantity}}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs that got accepted</b> or</li>
 				  <li>${{cfg.quality_bonus}}/HIT (for a total of <b>${{cfg.sum_quality }}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs</b> <u>and</u> be in the <b>top {{cfg.quality_top_percentage}}% quality group</b>.</li>
 				</ul>
 
 				<p>Bonuses will be assigned with in 7 days.</p>
 				  <b>Please perform up to <b class="max_allowed_hits"> 0 </b> HITs from this group. If you do more than that, the <u>rest will be rejected.</u></b>
+				  <h3>Attention: </h3>
+				  <p>This hit includes one or more Control clips (gold clips). Control clips are ones that we know that answer for and should be very easy to rate (they are clearly very good or very poor). We include control clips in the HIT to ensure raters are paying attention and their environment hasn't changed.
+					  Wrong answer to control clip(s) will result in rejection of the HIT.</p>
+  
+				  </p>
 			</div>
 		</div>
 
@@ -1156,6 +1226,81 @@ function generate_rating_section(){
 			</div>
 
 		</fieldset>
+<fieldset class="qualificationFieldset"><label>11.&nbsp;  For this HIT, your hardware should be able to produce different audio details, and you should be able to hear them. Listen to the following samples. Each sample has two parts separated by a "beep". For each sample, please select if the quality of both parts is the same or different.				
+		</label>
+
+
+		<div class="row" style="margin: 30px;">
+			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
+				<div class="row" style="text-align:center;">
+					<span class="baudio" id="comb_bw1" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g1_cmb.wav" >&nbsp;</span>
+				</div>
+				<div class="row" style="margin-left:20px" >
+				<div class="radio">
+					<label><input type="radio" name="comb_bw1" value="sq" required="">Same quality</label>
+				</div>
+				<div class="radio">
+					<label><input type="radio" name="comb_bw1" value="dq">Different quality</label>								
+				</div>
+				</div>
+			</div>
+
+			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4" >
+				<div class="row" style="text-align:center;">
+					<span class="baudio" id="comb_bw2" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g2_cmb.wav">&nbsp;</span>
+				</div>
+				<div class="row" style="margin-left:20px" >
+				<div class="radio">
+					<label><input type="radio" name="comb_bw2" value="sq" required="">Same quality</label>
+				</div>
+				<div class="radio">
+					<label><input type="radio" name="comb_bw2" value="dq">Different quality</label>
+				</div>
+				</div>
+			</div>
+			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+				<div class="row" style="text-align:center;">
+					<span class="baudio" id="comb_bw3" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g3_cmb.wav">&nbsp;</span>
+				</div>
+				<div class="row" style="margin-left:20px" >
+					<div class="radio">
+						<label><input type="radio" name="comb_bw3" value="sq" required="">Same quality</label>
+					</div>
+					<div class="radio">
+						<label><input type="radio" name="comb_bw3" value="dq">Different quality</label>									
+					</div>
+				</div>
+			</div>
+			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+				<div class="row" style="text-align:center;">
+					<span class="baudio" id="comb_bw4" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g4_cmb.wav">&nbsp;</span>
+				</div>
+				<div class="row" style="margin-left:20px" >
+					<div class="radio">
+						<label><input type="radio" name="comb_bw4" value="sq" required="">Same quality</label>
+					</div>
+					<div class="radio">
+						<label><input type="radio" name="comb_bw4" value="dq">Different quality</label>
+					</div>
+				</div>
+			</div>
+			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+				<div class="row" style="text-align:center;">
+					<span class="baudio" id="comb_bw5" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g5_cmb.wav">&nbsp;</span>
+				</div>
+				<div class="row" style="margin-left:20px" >
+					<div class="radio">
+						<label><input type="radio" name="comb_bw5" value="sq" required="">Same quality</label>
+					</div>
+					<div class="radio">
+						<label><input type="radio" name="comb_bw5" value="dq">Different quality</label>
+					</div>
+				</div>
+			</div>
+		</div>
+
+	</fieldset>
+
 	  </div>
   </div>
 </div>
@@ -1342,7 +1487,7 @@ function generate_rating_section(){
 			<div  class="panel-collapse collapse in" id="trainingS">
 				<div class="panel-body">
 				<p> Please answer the following <b class="question_number_training"> 0 </b> questions. For each question, please listen to the pairs of the audio clips and give your opinion about the quality of the speech you hear in the <b>processed</b> clip, compare to its reference, on the following scale. <b>Note</b> that the scale will be activated when both clips played until the end. </p>
-				<p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
+				
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="trainingTabs">
@@ -1371,6 +1516,9 @@ function generate_rating_section(){
 <input id="gq_check" name="gq_check" type="hidden" value="0" />
 <input id="errors" name="errors" type="hidden" value="" />
 
+<input id="bw_check" name="bw_check" type="hidden" value="" />
+<input id="bw_check_details" name="bw_check_details" type="hidden" value="" />
+
 <input id="browser_info" name="browser_info" type="hidden" value="-1" maxlength="2000"/>
 <input id="webrtc_raw" name="webrtc_raw" type="hidden" value="-1" maxlength="2000"/>
 <input id="use_headset" name="use_headset" type="hidden" value="-1" />
@@ -1383,7 +1531,7 @@ function generate_rating_section(){
 			</div>
 			<div class="panel-body">
 				<p> Please answer the following <b class="question_number"> 0 </b> questions. For each question, please listen to the pairs of the audio clips and give your opinion about the quality of the speech you hear in the <b>processed</b> clip, compare to its reference, on the following scale. <b>Note</b> that the scale will be activated when both clips played until the end. </p>
-				<p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
+				
 
  				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
