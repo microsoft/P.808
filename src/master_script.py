@@ -55,7 +55,7 @@ def create_analyzer_cfg_acr(cfg, template_path, out_path):
 """
 
 
-def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path):
+def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path, general_cfg, n_HITs):
     """
     create cfg file to be used by analyzer script (acr, p835, and echo_impairment_test method)
     :param cfg:
@@ -71,7 +71,7 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path):
                       int(cfg['create_input']['number_of_trapping_per_session']) + \
                       int(cfg['create_input']['number_of_gold_clips_per_session'])
 
-    config['max_allowed_hits'] = cfg_section['allowed_max_hit_in_project']
+    config['max_allowed_hits'] = cfg_section["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg_section else n_HITs
 
     config['quantity_hits_more_than'] = cfg_section['quantity_hits_more_than']
     config['quantity_bonus'] = cfg_section['quantity_bonus']
@@ -81,6 +81,10 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path):
     default_keys = 'condition_num'
     config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
     config['condition_keys'] = cfg['create_input'].get("condition_keys", default_keys)
+
+    # BW check
+    config['bw_min'] = general_cfg['bw_min']
+    config['bw_max'] = general_cfg['bw_max']
 
     with open(template_path, 'r') as file:
         content = file.read()
@@ -94,7 +98,7 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path):
     print(f"  [{out_path}] is created")
 
 
-def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path):
+def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HITs):
     """
     create cfg file to be used by analyzer script (ccr/dcr method)
     :param cfg:
@@ -108,7 +112,7 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path):
     config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + \
                       int(cfg['create_input']['number_of_trapping_per_session'])
 
-    config['max_allowed_hits'] = cfg['hit_app_html']['allowed_max_hit_in_project']
+    config['max_allowed_hits'] = cfg_section["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg_section else n_HITs
 
     config['quantity_hits_more_than'] = cfg['hit_app_html']['quantity_hits_more_than']
     config['quantity_bonus'] = cfg['hit_app_html']['quantity_bonus']
@@ -118,6 +122,10 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path):
     default_keys = 'condition_num'
     config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
     config['condition_keys'] = cfg['create_input'].get("condition_keys", default_keys)
+
+    # BW check
+    config['bw_min'] = general_cfg['bw_min']
+    config['bw_max'] = general_cfg['bw_max']
     
     with open(template_path, 'r') as file:
         content = file.read()
@@ -196,7 +204,7 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
 
 
 async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_path, cfg_g, cfg_trapping_store,
-                             general_cfg):
+                             general_cfg, nHITs):
     """
     Create the ACR.html file corresponding to this project
     :param cfg:
@@ -221,7 +229,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     config = {}
     config['cookie_name'] = cfg['cookie_name']
     config['qual_cookie_name'] = cfg['qual_cookie_name']
-    config['allowed_max_hit_in_project'] = cfg['allowed_max_hit_in_project']
+    config['allowed_max_hit_in_project'] = cfg["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg else nHITs
     config['training_trap_urls'] = trap_url
     config['training_trap_ans'] = trap_ans
     config['contact_email'] = cfg["contact_email"] if "contact_email" in cfg else "ic3ai@outlook.com"
@@ -415,18 +423,8 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
     result = pd.concat([df_clips, df_gold, df_trap, df_general], axis=1, sort=False)
     return result
 
-
-def prepare_basic_cfg(df):
+def select_hearing_test_samples(df):
     config = {}
-    only_cfgs = df[['pair_a', 'pair_b']].copy()
-    only_cfgs.dropna(subset=["pair_a"], inplace=True)
-    base64_urls = []
-    for index, row in only_cfgs.iterrows():
-        a = int((row["pair_a"].rsplit('/', 1)[-1])[:2])
-        b = int((row["pair_b"].rsplit('/', 1)[-1])[:2])
-        url = row["pair_a"] if a > b else row["pair_b"]
-        base64_urls.append(base64.b64encode(url.encode('ascii')).decode('ascii'))
-
     # randomly select numbers for hearing test
     clear_sample_url = "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s0.wav"
     clear_sample_ans = "289"
@@ -447,11 +445,27 @@ def prepare_basic_cfg(df):
             i += 1
         config[f"num{index}_url"] = row["hearing_test_url"]
         config[f"num{index}_ans"] = base64.b64encode(ans.encode('ascii')).decode('ascii')
+        # add hearing_test_cfg to cfg
+    return config
+
+
+def prepare_basic_cfg(df, hearing_test_cfg):
+    config = {}
+    only_cfgs = df[['pair_a', 'pair_b']].copy()
+    only_cfgs.dropna(subset=["pair_a"], inplace=True)
+    base64_urls = []
+    for index, row in only_cfgs.iterrows():
+        a = int((row["pair_a"].rsplit('/', 1)[-1])[:2])
+        b = int((row["pair_b"].rsplit('/', 1)[-1])[:2])
+        url = row["pair_a"] if a > b else row["pair_b"]
+        base64_urls.append(base64.b64encode(url.encode('ascii')).decode('ascii'))
 
     # set environment test
     config["cmp_correct_answers"] = base64_urls
     config["cmp_max_n_feedback"] = 4
     config["cmp_pass_threshold"] = 2
+
+    config = {**config, **hearing_test_cfg}
     return config
 
 
@@ -508,6 +522,22 @@ def get_path(test_method, is_p831_fest):
     return template_path, cfg_path
 
 
+def extend_general_cfg_bw(general, hitapp):
+    # add BW check config
+    if 'bw_min' not in hitapp or 'bw_max' not in hitapp :
+        print("Warning: No bandwidth range specified in the config file, consider using updated template for master script. All bandwidth ranges will be allowed.")
+        bw_min = 'NB-WB'
+        bw_max = 'FB'
+    else:
+        assert hitapp['bw_min'] in ['NB-WB', 'SWB', 'FB'], f'bw_min should be one of NB-WB, SWB, FB, but got {hitapp["bw_min"]}'
+        assert hitapp['bw_max'] in ['NB-WB', 'SWB', 'FB'], f'bw_max should be one of NB-WB, SWB, FB, but got {hitapp["bw_max"]}'
+        bw_min = hitapp['bw_min']
+        bw_max = hitapp['bw_max']
+    general['bw_min'] = bw_min
+    general['bw_max'] = bw_max
+    return general
+
+
 async def main(cfg, test_method, args):
     # check assets
     general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
@@ -560,8 +590,11 @@ async def main(cfg, test_method, args):
     ca.validate_inputs(cfg['create_input'], df, test_method)
     print('... validation is finished.')
 
+    # select hearing test samples
+    hearing_cfg = select_hearing_test_samples(df)
+
     output_csv_file = os.path.join(output_dir, args.project+'_publish_batch.csv')
-    n_HITs = ca.create_input_for_mturk(cfg['create_input'], df, test_method, output_csv_file)
+    n_HITs = ca.create_input_for_mturk(cfg['create_input'], df, test_method, output_csv_file, hearing_cfg)
 
     # check settings of quantity bonus
     if not (int(cfg_hit_app["quantity_hits_more_than"]) in range(int(n_HITs/2),  int(n_HITs*2/3)+1)):
@@ -569,7 +602,9 @@ async def main(cfg, test_method, args):
                               f" the range of [{int(n_HITs/2)}, {int(n_HITs*2/3)}].\n")
 
     # create general config
-    general_cfg = prepare_basic_cfg(df)
+    general_cfg = prepare_basic_cfg(df, hearing_cfg)
+    # add BW check config
+    general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app)
 
     # create hit_app
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831_fest else f"{args.project}_{test_method}.html"
@@ -577,7 +612,7 @@ async def main(cfg, test_method, args):
 
     if test_method == 'acr':
         await create_hit_app_acr(cfg_hit_app, template_path, output_html_file, args.training_clips,
-                                 args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
+                                 args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg, n_HITs)
     elif test_method in ['p835', 'echo_impairment_test']:
         await create_hit_app_p835(cfg_hit_app, template_path, output_html_file, args.training_clips,
                                   args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
@@ -590,9 +625,9 @@ async def main(cfg, test_method, args):
     output_cfg_file = os.path.join(output_dir, output_cfg_file_name)
 
     if test_method in ['acr', 'p835', 'echo_impairment_test']:
-        create_analyzer_cfg_general(cfg, cfg_hit_app, cfg_path, output_cfg_file)
+        create_analyzer_cfg_general(cfg, cfg_hit_app, cfg_path, output_cfg_file, general_cfg, n_HITs)
     else:
-        create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file)
+        create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file, general_cfg, n_HITs)
 
 
 if __name__ == '__main__':
@@ -651,4 +686,5 @@ if __name__ == '__main__':
         else:
             assert True, "Neither Trapping clips file nor store configuration provided"
 
+   
     asyncio.run(main(cfg, test_method, args))

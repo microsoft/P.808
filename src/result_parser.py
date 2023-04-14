@@ -85,6 +85,9 @@ def check_if_session_accepted(data):
         accept = False
         msg += "Gold or trapping clips question are answered wrongly;"
 
+    if data['qualification'] is not None and data['qualification'] != 1:
+        accept = False
+        msg += "Qualification (bandwidth check) is not passed;"
     if not accept:
         data['Reject'] = msg
     else:
@@ -276,6 +279,37 @@ def check_math(input, output, audio_played):
         return False
     return False
 
+def check_qualification_answer(row):
+    checked = True
+    # TODO hearing test - correct ans should be added in the inputs -update in master script is needed
+    
+    # check bw contrill
+    if "answer.comb_bw1" not in row:
+        return checked
+    
+    bw_v2_test_data ={"comb_bw1":'dq', "comb_bw2":'dq', "comb_bw3":'dq', "comb_bw4":'sq', "comb_bw5":'sq'}
+    bw_messages= {"comb_bw1":'BW TP failed', "comb_bw2":'SWB failed', "comb_bw3":'FB failed', "comb_bw4":'BW TP failed', "comb_bw5":'BW TP failed'}
+    ans_array= [0, 0, 0 ,0, 0]
+    msg = ''
+    for i in range(1, 6):
+        if row[f'answer.comb_bw{i}'] != bw_v2_test_data[f'comb_bw{i}']:            
+            msg += bw_messages[f'comb_bw{i}'] + ', '
+            ans_array[i-1] = 0
+        else:
+            ans_array[i-1] = 1
+    bw_min = config['acceptance_criteria']['bw_min'].upper()
+    bw_max = config['acceptance_criteria']['bw_max'].upper()
+    if ans_array[0] + ans_array[3] + ans_array[4] !=3:
+		#failed in trapping of obvious questions
+        return False, msg
+    if (bw_min == 'SWB' and ans_array[1] != 1) or (bw_min == 'FB' and ans_array[1]+ans_array[2] != 2):
+        return False, msg
+
+    if (bw_max == 'NB-WB' and ans_array[1]+ans_array[2] != 0) or (bw_max == 'SWB' and ans_array[2] != 0):
+        return False, msg	
+
+    return checked, msg
+
 
 def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played):
     """
@@ -330,7 +364,11 @@ def data_cleaning(filename, method):
     not_using_further_reasons = []
     for row in reader:
         correct_cmp_ans = 0
+        print(row['answer.8_hearing'] is None)
+        print(row['answer.8_hearing'] is None or len(row['answer.8_hearing'].strip()) == 0)
+        qualification_was_hidden = (row['answer.8_hearing'] is None) or len(row['answer.8_hearing'].strip()) == 0
         setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
+
         d = dict()
 
         d['worker_id'] = row['workerid']
@@ -341,6 +379,13 @@ def data_cleaning(filename, method):
         # step1. check if audio of all X questions are played at least once
         d['all_audio_played'] = 1 if check_audio_played(row, method) else 0
 
+        # check qualification if it was shown
+        if not qualification_was_hidden:
+            check_qualification, msg = check_qualification_answer(row)
+            d['qualification'] = 1 if check_qualification else 0
+            d['qualification_msg'] = msg
+        else: 
+            d['qualification'] = None
         # check if setup was shown
         if setup_was_hidden:
             # the setup is not shown
