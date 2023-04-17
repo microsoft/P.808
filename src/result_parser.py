@@ -285,7 +285,7 @@ def check_qualification_answer(row):
     
     # check bw contrill
     if "answer.comb_bw1" not in row:
-        return checked
+        return checked, ''
     
     bw_v2_test_data ={"comb_bw1":'dq', "comb_bw2":'dq', "comb_bw3":'dq', "comb_bw4":'sq', "comb_bw5":'sq'}
     bw_messages= {"comb_bw1":'BW TP failed', "comb_bw2":'SWB failed', "comb_bw3":'FB failed', "comb_bw4":'BW TP failed', "comb_bw5":'BW TP failed'}
@@ -364,8 +364,8 @@ def data_cleaning(filename, method):
     not_using_further_reasons = []
     for row in reader:
         correct_cmp_ans = 0
-        print(row['answer.8_hearing'] is None)
-        print(row['answer.8_hearing'] is None or len(row['answer.8_hearing'].strip()) == 0)
+        #print(row['answer.8_hearing'] is None)
+        #print(row['answer.8_hearing'] is None or len(row['answer.8_hearing'].strip()) == 0)
         qualification_was_hidden = (row['answer.8_hearing'] is None) or len(row['answer.8_hearing'].strip()) == 0
         setup_was_hidden = row['answer.cmp1'] is None or len(row['answer.cmp1'].strip()) == 0
 
@@ -386,6 +386,7 @@ def data_cleaning(filename, method):
             d['qualification_msg'] = msg
         else: 
             d['qualification'] = None
+            d['qualification_msg'] = 'no qualification was shown'
         # check if setup was shown
         if setup_was_hidden:
             # the setup is not shown
