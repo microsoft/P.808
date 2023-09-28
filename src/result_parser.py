@@ -652,6 +652,9 @@ def check_qualification_answer(row):
     # check bw contrill
     if "answer.comb_bw1" not in row:
         return checked, ''
+    # check if 'bw_min' and 'bw_max' are in config
+    if 'bw_min' not in config['acceptance_criteria'] or 'bw_max' not in config['acceptance_criteria']:
+        return checked, ''
     
     bw_v2_test_data ={"comb_bw1":'dq', "comb_bw2":'dq', "comb_bw3":'dq', "comb_bw4":'sq', "comb_bw5":'sq'}
     bw_messages= {"comb_bw1":'BW TP failed', "comb_bw2":'SWB failed', "comb_bw3":'FB failed', "comb_bw4":'BW TP failed', "comb_bw5":'BW TP failed'}
@@ -663,6 +666,8 @@ def check_qualification_answer(row):
             ans_array[i-1] = 0
         else:
             ans_array[i-1] = 1
+    
+
     bw_min = config['acceptance_criteria']['bw_min'].upper()
     bw_max = config['acceptance_criteria']['bw_max'].upper()
     if ans_array[0] + ans_array[3] + ans_array[4] !=3:
@@ -1323,7 +1328,11 @@ method_to_mos = {
     'p804_disc':'MOS_DISC',
     'p804_reverb':'MOS_REVERB', 
     'p804_sig':'MOS_SIG', 
-    'p804_ovrl':'MOS_OVRL'
+    'p804_ovrl':'MOS_OVRL',
+
+    "pp835_bak": "MOS_BAK",
+    "pp835_sig": "MOS_SIG",
+    "pp835_ovrl": "MOS_OVRL",
 }
 
 p835_columns = ['condition_name', 'n', 'MOS_BAK', 'MOS_SIG', 'MOS_OVRL', 'std_bak', 'std_sig', 'std_ovrl',
