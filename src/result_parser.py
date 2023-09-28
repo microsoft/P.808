@@ -1331,15 +1331,12 @@ p835_columns = ['condition_name', 'n', 'MOS_BAK', 'MOS_SIG', 'MOS_OVRL', 'std_ba
 p835_personalized_columns = [
     "condition_name",
     "n",
-    #"MOS_ENROL",
     "MOS_BAK",
     "MOS_SIG",
     "MOS_OVRL",
-    #"std_enrol",
     "std_bak",
     "std_sig",
     "std_ovrl",
-    #"95%CI_enrol",
     "95%CI_bak",
     "95%CI_sig",
     "95%CI_ovrl",
@@ -1435,7 +1432,7 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
         tmp = dict()
         votes = data_per_file[key]
         vote_counter = 1
-# apply z-score outlier detection
+        # apply z-score outlier detection
         if "outlier_removal_clip" in config["accept_and_use"] and (
                 config["accept_and_use"]["outlier_removal_clip"].lower()
                 in ["true", "1", "t", "y", "yes"]
@@ -1790,8 +1787,7 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
             votes_to_use = votes_per_file
             inter_rate_reliability, avg_irr = calc_inter_rater_reliability(accepted_sessions, votes_to_use, test_method, question_name_suffix,
             False)
-            """                                                                 #use_condition_level)
-            #votes_to_use = vote_per_condition if use_condition_level else  votes_per_file
+            """                                                                
             votes_to_use = votes_per_file
             inter_rate_reliability, avg_irr = calc_inter_rater_reliability(accepted_sessions, votes_to_use, test_method, question_name_suffix,
             False)
@@ -1894,12 +1890,6 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
                 + f"_all_votes_per_clip.csv"
             )
     write_dict_as_csv(all_data_per_worker, all_votes_per_file_path)
-    
-    # inter-rater reliability
-
-        
-
-
 
 
 if __name__ == "__main__":

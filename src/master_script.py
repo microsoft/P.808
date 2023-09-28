@@ -26,7 +26,6 @@ from azure_clip_storage import (
 
 #p835_personalized = "p835_personalized"
 p835_personalized = "pp835"
-shadow_name = None
 
 """
 def create_analyzer_cfg_acr(cfg, template_path, out_path):
@@ -437,7 +436,7 @@ async def create_hit_app_pp835_p804(
         df_train = pd.read_csv(args.training_gold_clips)
         gold_in_train = []
         cols = ['sig_ans','bak_ans','ovrl_ans']
-        if shadow_name:
+        if test_method == 'p804':
             cols = ['sig_ans','noise_ans','ovrl_ans', 'disc_ans', 'col_ans', 'loud_ans', 'reverb_ans' ]
 
         for _, row in df_train.iterrows():
@@ -465,7 +464,6 @@ async def create_hit_app_pp835_p804(
         rating_urls.append("${Q" + str(i) + "}")
     if n_traps > 1:
         raise Exception("more than 1 trapping clips question is not supported.")
-    #if shadow_name is None and n_traps == 1:
     if n_traps == 1:
         rating_urls.append("${TP}")
 
@@ -580,16 +578,17 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
         df_clips = pd.DataFrame({'rating_clips': rating_clips})
 
     sec_gold_question = False
-    if test_method in ["acr", "p835", "echo_impairment_test", p835_personalized]:
+    if test_method in ["acr", "p835", "echo_impairment_test", p835_personalized,'p804']:
         # prepare the golden clips
         if gold and os.path.exists(gold):
             df_gold = pd.read_csv(gold)
             # TODO change it with p835_personalized
-            if test_method == p835_personalized:
-                df_gold = update_gold_clips_for_p804(df_gold) if shadow_name else update_gold_clips_for_personalized(df_gold)
+            if test_method in [p835_personalized, 'p804']:
+                df_gold = update_gold_clips_for_p804(df_gold) if test_method == 'p804' else update_gold_clips_for_personalized(df_gold)
+            
             if 'gold_clips2' in args and args.gold_clips2 and os.path.exists(args.gold_clips2):
                 df_gold2 = pd.read_csv(args.gold_clips2)
-                df_gold2 = update_gold_clips_for_p804(df_gold2) if shadow_name else update_gold_clips_for_personalized(df_gold2)
+                df_gold2 = update_gold_clips_for_p804(df_gold2) if test_method == 'p804' else update_gold_clips_for_personalized(df_gold2)
                 #df_gold2.to_csv('tmp_gold2.csv', index=False)
                 sec_gold_question = True
         elif test_method == p835_personalized:
@@ -826,7 +825,7 @@ async def main(cfg, test_method, args):
 
     # create inputs
     print("Starting to validate input")
-    ca.validate_inputs(cfg["create_input"], df, shadow_name if shadow_name else test_method)
+    ca.validate_inputs(cfg["create_input"], df, test_method)
     print("... finished.")
 
     # create output folder
@@ -836,7 +835,7 @@ async def main(cfg, test_method, args):
 
     output_csv_file = os.path.join(output_dir, args.project+'_publish_batch.csv')
     n_HITs = ca.create_input_for_mturk(
-        cfg["create_input"], df, shadow_name if shadow_name else test_method, output_csv_file
+        cfg["create_input"], df, test_method, output_csv_file
     )
 
     # check settings of quantity bonus
@@ -850,9 +849,7 @@ async def main(cfg, test_method, args):
     general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app)
 
     # create hit_app
-    output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831_fest else f"{args.project}_{test_method}.html"
-    if shadow_name:
-        output_file_name = f"{args.project}_{shadow_name}.html"        
+    output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831_fest else f"{args.project}_{test_method}.html"       
     output_html_file = os.path.join(output_dir, output_file_name)
 
     if test_method == 'acr':
@@ -861,8 +858,8 @@ async def main(cfg, test_method, args):
     elif test_method in ['p835', 'echo_impairment_test']:
         await create_hit_app_p835(cfg_hit_app, template_path, output_html_file, args.training_clips,
                                   args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
-    elif test_method == p835_personalized:
-        await create_hit_app_pp835(
+    elif test_method in [p835_personalized, 'p804']:
+        await create_hit_app_pp835_p804(
             cfg_hit_app,
             template_path,
             output_html_file,
@@ -881,7 +878,7 @@ async def main(cfg, test_method, args):
     output_cfg_file_name = f"{args.project}_p831_{test_method}_result_parser.cfg" if is_p831_fest else f"{args.project}_{test_method}_result_parser.cfg"
     output_cfg_file = os.path.join(output_dir, output_cfg_file_name)
 
-    if test_method in ['acr', 'p835', 'echo_impairment_test', p835_personalized]:
+    if test_method in ['acr', 'p835', 'echo_impairment_test', p835_personalized, 'p804']:
         create_analyzer_cfg_general(cfg, cfg_hit_app, cfg_path, output_cfg_file, general_cfg, n_HITs)
     else:
         create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file, general_cfg, n_HITs)
@@ -917,9 +914,6 @@ if __name__ == '__main__':
     assert (
         test_method in methods
     ), f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835', '{p835_personalized}', 'echo_impairment_test', 'p804'"
-    if test_method in ["p804"]:
-        test_method = "p835"
-        shadow_name = "p804"
 
     p831_methods = ["acr", "dcr", "echo_impairment_test"]
     if args.p831_fest:
@@ -948,7 +942,7 @@ if __name__ == '__main__':
     else:
         assert True, "Neither clips file not cloud store provided for rating clips"
 
-    if test_method in ["acr", "p835", "echo_impairment_test", p835_personalized]:
+    if test_method in ["acr", "p835", "echo_impairment_test", p835_personalized, 'p804']:
         if args.gold_clips:
             assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
         elif cfg.has_option('GoldenSample', 'Path'):

@@ -400,8 +400,7 @@ def create_input_for_acr(cfg, df, output_path, method):
         elif method == 'p804':
             #tmp = df.sample(frac=1).reset_index(drop=True)   
             
-            for j in range(0, number_of_gold_clips_per_session):
-                print(len(df) )
+            for j in range(0, number_of_gold_clips_per_session):                
                 df_small = df[df['ver'] == (j+1)].copy()
                 tmp = df_small[['gold_url', 'gold_ovrl_ans', 'gold_sig_ans', 'gold_noise_ans', 'gold_col_ans', 'gold_loud_ans', 'gold_disc_ans', 'gold_reverb_ans']].copy()
                 tmp = tmp.dropna(subset=['gold_url'])            
