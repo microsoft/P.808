@@ -39,6 +39,8 @@ following message next time they want to perform a HIT from this group:
 * `quality_top_percentage: 20`: Defines when quality bonus should be applied (in addition, participant should be 
 eligible for quantity bonus).
 * `quality_bonus: 0.15`: the amount of the quality bonus per accepted assignment.
+* `bw_min: FB `: minimum bandwidth that participants playback should support, can be "NB-WB", "SWB", "FB"
+* `bw_max: FB `: maximum bandwidth that participants playback should support, can be "NB-WB", "SWB", "FB"
 
 
 ## `[acr_html]` or `[p835_html]` _deprecated_ 

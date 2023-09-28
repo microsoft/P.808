@@ -35,7 +35,7 @@ created in the first step ([preparation](preparation.md)).
         --quality_bonus
     ```
     * `--cfg` use the configuration file generated for your project in the [preparation](preparation.md) step here (i.e.`YOUR_PROJECT_NAME_ccr_result_parser.cfg`).
-    * `--method` could be either `acr`, `dcr`, `ccr` or `p835`.
+    * `--method` could be either `acr`, `dcr`, `ccr`, `p835`, `pp835` or `p804`.
     * `--quantity_bonus` could be `all`, or `submitted`. It specify which assignments should be considered when calculating
     the amount of quantity bonus (everything i.e. `all` or just the assignments with status submitted i.e. `submitted`).
     

@@ -28,3 +28,6 @@ URLs associated to them as described in [General Resources](general_res.md)
     - [Preparation for Degradation Category Rating (DCR)](prep_dcr_ccr.md)
     - [Preparation for Comparison Category Rating (CCR)](prep_dcr_ccr.md)
     - [Preparation for the P.835](prep_p835.md)
+    - Preparation for the P.831
+    - Preparation for Personalized P.835
+    - [Preparation for the P.804](prep_p804.md)

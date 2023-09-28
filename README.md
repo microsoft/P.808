@@ -12,12 +12,19 @@ It also extends P.808 in the following ways:
 
 * Includes implementation of the ITU-T Rec. P.831 for the crowdsourcing approach is also provided based on the recommendations given in the ITU-T Rec. P.808.
 
+* **NEW** - Multi-dimensional Speech Quality Assessment - Following the ITU-T Rec. P.804 and extending it with reverberation, signal and overall quality.
+
+* **NEW** - Extending P.835 test to evaluate personalized noise suppression
+
+
 Relevant ITU-T Recommendations are :
 * [ITU-T Recommendation P.808, _Subjective evaluation of speech quality with a crowdsourcing approach._](https://www.itu.int/rec/T-REC-P.808/en) Geneva: International Telecommunication Union, 2021.
 
 * [ITU-T Recommendation P.835, _Subjective test methodology for evaluating speech communication systems that include noise suppression algorithm._](https://www.itu.int/rec/T-REC-P.835/en) Geneva: International Telecommunication Union, 2003.
 
 * [ITU-T Recommendation P.831 _Subjective performance evaluation of network echo cancellers._](https://www.itu.int/rec/T-REC-P.831/en) Geneva: International Telecommunication Union, 1998.
+
+* [ITU-T Recommendation P.804 _Subjective diagnostic test method for conversational speech quality analysis_](https://www.itu.int/rec/T-REC-P.804/en) Geneva: International Telecommunication Union, 2017.
 
 Technical description of the implementation and validation are given in these papers:
 
@@ -27,8 +34,11 @@ Babak Naderi, Ross Cutler, INTERSPEECH 2020.
 * [Crowdsourcing approach for subjective evaluation of echo impairment.](https://arxiv.org/pdf/2010.13063.pdf)
 Ross Cutler, Babak Naderi, Markus Loide, Sten Sootla, Ando Saabas, ICASSP 2021.
 
-* [Subjective Evaluation of Noise Suppression Algorithms in Crowdsourcing. How we label the data for the DNS challenge.](https://arxiv.org/pdf/2010.13200.pdf)
+* [Subjective Evaluation of Noise Suppression Algorithms in Crowdsourcing. (How we label the data for the DNS challenge.)](https://arxiv.org/pdf/2010.13200.pdf)
 Babak Naderi, Ross Cutler, INTERSPEECH 2021.
+
+* [Multi-dimensional Speech Quality Assessment in Crowdsourcing.](https://arxiv.org/pdf/2309.07385.pdf)
+Babak Naderi, Ross Cutler, Nicolae-Catalin Ristea.
 
 ## Citation
 If you use this tool in your research please cite it with the following references:
@@ -60,8 +70,17 @@ If you use this tool in your research please cite it with the following referenc
   journal={Proc. Interspeech},
   year={2021}
 }
-
 ```
+
+```BibTex
+@article{naderi2023multi,
+  title={Multi-dimensional Speech Quality Assessment in Crowdsourcing},
+  author={Naderi, Babak and Cutler, Ross and Ristea, Nicolae-Catalin},
+  journal={arXiv preprint arXiv:2309.07385},
+  year={2023}
+}
+```
+
 
 ## Getting Started
 * [Preparation](docs/preparation.md)
@@ -70,8 +89,7 @@ If you use this tool in your research please cite it with the following referenc
 
 
 ## News
-++ An update for the ITU-T Rec. P.808 was accepted by the ITU-T Study Group 12 and will publish soon. This package already 
-covers all the updates. 
+++ An update with support for [multi-dimensional quality assessment](https://arxiv.org/pdf/2309.07385.pdf) is published. 
 
 ## Troubleshooting
 For bug reports and issues with this code, please see the 
@@ -80,7 +98,7 @@ For bug reports and issues with this code, please see the
 
 ## Contact
 
-Contact [Vishak Gopal](vishak.gopal@microsoft.com) or [Ross Cutler](rcutler@microsoft.com) with any questions.
+Contact [Babak Naderi](babaknaderi@microsoft.com), [Vishak Gopal](vishak.gopal@microsoft.com) or [Ross Cutler](rcutler@microsoft.com) with any questions.
 
 ## License
 ### Code License
