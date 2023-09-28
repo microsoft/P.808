@@ -43,7 +43,7 @@ def validate_inputs(cfg, df, method):
         req = required_columns_acr
     elif method in [p835_personalized]:
         req = required_columns_acr
-        req.extend(['rating_enrolment_clips', 'trapping_enrolment_clips'])
+        #req.extend(['rating_enrolment_clips', 'trapping_enrolment_clips'])
     else:
         req = required_columns_ccr
 
@@ -57,7 +57,7 @@ def validate_inputs(cfg, df, method):
         assert 'gold_clips_ans' in columns, f"No column found with 'gold_clips_ans' in input file " \
             f"(required since v.1.0)"       
     if method in [p835_personalized]:
-        assert 'gold_enrolment_clips' in columns, f"No column found with 'gold_enrolment_clips' in input file"
+        #assert 'gold_enrolment_clips' in columns, f"No column found with 'gold_enrolment_clips' in input file"
         for column in required_columns_gold_personalized:
             assert column in columns, f"No column found with '{column}' in input file"
     if method in ['p804']:
@@ -200,16 +200,6 @@ def add_clips_random(clips, n_clips_per_session, output_df, method, column_names
     clips_rating_sessions = np.reshape(
         all_clips_rating, (n_sessions, n_clips_per_session))
 
-    if(method == p835_personalized):
-        all_clips_enrolment = all_clips['rating_enrolment_clips'].to_numpy()
-        clips_enrolment_sessions = np.reshape(
-            all_clips_enrolment, (n_sessions, n_clips_per_session))
-
-    for q in range(n_clips_per_session):
-        output_df[f'Q{q}'] = clips_rating_sessions[:, q]
-        if (method == p835_personalized):
-            output_df[f'Q{q}_ENROLMENT'] = clips_enrolment_sessions[:, q]
-    
     print(f'There are {len(all_clips)} clips and {n_sessions} sessions')
 
 
@@ -243,8 +233,8 @@ def create_input_for_acr(cfg, df, output_path, method):
     """
 
     columns = ['rating_clips']
-    if (method == p835_personalized):
-        columns.append('rating_enrolment_clips')
+    #if (method == p835_personalized):
+    #    columns.append('rating_enrolment_clips')
 
     clips = df[columns].dropna(axis=0, how='any')
     n_clips = len(clips)
@@ -312,8 +302,8 @@ def create_input_for_acr(cfg, df, output_path, method):
         # n_trappings = int(cfg['general']['number_of_trapping_per_session']) * n_sessions
         n_trappings = n_sessions
         columns = ['trapping_clips', 'trapping_ans']
-        if (method == p835_personalized):
-            columns.append('trapping_enrolment_clips')
+        #if (method == p835_personalized):
+        #    columns.append('trapping_enrolment_clips')
         tmp = df[columns].copy()
         tmp.dropna(inplace=True, how='any')
         tmp = tmp.sample(n=n_trappings, replace=True)
@@ -325,27 +315,14 @@ def create_input_for_acr(cfg, df, output_path, method):
         trap_ans_source = tmp['trapping_ans'].dropna()
         full_trappings_answer = np.tile(trap_ans_source.to_numpy(), (n_trappings // trap_ans_source.count()) + 1)[:n_trappings]
 
-        if (method == p835_personalized):
-            trap_enrolment_source = tmp['trapping_enrolment_clips'].dropna()
-            full_trappings_enrolment = np.tile(trap_enrolment_source.to_numpy(), (n_trappings // trap_enrolment_source.count()) + 1)[
-                :n_trappings]
-
         # Shuffle
-        if (method == p835_personalized):
-            full_tp = list(
-                zip(full_trappings, full_trappings_enrolment, full_trappings_answer))
-            random.shuffle(full_tp)
-            full_trappings, full_trappings_enrolment, full_trappings_answer = zip(
-                *full_tp)
-        else:
-            full_tp = list(zip(full_trappings, full_trappings_answer))
-            random.shuffle(full_tp)
-            full_trappings, full_trappings_answer = zip(*full_tp)
+       
+        full_tp = list(zip(full_trappings, full_trappings_answer))
+        random.shuffle(full_tp)
+        full_trappings, full_trappings_answer = zip(*full_tp)
 
         output_df['TP'] = full_trappings
-        output_df['TP_ANS'] = full_trappings_answer
-        if (method == p835_personalized):
-            output_df['TP_ENROLMENT'] = full_trappings_enrolment
+        output_df['TP_ANS'] = full_trappings_answer       
 
     # gold_clips
 
@@ -435,26 +412,12 @@ def create_input_for_acr(cfg, df, output_path, method):
             full_gold_clips_answer = np.tile(gold_clip_ans_source.to_numpy(), (n_gold_clips // gold_clip_ans_source.count())
                                             + 1)[:n_gold_clips]
 
-            if (method == p835_personalized):
-                gold_clip_enrolment_source = df['gold_enrolment_clips'].dropna()
-                full_gold_clips_enrolment = np.tile(gold_clip_enrolment_source.to_numpy(),
-                                                    (n_gold_clips // gold_clip_enrolment_source.count()) + 1)[:n_gold_clips]
-
-            if (method == p835_personalized):
-                full_gc = list(
-                    zip(full_gold_clips, full_gold_clips_enrolment, full_gold_clips_answer))
-                random.shuffle(full_gc)
-                full_gold_clips, full_gold_clips_enrolment, full_gold_clips_answer = zip(
-                    *full_gc)
-            else:
-                full_gc = list(zip(full_gold_clips, full_gold_clips_answer))
-                random.shuffle(full_gc)
-                full_gold_clips, full_gold_clips_answer = zip(*full_gc)
+            full_gc = list(zip(full_gold_clips, full_gold_clips_answer))
+            random.shuffle(full_gc)
+            full_gold_clips, full_gold_clips_answer = zip(*full_gc)
 
             output_df['gold_clips'] = full_gold_clips
             output_df['gold_clips_ans'] = full_gold_clips_answer
-            if (method == p835_personalized):
-                output_df['gold_enrolment_clips'] = full_gold_clips_enrolment
 
     output_df.to_csv(output_path, index=False)
     return len(output_df)
