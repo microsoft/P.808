@@ -19,6 +19,9 @@ import collections
 from random import shuffle
 import itertools
 
+p835_personalized = 'pp835'
+
+
 def validate_inputs(cfg, df, method):
     """
     Validate the structure, and fields in row_input.csv and configuration file
@@ -31,8 +34,16 @@ def validate_inputs(cfg, df, method):
     required_columns_acr = ['rating_clips', 'math', 'pair_a', 'pair_b', 'trapping_clips', 'trapping_ans']
     # tps are always the references.
     required_columns_ccr = ['rating_clips', 'references', 'math', 'pair_a', 'pair_b', 'trapping_clips']
-    if method in ['acr', 'p835', 'echo_impairment_test']:
+    required_columns_gold_personalized = ['gold_url', 'gold_sig_ans', 'gold_bak_ans', 'gold_ovrl_ans']
+
+    required_columns_gold_804 = ['gold_url', 'gold_sig_ans', 'gold_noise_ans', 'gold_ovrl_ans', 'gold_disc_ans', 'gold_col_ans', 'gold_loud_ans', 'gold_reverb_ans']
+
+
+    if method in ['acr', 'p835', 'echo_impairment_test', 'p804']:
         req = required_columns_acr
+    elif method in [p835_personalized]:
+        req = required_columns_acr
+        req.extend(['rating_enrolment_clips', 'trapping_enrolment_clips'])
     else:
         req = required_columns_ccr
 
@@ -44,7 +55,16 @@ def validate_inputs(cfg, df, method):
     if method in ['acr', 'p835', 'echo_impairment_test'] and 'number_of_gold_clips_per_session' in cfg and int(cfg['number_of_gold_clips_per_session'])>0:
         assert 'gold_clips' in columns, f"No column found with 'gold_clips' in input file"
         assert 'gold_clips_ans' in columns, f"No column found with 'gold_clips_ans' in input file " \
-            f"(required since v.1.0)"
+            f"(required since v.1.0)"       
+    if method in [p835_personalized]:
+        assert 'gold_enrolment_clips' in columns, f"No column found with 'gold_enrolment_clips' in input file"
+        for column in required_columns_gold_personalized:
+            assert column in columns, f"No column found with '{column}' in input file"
+    if method in ['p804']:
+        for column in required_columns_gold_804:
+            assert column in columns, f"No column found with '{column}' in input file"
+
+
 
 file_to_condition_map = {}
 
@@ -163,18 +183,34 @@ def add_clips_balanced_block_ccr(clips, refs, condition_pattern, keys, n_clips_p
         output_df.rename(columns={f'Q{q}': f'Q{q}_P'}, inplace=True)
 
 
-def add_clips_random(clips, n_clips_per_session, output_df):
-    n_clips = clips.count()
+def add_clips_random(clips, n_clips_per_session, output_df, method, column_names):
+    n_clips = len(clips)
     n_sessions = math.ceil(n_clips / n_clips_per_session)
     needed_clips = n_sessions * n_clips_per_session
-    all_clips = np.tile(clips.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
-    #   check the method: clips_selection_strategy
-    random.shuffle(all_clips)
 
-    clips_sessions = np.reshape(all_clips, (n_sessions, n_clips_per_session))
+    all_clips = pd.DataFrame()
+    for i in range(int(math.ceil(needed_clips * 1.0 / n_clips))):
+        #all_clips = all_clips.append(clips)
+        all_clips = pd.concat([all_clips, clips], ignore_index=True)
+
+    all_clips = all_clips[:needed_clips]
+    all_clips = all_clips.sample(frac=1).reset_index(drop=True)
+
+    all_clips_rating = all_clips['rating_clips'].to_numpy()
+    clips_rating_sessions = np.reshape(
+        all_clips_rating, (n_sessions, n_clips_per_session))
+
+    if(method == p835_personalized):
+        all_clips_enrolment = all_clips['rating_enrolment_clips'].to_numpy()
+        clips_enrolment_sessions = np.reshape(
+            all_clips_enrolment, (n_sessions, n_clips_per_session))
 
     for q in range(n_clips_per_session):
-        output_df[f'Q{q}'] = clips_sessions[:, q]
+        output_df[f'Q{q}'] = clips_rating_sessions[:, q]
+        if (method == p835_personalized):
+            output_df[f'Q{q}_ENROLMENT'] = clips_enrolment_sessions[:, q]
+    
+    print(f'There are {len(all_clips)} clips and {n_sessions} sessions')
 
 
 def add_clips_random_ccr(clips, refs, n_clips_per_session, output_df):
@@ -197,7 +233,7 @@ def add_clips_random_ccr(clips, refs, n_clips_per_session, output_df):
         output_df[f'Q{q}_R'] = refs_sessions[:, q]
 
 
-def create_input_for_acr(cfg, df, output_path, hearing_cfg):
+def create_input_for_acr(cfg, df, output_path, method):
     """
     create the input for the acr methods
     :param cfg:
@@ -205,31 +241,53 @@ def create_input_for_acr(cfg, df, output_path, hearing_cfg):
     :param output_path:
     :return:
     """
-    clips = df['rating_clips'].dropna()
-    n_clips = clips.count()
+
+    columns = ['rating_clips']
+    if (method == p835_personalized):
+        columns.append('rating_enrolment_clips')
+
+    clips = df[columns].dropna(axis=0, how='any')
+    n_clips = len(clips)
     n_clips_per_session = int(cfg['number_of_clips_per_session'])
+    n_sessions = int(math.ceil(n_clips / n_clips_per_session))
+
     output_df = pd.DataFrame()
-    packing_strategy = cfg.get("clip_packing_strategy", "random").strip().lower()
+    packing_strategy = cfg.get(
+        "clip_packing_strategy", "random").strip().lower()
 
     if packing_strategy == "balanced_block":
-        add_clips_balanced_block(clips, cfg["condition_pattern"], cfg.get("block_keys", cfg["condition_keys"]),
-                                 n_clips_per_session, output_df)
-    elif packing_strategy == "random":
-        add_clips_random(clips, n_clips_per_session, output_df)
+        if method == p835_personalized:
+            raise Exception(
+                "balanced_block strategy is not supported for personalized P835")
+        add_clips_balanced_block(clips,
+                                 cfg["condition_pattern"],
+                                 cfg.get("block_keys", cfg["condition_keys"]),
+                                 n_clips_per_session,
+                                 output_df)
+        print(f'There are {len(clips)} clips and {n_sessions} sessions')
 
-    n_sessions = math.ceil(n_clips / int(cfg['number_of_clips_per_session']))
-    print(f'{n_clips} clips and {n_sessions} sessions')
+    elif packing_strategy == "random":
+        add_clips_random(clips,
+                         n_clips_per_session,
+                         output_df,
+                         method,
+                         columns)
 
     # create math
     math_source = df['math'].dropna()
-    math_output = np.tile(math_source.to_numpy(), (n_sessions // math_source.count()) + 1)[:n_sessions]
+    math_output = np.tile(math_source.to_numpy(),
+                          (n_sessions // math_source.count()) + 1)[:n_sessions]
+    # add math
+    output_df['math'] = math_output
 
     # CMPs: 4 pairs are needed for 1 session
     nPairs = 4 * n_sessions
     pair_a = df['pair_a'].dropna()
     pair_b = df['pair_b'].dropna()
-    pair_a_extended = np.tile(pair_a.to_numpy(), (nPairs // pair_a.count()) + 1)[:nPairs]
-    pair_b_extended = np.tile(pair_b.to_numpy(), (nPairs // pair_b.count()) + 1)[:nPairs]
+    pair_a_extended = np.tile(
+        pair_a.to_numpy(), (nPairs // pair_a.count()) + 1)[:nPairs]
+    pair_b_extended = np.tile(
+        pair_b.to_numpy(), (nPairs // pair_b.count()) + 1)[:nPairs]
 
     # randomly select pairs and swap a and b
     swap_me = np.random.randint(2, size=nPairs)
@@ -247,69 +305,163 @@ def create_input_for_acr(cfg, df, output_path, hearing_cfg):
                                     'CMP3_A': new_4[:, 4], 'CMP3_B': new_4[:, 5],
                                     'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
 
-    # add math
-    output_df['math'] = math_output
-
     # trappings
     if int(cfg['number_of_trapping_per_session']) > 0:
         if int(cfg['number_of_trapping_per_session']) > 1:
             print("more than one TP is not supported for now - continue with 1")
         # n_trappings = int(cfg['general']['number_of_trapping_per_session']) * n_sessions
         n_trappings = n_sessions
-        tmp = df[['trapping_clips', 'trapping_ans']].copy()
-        tmp.dropna(inplace=True)
+        columns = ['trapping_clips', 'trapping_ans']
+        if (method == p835_personalized):
+            columns.append('trapping_enrolment_clips')
+        tmp = df[columns].copy()
+        tmp.dropna(inplace=True, how='any')
         tmp = tmp.sample(n=n_trappings, replace=True)
+
         trap_source = tmp['trapping_clips'].dropna()
+        full_trappings = np.tile(trap_source.to_numpy(
+        ), (n_trappings // trap_source.count()) + 1)[:n_trappings]
+
         trap_ans_source = tmp['trapping_ans'].dropna()
+        full_trappings_answer = np.tile(trap_ans_source.to_numpy(), (n_trappings // trap_ans_source.count()) + 1)[:n_trappings]
 
-        full_trappings = np.tile(trap_source.to_numpy(), (n_trappings // trap_source.count()) + 1)[:n_trappings]
-        full_trappings_answer = np.tile(trap_ans_source.to_numpy(), (n_trappings // trap_ans_source.count()) + 1)[
-                                :n_trappings]
+        if (method == p835_personalized):
+            trap_enrolment_source = tmp['trapping_enrolment_clips'].dropna()
+            full_trappings_enrolment = np.tile(trap_enrolment_source.to_numpy(), (n_trappings // trap_enrolment_source.count()) + 1)[
+                :n_trappings]
 
-        full_tp = list(zip(full_trappings, full_trappings_answer))
-        random.shuffle(full_tp)
+        # Shuffle
+        if (method == p835_personalized):
+            full_tp = list(
+                zip(full_trappings, full_trappings_enrolment, full_trappings_answer))
+            random.shuffle(full_tp)
+            full_trappings, full_trappings_enrolment, full_trappings_answer = zip(
+                *full_tp)
+        else:
+            full_tp = list(zip(full_trappings, full_trappings_answer))
+            random.shuffle(full_tp)
+            full_trappings, full_trappings_answer = zip(*full_tp)
 
-        full_trappings, full_trappings_answer = zip(*full_tp)
         output_df['TP'] = full_trappings
         output_df['TP_ANS'] = full_trappings_answer
+        if (method == p835_personalized):
+            output_df['TP_ENROLMENT'] = full_trappings_enrolment
 
     # gold_clips
-    if int(cfg['number_of_gold_clips_per_session']) > 0:
-        if int(cfg['number_of_gold_clips_per_session']) > 1:
-            print("more than one gold_clip is not supported for now - continue with 1")
+
+    number_of_gold_clips_per_session = int(cfg['number_of_gold_clips_per_session'])
+    if number_of_gold_clips_per_session > 0:
+        if number_of_gold_clips_per_session > 2:
+            print("more than two gold_clip is not supported for now - continue with 1")
         n_gold_clips = n_sessions
-        """
-        gold_clip_source = df['gold_clips'].dropna()
-        gold_clip_ans_source = df['gold_clips_ans'].dropna()
+        #TODO: tobe changed to p835_personalized
+        if (method == p835_personalized):
+            df = df[['gold_url', 'gold_ovrl_ans', 'gold_sig_ans', 'gold_bak_ans', 'ver']]
 
-        full_gold_clips = np.tile(gold_clip_source.to_numpy(),
-                                  (n_gold_clips // gold_clip_source.count()) + 1)[:n_gold_clips]
-        full_gold_clips_answer = np.tile(gold_clip_ans_source.to_numpy(), (n_gold_clips // gold_clip_ans_source.count())
-                                         + 1)[:n_gold_clips]
-        full_gc = list(zip(full_gold_clips, full_gold_clips_answer))
-        random.shuffle(full_gc)
+            for i in range(0, number_of_gold_clips_per_session):
+                small_set= df[df['ver'] == (i+1)]
+                small_set = small_set.dropna(subset=['gold_url'])
+                # shuffle dataset
+                small_set = small_set.sample(frac=1).reset_index(drop=True)                        
+                # remove nan
+                small_set.dropna(inplace=True, how='any')
+                # size of dataset
+                size = len(small_set)              
 
-        full_gold_clips, full_gold_clips_answer = zip(*full_gc)
-        output_df['gold_clips'] = full_gold_clips
-        output_df['gold_clips_ans'] = full_gold_clips_answer
-        """
-        tmp = df[['gold_clips', 'gold_clips_ans']]
-        tmp = tmp.dropna(subset=['gold_clips'])            
-        tmp = tmp.sample(frac=1, ignore_index=True)
-        # get dataframe lenght
-        size = len(tmp)
-        g_clips = tmp.copy()
-        for i in range (1, (n_gold_clips//size)+1):
-            g_clips = pd.concat([g_clips, tmp], axis=0, ignore_index=True)
-        g_clips = g_clips.head(n_gold_clips)
-        g_clips = g_clips.sample(frac=1, ignore_index=True)
+                ans_ovrl = small_set['gold_ovrl_ans'].head(size)
+                ans_sig = small_set['gold_sig_ans'].head(size)
+                ans_bak = small_set['gold_bak_ans'].head(size)
+                gold_clip_source = small_set['gold_url'].head(size)
 
-        output_df = pd.concat([output_df, g_clips], axis=1)
+                full_gold_clips = np.tile(gold_clip_source.to_numpy(),
+                                        (n_gold_clips // gold_clip_source.count()) + 1)[:n_gold_clips]
+                full_ans_ovrl = np.tile(ans_ovrl.to_numpy(), (n_gold_clips // ans_ovrl.count())
+                                                + 1)[:n_gold_clips]
+                full_ans_sig = np.tile(ans_sig.to_numpy(), (n_gold_clips // ans_sig.count())
+                                                + 1)[:n_gold_clips]
+                full_ans_bak = np.tile(ans_bak.to_numpy(), (n_gold_clips // ans_bak.count())
+                                                + 1)[:n_gold_clips]
+                
+                full_gc = list(zip(full_gold_clips, full_ans_ovrl, full_ans_sig, full_ans_bak))
+                random.shuffle(full_gc)
+                full_gold_clips, full_ans_ovrl, full_ans_sig, full_ans_bak = zip(*full_gc)
+
+
+                if i == 0:
+                    suffix = ''
+                else:
+                    suffix = f"_{i+1}"
+
+                output_df[f'gold_url{suffix}'] = full_gold_clips
+                output_df[f'gold_sig_ans{suffix}'] = full_ans_sig
+                output_df[f'gold_bak_ans{suffix}'] = full_ans_bak
+                output_df[f'gold_ovrl_ans{suffix}'] = full_ans_ovrl
+
+        elif method == 'p804':
+            #tmp = df.sample(frac=1).reset_index(drop=True)   
+            
+            for j in range(0, number_of_gold_clips_per_session):
+                print(len(df) )
+                df_small = df[df['ver'] == (j+1)].copy()
+                tmp = df_small[['gold_url', 'gold_ovrl_ans', 'gold_sig_ans', 'gold_noise_ans', 'gold_col_ans', 'gold_loud_ans', 'gold_disc_ans', 'gold_reverb_ans']].copy()
+                tmp = tmp.dropna(subset=['gold_url'])            
+                tmp = tmp.sample(frac=1, ignore_index=True)
+                # get dataframe lenght
+                size = len(tmp)
+                g_clips = tmp.copy()
+                for i in range (1, (n_gold_clips//size)+1):
+                    g_clips = pd.concat([g_clips, tmp], axis=0, ignore_index=True)
+                g_clips = g_clips.head(n_gold_clips)
+                g_clips = g_clips.sample(frac=1, ignore_index=True)
+
+                if j>0:
+                    suffix = f"_{j+1}"
+                    g_clips.rename(columns = {'gold_url':f'gold_url{suffix}'
+                                              ,'gold_ovrl_ans':f'gold_ovrl_ans{suffix}'
+                                                ,'gold_sig_ans':f'gold_sig_ans{suffix}'
+                                                ,'gold_noise_ans':f'gold_noise_ans{suffix}'
+                                                ,'gold_col_ans':f'gold_col_ans{suffix}'
+                                                ,'gold_loud_ans':f'gold_loud_ans{suffix}'
+                                                ,'gold_disc_ans':f'gold_disc_ans{suffix}'
+                                                ,'gold_reverb_ans':f'gold_reverb_ans{suffix}'
+                                              }, inplace = True)
+                output_df = pd.concat([output_df, g_clips], axis=1)
+
+        else:
+            gold_clip_source = df['gold_clips'].dropna()
+            full_gold_clips = np.tile(gold_clip_source.to_numpy(),
+                                    (n_gold_clips // gold_clip_source.count()) + 1)[:n_gold_clips]
+
+            gold_clip_ans_source = df['gold_clips_ans'].dropna()
+            full_gold_clips_answer = np.tile(gold_clip_ans_source.to_numpy(), (n_gold_clips // gold_clip_ans_source.count())
+                                            + 1)[:n_gold_clips]
+
+            if (method == p835_personalized):
+                gold_clip_enrolment_source = df['gold_enrolment_clips'].dropna()
+                full_gold_clips_enrolment = np.tile(gold_clip_enrolment_source.to_numpy(),
+                                                    (n_gold_clips // gold_clip_enrolment_source.count()) + 1)[:n_gold_clips]
+
+            if (method == p835_personalized):
+                full_gc = list(
+                    zip(full_gold_clips, full_gold_clips_enrolment, full_gold_clips_answer))
+                random.shuffle(full_gc)
+                full_gold_clips, full_gold_clips_enrolment, full_gold_clips_answer = zip(
+                    *full_gc)
+            else:
+                full_gc = list(zip(full_gold_clips, full_gold_clips_answer))
+                random.shuffle(full_gc)
+                full_gold_clips, full_gold_clips_answer = zip(*full_gc)
+
+            output_df['gold_clips'] = full_gold_clips
+            output_df['gold_clips_ans'] = full_gold_clips_answer
+            if (method == p835_personalized):
+                output_df['gold_enrolment_clips'] = full_gold_clips_enrolment
+
     output_df.to_csv(output_path, index=False)
     return len(output_df)
 
 
-def create_input_for_dcrccr(cfg, df, output_path, hearing_cfg):
+def create_input_for_dcrccr(cfg, df, output_path):
     """
     create the input for the dcr and ccr method
     :param cfg:
@@ -398,21 +550,22 @@ def create_input_for_dcrccr(cfg, df, output_path, hearing_cfg):
     return len(output_df)
 
 
-def create_input_for_mturk(cfg, df, method, output_path, hearing_cfg):
+def create_input_for_mturk(cfg, df, method, output_path):
     """
     Create input.csv for MTurk
     :param cfg: configuration  file
     :param df:  row input, see validate_inputs for details
     :param output_path: path to output file
     """
-    if method in ['acr', 'p835', 'echo_impairment_test']:
-        return create_input_for_acr(cfg, df, output_path, hearing_cfg)
+    if method in ['acr', 'p835', 'echo_impairment_test', p835_personalized, "p804"]:
+        return create_input_for_acr(cfg, df, output_path, method)
     else:
-        return create_input_for_dcrccr(cfg, df, output_path, hearing_cfg)
+        return create_input_for_dcrccr(cfg, df, output_path)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Create input.csv for ACR, DCR, CCR, P835, echo_impairment_test test. ')
+    parser = argparse.ArgumentParser(
+        description=f'Create input.csv for ACR, DCR, CCR, P835, {p835_personalized},p804 echo_impairment_test test. ')
     # Configuration: read it from trapping clips.cfg
     parser.add_argument("--row_input", required=True,
                         help="All urls depending to the test method, for ACR: 'rating_clips', 'math', 'pair_a', "
@@ -422,7 +575,7 @@ if __name__ == '__main__':
                         help="explains the test")
 
     parser.add_argument("--method", default="acr", required=True,
-                        help="one of the test methods: acr, dcr, ccr, p835, echo_impairment_test")
+                        help=f"one of the test methods: acr, dcr, ccr, p835, {p835_personalized},p804, echo_impairment_test")
     args = parser.parse_args()
 
     #row_input = join(dirname(__file__), args.row_input)
@@ -433,9 +586,10 @@ if __name__ == '__main__':
     cfg_path = args.cfg
     assert os.path.exists(cfg_path), f"No file in {cfg_path}]"
 
-    methods = ["acr", "dcr", "ccr", "p835", "echo_impairment_test"]
+    methods = ["acr", "dcr", "ccr", "p835",
+               p835_personalized, "echo_impairment_test", "p804"]
     exp_method = args.method.lower()
-    assert exp_method in methods, f"{exp_method} is not a supported method, select from: acr, dcr, ccr, p835, echo_impairment_test."
+    assert exp_method in methods, f"{exp_method} is not a supported method, select from: acr, dcr, ccr, p835, {p835_personalized}, echo_impairment_test."
 
     cfg = CP.ConfigParser()
     cfg._interpolation = CP.ExtendedInterpolation()
@@ -446,6 +600,7 @@ if __name__ == '__main__':
     validate_inputs(cfg['general'], df, exp_method)
     print('... validation is finished.')
 
-    output_file = os.path.splitext(row_input)[0]+'_'+exp_method+'_publish_batch.csv'
+    output_file = os.path.splitext(
+        row_input)[0]+'_'+exp_method+'_publish_batch.csv'
 
     create_input_for_mturk(cfg['general'], df, exp_method, output_file)
