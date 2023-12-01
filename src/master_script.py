@@ -586,11 +586,11 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
             if test_method in [p835_personalized, 'p804']:
                 df_gold = update_gold_clips_for_p804(df_gold) if test_method == 'p804' else update_gold_clips_for_personalized(df_gold)
             
-            if 'gold_clips2' in args and args.gold_clips2 and os.path.exists(args.gold_clips2):
-                df_gold2 = pd.read_csv(args.gold_clips2)
-                df_gold2 = update_gold_clips_for_p804(df_gold2) if test_method == 'p804' else update_gold_clips_for_personalized(df_gold2)
+            #if 'gold_clips2' in args and args.gold_clips2 and os.path.exists(args.gold_clips2):
+            #    df_gold2 = pd.read_csv(args.gold_clips2)
+            #    df_gold2 = update_gold_clips_for_p804(df_gold2) if test_method == 'p804' else update_gold_clips_for_personalized(df_gold2)
                 #df_gold2.to_csv('tmp_gold2.csv', index=False)
-                sec_gold_question = True
+            #    sec_gold_question = True
         elif test_method == p835_personalized:
             raise Exception("CSV describing the golden clips is not provided")
         else:

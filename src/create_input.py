@@ -199,7 +199,10 @@ def add_clips_random(clips, n_clips_per_session, output_df, method, column_names
     all_clips_rating = all_clips['rating_clips'].to_numpy()
     clips_rating_sessions = np.reshape(
         all_clips_rating, (n_sessions, n_clips_per_session))
+    for q in range(n_clips_per_session):
+        output_df[f'Q{q}'] = clips_rating_sessions[:, q]
 
+    
     print(f'There are {len(all_clips)} clips and {n_sessions} sessions')
 
 
