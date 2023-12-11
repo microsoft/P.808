@@ -1665,7 +1665,7 @@ function preventTabsChangeBeforeRateRating(){
 			console.log('checked box');
 			// check if all the training samples are finished
 			console.log('N finished'+ list_train_samples_finished.size);
-			if (list_train_samples_finished.size == 9) {
+			if (list_train_samples_finished.size == 10) {
 				console.log('start activating');
 				actiavteTraining();
 				createCookie(config['cookieName'] + "_instra", "un_important", config['qualificationValidFor']);
@@ -3176,7 +3176,7 @@ function preventTabsChangeBeforeRateRating(){
 		</div>
 		<div class="panel-collapse collapse in" id="details_instruction_in">
 			<div class="panel-body">
-				<p style="background-color:Tomato;"> <b>NOTE: This HIT is new. Please carefully read and follow the instruction.</b></p>
+				<p style="background-color:Tomato;"> <b>NOTE: This instruction is new. Please carefully read and follow the instruction.</b></p>
 				
 				<p>In this experiment, you will be rating the speech quality of sound samples involving different speech impairments and background
 					noise. Each trial will include <b>1 audio sample</b>, which should be rated on <b>7 scales</b>. First, you must listen to the clip 
@@ -3199,7 +3199,7 @@ function preventTabsChangeBeforeRateRating(){
 				<h4>Scales and examples:</h4>				
 				<!-- BAK-->
 				<p> <b>1. Noisiness:</b></p>
-				<p>"Noisiness" refers to how noisy a speech sample sounds. Noise can be present as <u>background noise </u> and may be described with terms like "humming", "hissing" or "buzzy".</p>
+				<p>"Noisiness" refers to how noisy a speech sample sounds. Noise can be present as <u>background noise </u>, circuit noise, and coding noise. It may be described with terms like "humming", "hissing" or "buzzy".</p>
 				<div class="row">
 					<div class="col-sm-3"></div> 
 					<div class="col-sm-6">
@@ -3270,8 +3270,14 @@ function preventTabsChangeBeforeRateRating(){
 						<p align="center"> <span class="baudio" id="ins8" data-onfinished="inst_finished"
 							data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/multi/col_all.wav">&nbsp;</span>							
 						</p>
-						<p align="center"> Thease samples sound unnatural.</p>
+				
                         <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/multi/col.png" width ="100%">
+
+						<!-- THDN  -->
+						<p align="center">Another sample with high <b>Coloration</b> combined with other distortions like <b>Noisiness</b>.</p>
+						<p align="center"> <span class="baudio" id="ins13" data-onfinished="inst_finished"
+							data-src="https://deepechoblob.blob.core.windows.net/p808-runs/sig-icassp2023-blind-2023-01-23/kuaishou-track1/ee46997b-25bd-4a4e-870d-5663135a87d1.wav">&nbsp;</span>							
+						</p>
 					</div>
 						<div class="col-sm-3"></div>
 				</div>
