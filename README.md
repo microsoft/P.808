@@ -34,7 +34,7 @@ Babak Naderi, Ross Cutler, INTERSPEECH 2020.
 * [Crowdsourcing approach for subjective evaluation of echo impairment.](https://arxiv.org/pdf/2010.13063.pdf)
 Ross Cutler, Babak Naderi, Markus Loide, Sten Sootla, Ando Saabas, ICASSP 2021.
 
-* [Subjective Evaluation of Noise Suppression Algorithms in Crowdsourcing. (How we label the data for the DNS challenge.)](https://arxiv.org/pdf/2010.13200.pdf)
+* [Subjective Evaluation of Noise Suppression Algorithms in Crowdsourcing](https://arxiv.org/pdf/2010.13200.pdf)
 Babak Naderi, Ross Cutler, INTERSPEECH 2021.
 
 * [Multi-dimensional Speech Quality Assessment in Crowdsourcing.](https://arxiv.org/pdf/2309.07385.pdf)
@@ -69,17 +69,6 @@ If you use this tool in your research please cite it with the following referenc
   author={Naderi, Babak and Cutler, Ross},
   booktitle={Proc. INTERSPEECH},
   year={2021}
-}
-```
-
-```BibTex
-@inproceedings{naderi2024multi,
-  title={Multi-dimensional speech quality assessment in crowdsourcing},
-  author={Naderi, Babak and Cutler, Ross and Ristea, Nicolae-C{\u{a}}t{\u{a}}lin},
-  booktitle={ICASSP 2024-2024 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
-  pages={696--700},
-  year={2024},
-  organization={IEEE}
 }
 ```
 
