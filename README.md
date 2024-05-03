@@ -44,10 +44,10 @@ Babak Naderi, Ross Cutler, Nicolae-Catalin Ristea.
 If you use this tool in your research please cite it with the following references:
 
 ```BibTex
-@article{naderi2020,
+@inproceedings{naderi2020,
   title={An Open source Implementation of ITU-T Recommendation P.808 with Validation},
   author={Naderi, Babak and Cutler, Ross},
-  journal={Proc. Interspeech},
+  booktitle={Proc. INTERSPEECH},
   year={2020}
 }
 ```
@@ -64,23 +64,35 @@ If you use this tool in your research please cite it with the following referenc
 ```
 
 ```BibTex
-@article{naderi2021,
+@inproceedings{naderi2021,
   title={Subjective Evaluation of Noise Suppression Algorithms in Crowdsourcing},
   author={Naderi, Babak and Cutler, Ross},
-  journal={Proc. Interspeech},
+  booktitle={Proc. INTERSPEECH},
   year={2021}
 }
 ```
 
 ```BibTex
-@article{naderi2023multi,
-  title={Multi-dimensional Speech Quality Assessment in Crowdsourcing},
-  author={Naderi, Babak and Cutler, Ross and Ristea, Nicolae-Catalin},
-  journal={arXiv preprint arXiv:2309.07385},
-  year={2023}
+@inproceedings{naderi2024multi,
+  title={Multi-dimensional speech quality assessment in crowdsourcing},
+  author={Naderi, Babak and Cutler, Ross and Ristea, Nicolae-C{\u{a}}t{\u{a}}lin},
+  booktitle={ICASSP 2024-2024 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
+  pages={696--700},
+  year={2024},
+  organization={IEEE}
 }
 ```
 
+```BibTex
+@inproceedings{naderi2024multi,
+  title={Multi-dimensional speech quality assessment in crowdsourcing},
+  author={Naderi, Babak and Cutler, Ross and Ristea, Nicolae-C{\u{a}}t{\u{a}}lin},
+  booktitle={ICASSP 2024-2024 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
+  pages={696--700},
+  year={2024},
+  organization={IEEE}
+}
+```
 
 ## Getting Started
 * [Preparation](docs/preparation.md)
