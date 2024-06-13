@@ -857,7 +857,7 @@ async def main(cfg, test_method, args):
                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg, n_HITs)
     elif test_method in ['p835', 'echo_impairment_test']:
         await create_hit_app_p835(cfg_hit_app, template_path, output_html_file, args.training_clips,
-                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
+                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg, n_HITs)
     elif test_method in [p835_personalized, 'p804']:
         await create_hit_app_pp835_p804(
             cfg_hit_app,
