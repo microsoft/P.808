@@ -1659,6 +1659,36 @@ def number_of_uniqe_workers(answers):
     return len(df)
 
 
+def aggregate_condition_results(votes, cfg, out_path):
+    """Aggregate votes by condition keys and question type.
+
+    Parameters
+    ----------
+    votes : list[dict]
+        List of vote entries generated during parsing.
+    cfg : configparser.ConfigParser
+        Configuration to read ``condition_keys``.
+    out_path : str
+        Path of the CSV file to create.
+    """
+
+    if len(votes) == 0:
+        return
+
+    df = pd.DataFrame(votes)
+    group_keys = []
+    if cfg.has_option('general', 'condition_keys'):
+        group_keys.extend([k.strip() for k in cfg['general']['condition_keys'].split(',')])
+
+    if 'question_type' in df.columns:
+        group_keys.append('question_type')
+
+    agg = df.groupby(group_keys)['vote'].agg(['count', 'mean', 'std']).reset_index()
+    agg.rename(columns={'count': 'n', 'mean': 'MOS', 'std': 'std'}, inplace=True)
+    agg['95%CI'] = 1.96 * agg['std'] / np.sqrt(agg['n'])
+    agg.to_csv(out_path, index=False)
+
+
 def get_ans_suffixes(test_method):
     if "p835" in test_method:
         question_name_suffix = p835_suffixes[2]
@@ -1899,6 +1929,10 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
                 + f"_all_votes_per_clip.csv"
             )
     write_dict_as_csv(all_data_per_worker, all_votes_per_file_path)
+
+    # aggregated analysis report
+    agg_path = os.path.splitext(answer_path)[0] + '_aggregated_results.csv'
+    aggregate_condition_results(all_data_per_worker, config, agg_path)
 
 
 if __name__ == "__main__":
