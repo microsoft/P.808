@@ -15,7 +15,10 @@ class AzureClipStorage:
         self._account_key = config['StorageAccountKey']
         self._container = config['Container']
         self._alg = alg
-        self._clips_path = config['Path'].lstrip('/')
+        path = config['Path'].lstrip('/')
+        if path and not path.endswith('/'):
+            path += '/'
+        self._clips_path = path
         self._clip_names = []
         self._modified_clip_names = []
         self._SAS_token = ''
