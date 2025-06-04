@@ -93,6 +93,7 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path, gener
     # BW check
     config['bw_min'] = general_cfg['bw_min']
     config['bw_max'] = general_cfg['bw_max']
+    config['cmp_pass_threshold'] = general_cfg['cmp_pass_threshold']
 
     with open(template_path, 'r') as file:
         content = file.read()
@@ -134,6 +135,7 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     # BW check
     config['bw_min'] = general_cfg['bw_min']
     config['bw_max'] = general_cfg['bw_max']
+    config['cmp_pass_threshold'] = general_cfg['cmp_pass_threshold']
     
     with open(template_path, 'r') as file:
         content = file.read()
