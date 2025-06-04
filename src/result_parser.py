@@ -890,11 +890,13 @@ def evaluate_rater_performance(data, use_sessions, reject_on_failure=False):
 
     # rater_min_accepted_hits_current_test
 
-    grouped = df.groupby(['worker_id', 'accept_and_use']).size().unstack(fill_value=0).reset_index()    
-    grouped = grouped.rename(columns={0: 'not_used_count', 1: 'used_count'})
-    # check if not_used_count is in grouped
-    if 'not_used_count' in grouped.columns:
-        grouped['acceptance_rate'] = (grouped['used_count'] * 100)/(grouped['used_count'] + grouped['not_used_count'])
+    grouped = df.groupby(['worker_id', 'accept']).size().unstack(fill_value=0).reset_index()
+    grouped = grouped.rename(columns={0: 'rejected_count', 1: 'accepted_count'})
+    # check if rejected_count is in grouped
+    if 'rejected_count' in grouped.columns:
+        grouped['acceptance_rate'] = (grouped['accepted_count'] * 100)/(
+            grouped['accepted_count'] + grouped['rejected_count']
+        )
     else:
         grouped['acceptance_rate'] = 100
     #grouped.to_csv('tmp.csv')
@@ -910,8 +912,8 @@ def evaluate_rater_performance(data, use_sessions, reject_on_failure=False):
         rater_min_accepted_hits_current_test = 0
 
     grouped_rej = grouped[(grouped.acceptance_rate < rater_min_acceptance_rate_current_test)
-                      | (grouped.used_count < rater_min_accepted_hits_current_test)]
-    n_submission_removed_only_for_performance = grouped_rej['used_count'].sum()
+                      | (grouped.accepted_count < rater_min_accepted_hits_current_test)]
+    n_submission_removed_only_for_performance = grouped_rej['accepted_count'].sum()
     print(f'{n_submission_removed_only_for_performance} sessions are removed only becuase of performance criteria ({section}).')
     workers_list_to_remove = list(grouped_rej['worker_id'])
     
