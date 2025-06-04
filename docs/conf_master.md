@@ -34,7 +34,7 @@ following message next time they want to perform a HIT from this group:
     ````
 * `allowed_max_hit_in_project:60`: Number of assignments that one worker can perform from this project.
 * `hit_base_payment:0.5`: Base payment for an accepted assignment from this HIT. This value will be used as information.
-* `quantity_hits_more_than: 30`: Defines the necessary hits required for quantity bonus.
+* `quantity_hits_more_than: 30`: Defines the necessary hits required for quantity bonus. This should typically be about half of the total number of HITs in the study.
 * `quantity_bonus: 0.1`: The amount of the quantity bonus to be payed for each accepted assignment.
 * `quality_top_percentage: 20`: Defines when quality bonus should be applied (in addition, participant should be 
 eligible for quantity bonus).
@@ -56,7 +56,7 @@ following message next time they want to perform a HIT from this group:
     ````
 * `allowed_max_hit_in_project:60`: Number of assignments that one worker can perform from this project.
 * `hit_base_payment:0.5`: Base payment for an accepted assignment from this HIT. This value will be used as information.
-* `quantity_hits_more_than: 30`: Defines the necessary hits required for quantity bonus.
+* `quantity_hits_more_than: 30`: Defines the necessary hits required for quantity bonus. This should typically be about half of the total number of HITs in the study.
 * `quantity_bonus: 0.1`: The amount of the quantity bonus to be payed for each accepted assignment.
 * `quality_top_percentage: 20`: Defines when quality bonus should be applied (in addition, participant should be 
 eligible for quantity bonus).
@@ -75,7 +75,7 @@ following message next time they want to perform a HIT from this group:
     ````
 * `allowed_max_hit_in_project:60`: Number of assignments that one worker can perform from this project.
 * `hit_base_payment:0.5`: Base payment for an accepted assignment from this HIT. This value will be used as information.
-* `quantity_hits_more_than: 30`: Defines when quantity bonus requirement.
+* `quantity_hits_more_than: 30`: Defines when quantity bonus requirement. This should typically be about half of the total number of HITs in the study.
 * `quantity_bonus: 0.1`: the amount of the quantity bonus to be payed for each accepted assignment.
 * `quality_top_percentage: 20`: Defines when quality bonus should be applied (in addition, participant should be 
 eligible for quantity bonus).

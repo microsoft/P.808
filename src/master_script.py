@@ -843,6 +843,13 @@ async def main(cfg, test_method, args):
         print("\nWARNING: it seems that 'quantity_hits_more_than' not set properly. Consider to use a number in"
                               f" the range of [{int(n_HITs/2)}, {int(n_HITs*2/3)}].\n")
 
+    # check settings of allowed hits
+    allowed_hits = int(cfg_hit_app["allowed_max_hit_in_project"])
+    if allowed_hits > n_HITs:
+        print(f"\nWARNING: 'allowed_max_hit_in_project' ({allowed_hits}) is greater than the total number of HITs ({n_HITs}).\n")
+    if allowed_hits < int(cfg_hit_app["quantity_hits_more_than"]):
+        print(f"\nWARNING: 'allowed_max_hit_in_project' ({allowed_hits}) is less than 'quantity_hits_more_than' ({cfg_hit_app['quantity_hits_more_than']}). Workers will not reach the quantity bonus.\n")
+
     # create general config
     general_cfg = prepare_basic_cfg(df)
     # add BW check config
