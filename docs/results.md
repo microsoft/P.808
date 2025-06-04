@@ -12,10 +12,15 @@ created in the first step ([preparation](preparation.md)).
     `condition_pattern` and `condition_keys`.
     
     **Note**: The `condition_pattern` specifies which part of the clip URL refers to the condition name/number that they are
-    representing. Clips with the same value on that position, are considered to belong to the same condition and votes 
-    assigned to them will be aggregated to create the `per_condition` report. Example: Assuming `D501_C03_M2_S02.wav` is 
-    a file name,and `03` is the condition name. The pattern should be set to `.*_c(?P<condition_num>\d{1,2})_.*.wav` , 
-    and the `condition_keys` to `condition_num`.
+    representing. Clips with the same value on that position, are considered to belong to the same condition and votes
+    assigned to them will be aggregated to create the `per_condition` report.
+
+    The pattern follows Python regular expression syntax and should use **named
+    capture groups**. The names of the groups become column names in the reports.
+    Example: Assuming `D501_C03_M2_S02.wav` is a file name and `03` is the
+    condition identifier, set
+    `condition_pattern: .*_c(?P<condition_num>\d{1,2})_.*\.wav` and
+    `condition_keys` to `condition_num`.
    
     **Note**: You can activate the automatic outlier detection method per condition. To do so
     open `YOUR_PROJECT_NAME_ccr_result_parser.cfg`, in section `[accept_and_use]` add `outlier_removal: true`. The [z-score
