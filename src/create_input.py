@@ -446,13 +446,20 @@ def create_input_for_dcrccr(cfg, df, output_path):
     packing_strategy = cfg.get("clip_packing_strategy", "random").strip().lower()
 
     if packing_strategy == "balanced_block":
-        add_clips_balanced_block_ccr(clips, refs, cfg["condition_pattern"], cfg.get("block_keys", cfg["condition_keys"])
-                                     , n_clips_per_session, output_df)
+        add_clips_balanced_block_ccr(
+            clips,
+            refs,
+            cfg["condition_pattern"],
+            cfg.get("block_keys", cfg["condition_keys"]),
+            n_clips_per_session,
+            output_df,
+        )
     elif packing_strategy == "random":
         add_clips_random_ccr(clips, refs, n_clips_per_session, output_df)
 
-    n_sessions = math.ceil(n_clips / n_clips_per_session)
-    print(f'{n_clips} clips and {n_sessions} sessions')
+    # number of sessions equals the number of rows in output_df
+    n_sessions = len(output_df)
+    print(f"{n_clips} clips and {n_sessions} sessions")
 
     # create math
     math_source = df['math'].dropna()
@@ -482,24 +489,25 @@ def create_input_for_dcrccr(cfg, df, output_path):
                                     'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
     # add math
     output_df['math'] = math_output
-    # rating_clips
-    #   repeat some clips to have a full design
-    n_questions = int(cfg['number_of_clips_per_session'])
-    needed_clips = n_sessions * n_questions
+    if packing_strategy == "random":
+        # rating_clips
+        #   repeat some clips to have a full design
+        n_questions = int(cfg["number_of_clips_per_session"])
+        needed_clips = n_sessions * n_questions
 
-    full_clips = np.tile(clips.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
-    full_refs = np.tile(refs.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
+        full_clips = np.tile(clips.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
+        full_refs = np.tile(refs.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
 
-    full = list(zip(full_clips, full_refs))
-    random.shuffle(full)
-    full_clips, full_refs = zip(*full)
+        full = list(zip(full_clips, full_refs))
+        random.shuffle(full)
+        full_clips, full_refs = zip(*full)
 
-    clips_sessions = np.reshape(full_clips, (n_sessions, n_questions))
-    refs_sessions = np.reshape(full_refs, (n_sessions, n_questions))
+        clips_sessions = np.reshape(full_clips, (n_sessions, n_questions))
+        refs_sessions = np.reshape(full_refs, (n_sessions, n_questions))
 
-    for q in range(n_questions):
-        output_df[f'Q{q}_P'] = clips_sessions[:, q]
-        output_df[f'Q{q}_R'] = refs_sessions[:, q]
+        for q in range(n_questions):
+            output_df[f"Q{q}_P"] = clips_sessions[:, q]
+            output_df[f"Q{q}_R"] = refs_sessions[:, q]
 
     # trappings
     if int(cfg['number_of_trapping_per_session']) > 0:
