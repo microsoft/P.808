@@ -1,9 +1,15 @@
 """
-/*---------------------------------------------------------------------------------------------
+/*-------------------------------------------------------------------------------
 *  Copyright (c) Microsoft Corporation. All rights reserved.
 *  Licensed under the MIT License. See License.txt in the project root for license information.
-*--------------------------------------------------------------------------------------------*/
+*-------------------------------------------------------------------------------*/
 @author: Babak Naderi
+
+This module parses MTurk result files and aggregates the votes per clip or per
+condition. Condition names can be automatically derived from the clip URL or file
+name using regular expressions. Set the desired pattern via the ``condition_pattern``
+option in the configuration file. The pattern must contain named capture groups
+whose values will appear in the generated reports.
 """
 
 import csv
@@ -1283,10 +1289,19 @@ file_to_condition_map = {}
 
 
 def conv_filename_to_condition(f_name):
-    """
-    extract the condition name from filename given the mask in the config
-    :param f_name:
-    :return:
+    """Return condition information extracted from ``f_name``.
+
+    The regular expression defined by ``condition_pattern`` in the configuration
+    file is applied to the file name. The pattern should contain named capture
+    groups so that their values can be used as columns in the final reports. If
+    the pattern does not match the given file name the dictionary
+    ``{"Unknown": "NoCondition"}`` is returned.
+
+    Example
+    -------
+    >>> config['general']['condition_pattern'] = r".*_c(?P<cond>\\d{2})_.*\\.wav"
+    >>> conv_filename_to_condition("D501_C03_M2_S02.wav")
+    {'cond': '03'}
     """
     if f_name in file_to_condition_map:
         return file_to_condition_map[f_name]
@@ -1577,7 +1592,7 @@ def calc_payment_stat(df):
         median_time_in_sec = df[word_duration_col].median()
     
     payment_text = df['Reward'].values[0]
-    paymnet = re.findall("\d+\.\d+", payment_text)
+    paymnet = re.findall(r"\\d+\\.\\d+", payment_text)
 
     avg_pay = 3600*float(paymnet[0])/median_time_in_sec
     
@@ -1590,18 +1605,6 @@ def calc_stats(input_file):
     calc the statistics considering the time worker spend
     :param input_file:
     :return:
-    """
-    """
-    df = pd.read_csv(input_file, low_memory=False)
-    median_time_in_sec = df["WorkTimeInSeconds"].median()
-    payment_text = df['Reward'].values[0]
-    paymnet = re.findall("\d+\.\d+", payment_text)
-
-    avg_pay = 3600*float(paymnet[0])/median_time_in_sec
-    formatted_time = time.strftime("%M:%S", time.gmtime(median_time_in_sec))
-    print(
-        f"Stats: work duration (median) {formatted_time} (MM:SS), payment per hour: ${avg_pay:.2f}"
-    )
     """
     df = pd.read_csv(input_file, low_memory=False)
     df_full = df.copy()
