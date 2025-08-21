@@ -26,6 +26,7 @@ from azure_clip_storage import (
 
 #p835_personalized = "p835_personalized"
 p835_personalized = "pp835"
+p804_conference = "p804_conference"
 
 """
 def create_analyzer_cfg_acr(cfg, template_path, out_path):
@@ -436,7 +437,7 @@ async def create_hit_app_pp835_p804(
         df_train = pd.read_csv(args.training_gold_clips)
         gold_in_train = []
         cols = ['sig_ans','bak_ans','ovrl_ans']
-        if test_method == 'p804':
+        if test_method == 'p804' or test_method == p804_conference:
             cols = ['sig_ans','noise_ans','ovrl_ans', 'disc_ans', 'col_ans', 'loud_ans', 'reverb_ans' ]
 
         for _, row in df_train.iterrows():
@@ -578,13 +579,13 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
         df_clips = pd.DataFrame({'rating_clips': rating_clips})
 
     sec_gold_question = False
-    if test_method in ["acr", "p835", "echo_impairment_test", p835_personalized,'p804']:
+    if test_method in ["acr", "p835", "echo_impairment_test", p835_personalized,'p804', p804_conference]:
         # prepare the golden clips
         if gold and os.path.exists(gold):
             df_gold = pd.read_csv(gold)
             # TODO change it with p835_personalized
-            if test_method in [p835_personalized, 'p804']:
-                df_gold = update_gold_clips_for_p804(df_gold) if test_method == 'p804' else update_gold_clips_for_personalized(df_gold)
+            if test_method in [p835_personalized, 'p804', p804_conference]:
+                df_gold = update_gold_clips_for_p804(df_gold) if test_method in ['p804', p804_conference] else update_gold_clips_for_personalized(df_gold)
             
             #if 'gold_clips2' in args and args.gold_clips2 and os.path.exists(args.gold_clips2):
             #    df_gold2 = pd.read_csv(args.gold_clips2)
@@ -724,6 +725,14 @@ def get_path(test_method, is_p831_fest):
         os.path.dirname(__file__), "assets_master_script/p804_result_parser_template.cfg"
     )
 
+    # for P804_conference
+    p804_conference_template_path = os.path.join(
+        os.path.dirname(__file__), "P808Template/P808_conference.html"
+    )
+    p804_conference_cfg_template_path = os.path.join(
+        os.path.dirname(__file__), "assets_master_script/p804_result_parser_template.cfg"
+    )
+
     # for echo_impairment_test
     echo_impairment_test_fest_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_fest_template.html')
     echo_impairment_test_template_path = os.path.join(os.path.dirname(__file__), 'P808Template/echo_impairment_test_template.html')
@@ -749,6 +758,7 @@ def get_path(test_method, is_p831_fest):
         (p835_personalized, False): (pp835_template_path, pp835_cfg_template_path),
         ('echo_impairment_test', False): (echo_impairment_test_template_path, acr_cfg_template_path),
         ("p804", False): (p804_template_path, p804_cfg_template_path),
+        (p804_conference, False): (p804_conference_template_path, p804_conference_cfg_template_path),
     }
     # TODO: check if it works correctly by Personalized P.835
     template_path, cfg_path = method_to_template[test_method, is_p831_fest]
@@ -858,7 +868,7 @@ async def main(cfg, test_method, args):
     elif test_method in ['p835', 'echo_impairment_test']:
         await create_hit_app_p835(cfg_hit_app, template_path, output_html_file, args.training_clips,
                                   args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
-    elif test_method in [p835_personalized, 'p804']:
+    elif test_method in [p835_personalized, 'p804', p804_conference]:
         await create_hit_app_pp835_p804(
             cfg_hit_app,
             template_path,
@@ -878,7 +888,7 @@ async def main(cfg, test_method, args):
     output_cfg_file_name = f"{args.project}_p831_{test_method}_result_parser.cfg" if is_p831_fest else f"{args.project}_{test_method}_result_parser.cfg"
     output_cfg_file = os.path.join(output_dir, output_cfg_file_name)
 
-    if test_method in ['acr', 'p835', 'echo_impairment_test', p835_personalized, 'p804']:
+    if test_method in ['acr', 'p835', 'echo_impairment_test', p835_personalized, 'p804', p804_conference]:
         create_analyzer_cfg_general(cfg, cfg_hit_app, cfg_path, output_cfg_file, general_cfg, n_HITs)
     else:
         create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file, general_cfg, n_HITs)
@@ -890,7 +900,7 @@ if __name__ == '__main__':
     parser.add_argument("--project", help="Name of the project", required=True)
     parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=True)
     parser.add_argument("--method", required=True,
-                        help=f"one of the test methods: 'acr', 'dcr', 'ccr', 'p835','{p835_personalized}', p804, or 'echo_impairment_test'")
+                        help=f"one of the test methods: 'acr', 'dcr', 'ccr', 'p835','{p835_personalized}', 'p804', '{p804_conference}', or 'echo_impairment_test'")
     parser.add_argument("--p831_fest", action='store_true', help="Use the question set of P.831 for FEST")
     parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
                                         "case of ccr/dcr it should also contain a column for 'references'")
@@ -909,11 +919,11 @@ if __name__ == '__main__':
     # check input arguments
     args = parser.parse_args()
 
-    methods = ["acr", "dcr", "ccr", "p835", "echo_impairment_test", p835_personalized, 'p804']
+    methods = ["acr", "dcr", "ccr", "p835", "echo_impairment_test", p835_personalized, 'p804', p804_conference]
     test_method = args.method.lower()
     assert (
         test_method in methods
-    ), f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835', '{p835_personalized}', 'echo_impairment_test', 'p804'"
+    ), f"No such a method supported, please select between 'acr', 'dcr', 'ccr', 'p835', '{p835_personalized}', 'echo_impairment_test', 'p804', '{p804_conference}'"
 
     p831_methods = ["acr", "dcr", "echo_impairment_test"]
     if args.p831_fest:
@@ -926,8 +936,8 @@ if __name__ == '__main__':
         ), f"No training clips file in {args.training_clips}"
     elif args.training_gold_clips:
         assert os.path.exists(args.training_gold_clips), f"No csv file containing training_gold_clips in {args.training_gold_clips}"
-        if test_method not in [p835_personalized,"p804"]:
-            raise ValueError("training_gold clips are only supported for personalized p835 and p804")
+        if test_method not in [p835_personalized,"p804", p804_conference]:
+            raise ValueError("training_gold clips are only supported for personalized p835, p804, and p804_conference")
     else:
         raise ValueError("No training or training_gold clips provided")
 
@@ -942,7 +952,7 @@ if __name__ == '__main__':
     else:
         assert True, "Neither clips file not cloud store provided for rating clips"
 
-    if test_method in ["acr", "p835", "echo_impairment_test", p835_personalized, 'p804']:
+    if test_method in ["acr", "p835", "echo_impairment_test", p835_personalized, 'p804', p804_conference]:
         if args.gold_clips:
             assert os.path.exists(args.gold_clips), f"No csv file containing gold clips in {args.gold_clips}"
         elif cfg.has_option('GoldenSample', 'Path'):
