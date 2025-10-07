@@ -7,11 +7,9 @@
 -->
 
 <head>
-	
-	
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>	
+	<link rel="stylesheet" href="https://vqa.eastus2.cloudapp.azure.com/api/static/assets/bootstrap.min.css">
+	<script src="https://vqa.eastus2.cloudapp.azure.com/api/static/assets/jquery.min.js"></script>
+	<script src="https://vqa.eastus2.cloudapp.azure.com/api/static/assets/bootstrap.min.js"></script>
 	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 	<meta content="utf-8">
 </head>
@@ -243,7 +241,7 @@
 
 </style>
 
-<script type="text/javascript">
+<script type="text/javascript" id="js_part2" nonce="csp_nonce_token" >
 
 	/*
 	General configuration file:
@@ -566,7 +564,7 @@
 				$("#rating_section").removeClass("disabled2_section");
 				$("#details_instruction").removeClass("disabled2_section");				
 			}*/
-			
+			set_onclick_listeners();
 
 		} catch (err) {
 			console.log(err);
@@ -1691,7 +1689,7 @@ function preventTabsChangeBeforeRateRating(){
 
 </script>
 
-<script type="text/javascript">
+<script type="text/javascript" id="js_part3"  nonce="csp_nonce_token">
 
 	/*
 		functions responsible to headset check
@@ -1731,13 +1729,6 @@ function preventTabsChangeBeforeRateRating(){
 				$("#status").html("Done. Please continue.");
 			});
 	}
-
-//function startMeasure(){
-// 	startHeadsetCheck();
-//}
-</script>
-
-<script type="text/javascript">
 
 	/*
 		shuffle function for randomization of items
@@ -2596,6 +2587,28 @@ function preventTabsChangeBeforeRateRating(){
 
 	}
 
+
+// --------------- new code
+
+function set_onclick_listeners(){
+	document.getElementById("gold_warning_checkbox").onchange = function() { gold_warning(); };
+	document.getElementById("Math").onchange = function() { userAnsweringToSetupQuestions(); };
+	// same here: <button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
+	document.getElementById("start_headset_check").onclick = function() { startHeadsetCheck(); };
+	//<input type="checkbox" id="inst_check" name="instruction" value="understand" onchange="inst_finished('checkbox')">
+	document.getElementById("inst_check").onchange = function() { inst_finished('checkbox'); };
+
+	document.getElementById("showPreviousQuestionInTrainingSection").onclick = function() { showPreviousQuestionInTrainingSection(); };
+	document.getElementById("showNextQuestionInTrainingSection").onclick = function() { showNextQuestionInTrainingSection(); };
+	// <button type="button" class="btn btn-success" id="show_detailed_instruction" onclick="show_detailed_instruction();return false;">
+	document.getElementById("show_detailed_instruction").onclick = function() { show_detailed_instruction(); return false; };
+	document.getElementById("prev-rating").onclick = function() { showPreviousQuestionInRatingSection(); };
+	document.getElementById("next-rating").onclick = function() { showNextQuestionInRatingSection(); };
+	// <a id="myLink" href="#" onclick="help_which_questions_remain();return false;">
+	document.getElementById("myLink").onclick = function() { help_which_questions_remain(); return false; };
+
+}
+
 </script>
 
 
@@ -2614,7 +2627,7 @@ function preventTabsChangeBeforeRateRating(){
 		<p> 
 
 			<div class="checkbox">
-				<label><input type="checkbox" value="warining" onchange="gold_warning()">I read this message carefully and understand it.</label>
+				<label><input id="gold_warning_checkbox" type="checkbox" value="warining">I read this message carefully and understand it.</label>
 			  </div>
 
 		</p>
@@ -3002,8 +3015,7 @@ function preventTabsChangeBeforeRateRating(){
 					<div align="center"> <span class="baudio" id="math1" data-src="${math}">&nbsp;</span> </div>
 
 
-					<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text"
-							onchange="userAnsweringToSetupQuestions()" /> </div>
+					<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" /> </div>
 
 				</fieldset>
 
@@ -3156,7 +3168,7 @@ function preventTabsChangeBeforeRateRating(){
 					Please click on <b>Allow</b> (on some of smartphones there will be no message). <u>We do not process
 						or record any audio with your microphone</u>.
 				<div class="center">
-					<button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
+					<button type="button" class="btn btn-primary center" id="start_headset_check">Start</button>
 					<div id="status"> </div>
 				</div>
 			</div>
@@ -3330,7 +3342,7 @@ function preventTabsChangeBeforeRateRating(){
 						<p>  Scores showing the <b>best</b> quality are: <b>Not noisy, Optimal loudness, Continuous, Uncolored, No reverb, Not distorted, and Excellent quality. </b></p>
 						<p>  Scores showing the <b>worst</b> quality are: <b>Noisy, Sub-optimal loudness, Discontinuous, Colored, High reverb, Very distorted, and Bad quality.</b></p>
 					<p>
-							<input type="checkbox" id="inst_check" name="instruction" value="understand" onchange="inst_finished('checkbox')">
+							<input type="checkbox" id="inst_check" name="instruction" value="understand" >
 							<label for="inst_check">I confirm that I read the instruction and understand it.</label><br>
 					</p>
 				</div>	
@@ -3391,10 +3403,10 @@ function preventTabsChangeBeforeRateRating(){
 
 					<nav aria-label="..." id="navNextPreT">
 						<ul class="pager">
-							<li class="previous" onclick="showPreviousQuestionInTrainingSection();"><a href="#nav-tabContent"
+							<li class="previous" id="showPreviousQuestionInTrainingSection" ><a href="#nav-tabContent"
 									class="page-link" role="button"><span aria-hidden="true">&larr;</span>Previous trial</a>
 							</li>
-							<li class="next" onclick="showNextQuestionInTrainingSection();"><a href="#nav-tabContent"
+							<li class="next" id="showNextQuestionInTrainingSection"><a href="#nav-tabContent"
 									class="page-link" id="next_button_training" role="button">Next trial<span aria-hidden="true">&rarr;</span></a>
 							</li>
 						</ul>
@@ -3432,7 +3444,7 @@ function preventTabsChangeBeforeRateRating(){
 		<div class="panel-body">
 			
 			<p style="background-color:Tomato;"> <b>NOTE: New Instruction (April, 2023). This HIT is newly designed with updated instruction. Please carefully read and follow</b></p>
-			<div class="row text-right" style="margin:10px"><button type="button" class="btn btn-success" onclick="show_detailed_instruction();return false;">Show the Detailed instruction again</button></div>	
+			<div class="row text-right" style="margin:10px"><button type="button" class="btn btn-success" id="show_detailed_instruction">Show the Detailed instruction again</button></div>	
 
 			<div>Please adjust the volume level of your headset to a <b>comfortable level</b> so that you hear the following audio sample very well. It is a very important step for this task and will directly influence your judgment.</label>
 				<p align="center"> <span class="baudio" id="volume4"
@@ -3461,10 +3473,10 @@ function preventTabsChangeBeforeRateRating(){
 
 			<nav aria-label="..." id="navNextPre"></nav>
 				<ul class="pager">
-					<li class="previous" id="prev-rating" onclick="showPreviousQuestionInRatingSection();"><a
+					<li class="previous" id="prev-rating" ><a
 							href="#nav-tabContent-rating" class="page-link" role="button"><span
 								aria-hidden="true">&larr;</span>Previous trial</a></li>
-					<li class="next" id="next-rating" onclick="showNextQuestionInRatingSection();"><a href="#nav-tabContent-rating"
+					<li class="next" id="next-rating" ><a href="#nav-tabContent-rating"
 							class="page-link" id="next_button_rating" role="button">Next trial<span aria-hidden="true">&rarr;</span></a></li>
 				</ul>
 			</nav>
@@ -3478,7 +3490,7 @@ function preventTabsChangeBeforeRateRating(){
 <section class="container" id="thanks">
 	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
 	<p>Note: The submit button works only if you answer to all questions. Make sure to answer to all 7 questions in each
-		trial. <a id="myLink" href="#" onclick="help_which_questions_remain();return false;">Click here to see which
+		trial. <a id="myLink" href="#" >Click here to see which
 			questions in the "Rating" section are not answered?</a></p>
 </section>
 
