@@ -7,9 +7,9 @@
 -->
 
 <head>
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<link rel="stylesheet" href="https://vqa.eastus2.cloudapp.azure.com/api/static/assets/bootstrap.min.css">
+	<script src="https://vqa.eastus2.cloudapp.azure.com/api/static/assets/jquery.min.js"></script>
+	<script src="https://vqa.eastus2.cloudapp.azure.com/api/static/assets/bootstrap.min.js"></script>
 	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 	<meta content="utf-8">
 </head>
@@ -49,7 +49,7 @@ section {
 fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5px; }
 </style>
 
-<script type="text/javascript">
+<script type="text/javascript"  id="js_part2" nonce="csp_nonce_token">
 
 /*
 General configuration file:
@@ -182,6 +182,7 @@ $(function() {
 		initializeQualification();
 		initializeActivePageMonitoring();
 		cmp_check_on_load();
+		set_onclick_listeners();
 	}catch(err){
 		console.error(err);
 		recordError(err.name,err.message);
@@ -948,7 +949,7 @@ function userAnsweringToSetupQuestions(){
 
 </script>
 
-<script type="text/javascript">
+<script type="text/javascript" id="js_part3"  nonce="csp_nonce_token">
 
 /*
 	functions responsible to headset check
@@ -989,15 +990,10 @@ const startHeadsetCheck = async function() {
   });
 }
 
-//function startMeasure(){
-// 	startHeadsetCheck();
-//}
-</script>
 
-<script type="text/javascript">
 
 /*
-	shuffle function for randomization of items -->
+	shuffle function for randomization of items 
 */
 function shuffle(a) {
 	var j, x, i;
@@ -1067,6 +1063,23 @@ function generate_rating_section(){
 	$('.question_number').html(urls.length);
 
 }
+
+// --------------- new code
+
+function set_onclick_listeners(){
+	
+	document.getElementById("Math").onchange = function() { userAnsweringToSetupQuestions(); };
+	// same here: <button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
+	document.getElementById("start_headset_check").onclick = function() { startHeadsetCheck(); };
+
+	document.getElementById("showPreviousQuestionInTrainingSection").onclick = function() { showPreviousQuestionInTrainingSection(); };
+	document.getElementById("showNextQuestionInTrainingSection").onclick = function() { showNextQuestionInTrainingSection(); };
+
+	document.getElementById("prev-rating").onclick = function() { showPreviousQuestionInRatingSection(); };
+	document.getElementById("next-rating").onclick = function() { showNextQuestionInRatingSection(); };
+
+
+}
 </script>
 
 <!--    Error -->
@@ -1108,19 +1121,19 @@ function generate_rating_section(){
 					<li>You must perform the task in a <b>quiet environment</b></li>
 					<li>Do not change the volume after modifying it in the Setup section.</li>
 				</ul>
+				<div class ="not_show_in_pl">
+					<p><b>Payment:</b></p>
+					<p>The result of this experiment is <b>very important for us and other scientist</b> working in this area. We have methods that analyse the consistency of your answers. We will use these methods to rank the submitted assignments according to quality.</p>
+					<p>For this experiment, we will pay a base reward of <b>${{cfg.hit_base_payment}}/HIT</b> for every accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You will receive a bonus of:</p>
 
-				<p><b>Payment:</b></p>
-				<p>The result of this experiment is <b>very important for us and other scientist</b> working in this area. We have methods that analyse the consistency of your answers. We will use these methods to rank the submitted assignments according to quality.</p>
-				<p>For this experiment, we will pay a base reward of <b>${{cfg.hit_base_payment}}/HIT</b> for every accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You will receive a bonus of:</p>
+					<ul>
+					<li>${{cfg.quantity_bonus}}/HIT (for a total of <b>${{cfg.sum_quantity}}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs that got accepted</b> or</li>
+					<li>${{cfg.quality_bonus}}/HIT (for a total of <b>${{cfg.sum_quality }}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs</b> <u>and</u> be in the <b>top {{cfg.quality_top_percentage}}% quality group</b>.</li>
+					</ul>
 
-				<ul>
-				  <li>${{cfg.quantity_bonus}}/HIT (for a total of <b>${{cfg.sum_quantity}}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs that got accepted</b> or</li>
-				  <li>${{cfg.quality_bonus}}/HIT (for a total of <b>${{cfg.sum_quality }}/HIT</b>) if you submit <b>more than {{cfg.quantity_hits_more_than}} HITs</b> <u>and</u> be in the <b>top {{cfg.quality_top_percentage}}% quality group</b>.</li>
-				</ul>
-
-				<p>Bonuses will be assigned with in 7 days.</p>
-				  <b>Please perform up to <b class="max_allowed_hits"> 0 </b> HITs from this group. If you do more than that, the <u>rest will be rejected.</u></b>
-
+					<p>Bonuses will be assigned with in 7 days.</p>
+					<b>Please perform up to <b class="max_allowed_hits"> 0 </b> HITs from this group. If you do more than that, the <u>rest will be rejected.</u></b>
+				</div>
 				  <h3>Attention: </h3>
 				  <p>This hit includes one or more Control clips (gold clips). Control clips are ones that we know that answer for and should be very easy to rate (they are clearly very good or very poor). They may target one or more scales. We include control clips in the HIT to ensure raters are paying attention and their environment hasn't changed.
 					  Wrong answer to control clip(s) will result in rejection of the HIT.</p>
@@ -1414,7 +1427,7 @@ function generate_rating_section(){
 				<div align="center"> <span class="baudio" id="math1" data-src="${math}" >&nbsp;</span> </div>
 
 
-		<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" onchange="userAnsweringToSetupQuestions()"/> </div>
+		<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" /> </div>
 
 		</fieldset>
 
@@ -1539,7 +1552,7 @@ function generate_rating_section(){
 					  After that, you might see a popup message from your browser asking for allowance to use your microphone.
 					  Please click on <b>Allow</b> (on some of smartphones there will be no message). <u>We do not process or record any audio with your microphone</u>.
 				 <div class="center">
-						<button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
+						<button type="button" class="btn btn-primary center" id="start_headset_check">Start</button>
 						<div id="status"> </div>
 			  	</div>
 			</div>
@@ -1572,8 +1585,8 @@ function generate_rating_section(){
 			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number_training"> 0 </b> questions.</div>
 			<nav aria-label="..." id="navNextPreT">
 			  <ul class="pager">
-				<li class="previous" onclick="showPreviousQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
-				<li class="next" onclick="showNextQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+				<li class="previous" id="showPreviousQuestionInTrainingSection"><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
+				<li class="next" id="showNextQuestionInTrainingSection"><a href="#trainingTabs" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 			  </ul>
 			</nav>
 
@@ -1614,8 +1627,8 @@ function generate_rating_section(){
 				<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number">0</b> questions, then submit your response.</div>
 				<nav aria-label="..." id="navNextPre">
 				  <ul class="pager">
-					<li class="previous" id="prev-rating" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button" ><span aria-hidden="true">&larr;</span>Previous</a></li>
-					<li class="next" id= "next-rating" onclick="showNextQuestionInRatingSection();" ><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+					<li class="previous" id="prev-rating" ><a href="#navNextPre" class="page-link"  role="button" ><span aria-hidden="true">&larr;</span>Previous</a></li>
+					<li class="next" id= "next-rating"  ><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 				  </ul>
 				</nav>
 

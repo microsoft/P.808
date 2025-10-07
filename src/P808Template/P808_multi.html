@@ -345,85 +345,7 @@
 		bw_max: "FB"
 	}
 	
-	/*
 	
-	var config = {
-		testing: "true",
-		cookieName: "{{cfg.cookie_name}}",
-		qualificationCookieName: "{{cfg.qual_cookie_name}}",
-		qualificationValidFor: 43200,
-		forceRetrainingInHours: 1.5,
-		showSetupEveryMinutes: 60,
-		debug: "true",
-		questionUrls: 
-            ['https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c01_ef02_s001.wav',
-			'https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c01_ef02_s002.wav',
- 						 
-		],
-		trainingUrls: ['https://p835-ref-lang.s3.amazonaws.com/tps/i01_f1_1_short.wav','https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c01_ef02_s001.wav'
-		],
-
-
-    
-        knownQuestionInTrainingUrl: "https://p835-ref-lang.s3.amazonaws.com/tps/i01_f1_1_short0001.wav",
-		knownQuestionInTrainingAns: "1",
-
-		training_gold_clips: [
-			//{"url":"https://p835-ref-lang.s3.amazonaws.com/tps/i01_f1_1_short.wav", "sig":{"ans": 1, msg:"sig_is_wrong", var:1},"bak":{"ans": 1, msg:"Bak_is_wrong", var:1}, "ovrl":{"ans": 1, msg:"ovrl_is_wrong", var:1}}
-			{"url":"https://p835-ref-lang.s3.amazonaws.com/tps/i01_f1_1_short.wav", 
-			//2
-			"noise":{"ans": "aHR0cHM6Ly9wODM1LXJlZi1sYW5nLnMzLmFtYXpvbmF3cy5jb20vdHBzL2kwMV9mMV8xX3Nob3J0Lndhdl8x", msg:"noise 1 is correct", var:1}, 
-			//5
-			"ovrl":{"ans": "aHR0cHM6Ly9wODM1LXJlZi1sYW5nLnMzLmFtYXpvbmF3cy5jb20vdHBzL2kwMV9mMV8xX3Nob3J0Lndhdl81", msg:"ovrl 5 is correct", var:1}}
-		],
-
-		knownQuestionUrl: "https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c01_ef02_s002.wav",
-		knownQuestionAns: "",
-		// default variance is 1 if a scale is not relevant, remove it from list
-		goldClip: {
-			"url":'https://p835-ref-lang.s3.amazonaws.com/tps/i01_f1_1_short.wav',
-			'noise':'aHR0cHM6Ly9tbHZpZGVvcHJlbS5ibG9iLmNvcmUud2luZG93cy5uZXQvbWxjb2RlYy1nYW4tcHJlbS90bXAvMXNlYy53YXZfMg==',			
-			'ovrl': 'aHR0cHM6Ly9tbHZpZGVvcHJlbS5ibG9iLmNvcmUud2luZG93cy5uZXQvbWxjb2RlYy1nYW4tcHJlbS90bXAvMXNlYy53YXZfMg==',
-			'n_fail_show_warning': 1,
-			'n_fail_block': 2
-		},
-		goldClip2: {
-			url: "${gold_url_2}", 
-			sig_ans:"${gold_sig_ans_2}", 
-			noise_ans:"${gold_noise_ans_2}", 
-			disc_ans:"${gold_disc_ans_2}", 
-			col_ans:"${gold_col_ans_2}", 
-			loud_ans:"${gold_loud_ans_2}", 
-			reverb_ans:"${gold_reverb_ans_2}", 
-			ovrl_ans: "${gold_ovrl_ans_2}",
-			dummy:"dummy"
-		},
-		randomizeTrainingQuestions: "true",
-		randomizeRatingQuestions: "true",
-		allowedMaxHITsInProject: 10,
-		allowedMaxContinuesSessionDurationInMinutes: 45,
-        qualification: {
-            mother_tongue: ["english", "en"],
-            ld_in: ["in-ear", "over-ear"],
-            working_area: "N",
-            hearing: "normal",
-            num1: "Mjg5",
-            num2: "MTU2",
-            num3: "ODE1",
-            num4: "Njgw",
-            num5: "OTEz",
-        },
-		cmp_correct_answers: ['aHR0cHM6Ly9hdWRpb3NhbXBsZXNwODA4LmJsb2IuY29yZS53aW5kb3dzLm5ldC9wODA4LWFzc2V0cy9jbGlwcy9zYW1wbGVfam5kLzUwU19mZW1hbGUxLndhdg==',
-			'aHR0cHM6Ly9hdWRpb3NhbXBsZXNwODA4LmJsb2IuY29yZS53aW5kb3dzLm5ldC9wODA4LWFzc2V0cy9jbGlwcy9zYW1wbGVfam5kLzUwU19mZW1hbGUyLndhdg==',
-			'aHR0cHM6Ly9hdWRpb3NhbXBsZXNwODA4LmJsb2IuY29yZS53aW5kb3dzLm5ldC9wODA4LWFzc2V0cy9jbGlwcy9zYW1wbGVfam5kLzUwU19tYWxlMS53YXY=',
-			'aHR0cHM6Ly9hdWRpb3NhbXBsZXNwODA4LmJsb2IuY29yZS53aW5kb3dzLm5ldC9wODA4LWFzc2V0cy9jbGlwcy9zYW1wbGVfam5kLzUwU19tYWxlMi53YXY='],
-        cmp_max_n_feedback: 4,
-        cmp_pass_threshold: 2,
-        emailAddress: "test@test.de",
-		bw_min: "FB",
-		bw_max: "FB",
-		loop_until_next: 1
-	}*/
 	
 	// if performing of this assignment is already counted
 	var hitCounterIncreased = false;
@@ -2683,32 +2605,33 @@ function set_onclick_listeners(){
 					<li>You must perform the task in a <b>quiet environment</b></li>
 					<li>Do not change the volume after modifying it in the Setup section.</li>
 				</ul>
+				<div class ="not_show_in_pl">
+					<p><b>Payment:</b></p>
+					<p>The result of this experiment is <b>very important for us and other scientist</b> working in this
+						area. We have methods that analyse the consistency of your answers. We will use these methods to
+						rank the submitted assignments according to quality.</p>
+					<p>For this experiment, we will pay a base reward of <b>${{cfg.hit_base_payment}}/HIT</b> for every
+						accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You
+						will receive a bonus of:</p>
 
-				<p><b>Payment:</b></p>
-				<p>The result of this experiment is <b>very important for us and other scientist</b> working in this
-					area. We have methods that analyse the consistency of your answers. We will use these methods to
-					rank the submitted assignments according to quality.</p>
-				<p>For this experiment, we will pay a base reward of <b>${{cfg.hit_base_payment}}/HIT</b> for every
-					accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You
-					will receive a bonus of:</p>
+					<ul>
+						<li>${{cfg.quantity_bonus}}/HIT (for a total of <b>${{cfg.sum_quantity}}/HIT</b>) if you submit
+							<b>more than {{cfg.quantity_hits_more_than}} HITs</b> or</li>
+						<li>${{cfg.quality_bonus}}/HIT (for a total of <b>${{cfg.sum_quality }}/HIT</b>) if you submit
+							<b>more than {{cfg.quantity_hits_more_than}} HITs</b> <u>and</u> be in the <b>top
+								{{cfg.quality_top_percentage}}% quality group</b>.</li>
+					</ul>
 
-				<ul>
-					<li>${{cfg.quantity_bonus}}/HIT (for a total of <b>${{cfg.sum_quantity}}/HIT</b>) if you submit
-						<b>more than {{cfg.quantity_hits_more_than}} HITs</b> or</li>
-					<li>${{cfg.quality_bonus}}/HIT (for a total of <b>${{cfg.sum_quality }}/HIT</b>) if you submit
-						<b>more than {{cfg.quantity_hits_more_than}} HITs</b> <u>and</u> be in the <b>top
-							{{cfg.quality_top_percentage}}% quality group</b>.</li>
-				</ul>
-
-				<p>Bonuses will be assigned with in 7 days.</p>
-				<b>Please perform up to <b class="max_allowed_hits"> 0 </b> HITs from this group. If you do more than
-					that, the <u>rest will be rejected.</u></b>
-
+					<p>Bonuses will be assigned with in 7 days.</p>
+					<b>Please perform up to <b class="max_allowed_hits"> 0 </b> HITs from this group. If you do more than
+						that, the <u>rest will be rejected.</u></b>
+				</div>
 				<h3>Attention: </h3>
 				<p>This hit includes one or more Control clips (gold clips). Control clips are ones that we know that answer for and should be very easy to rate (they are clearly very good or very poor). They may target one or more scales. We include control clips in the HIT to ensure raters are paying attention and their environment hasn't changed.
 					Wrong answer to control clip(s) will result in rejection of the HIT.</p>
 
 				</p>
+					
 			</div>
 		</div>
 

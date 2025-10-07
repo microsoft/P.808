@@ -23,6 +23,8 @@ from azure_clip_storage import (
     PairComparisonSamplesInStore,
 )
 
+import requests
+from multiprocessing import Pool
 
 #p835_personalized = "p835_personalized"
 p835_personalized = "pp835"
@@ -884,6 +886,79 @@ async def main(cfg, test_method, args):
         create_analyzer_cfg_dcr_ccr(cfg, cfg_path, output_cfg_file, general_cfg, n_HITs)
 
 
+def check_url_exist(url):
+    try:        
+        response = requests.head(url)
+        if response.status_code == 200:
+            if int(response.headers['content-length']) > 1000:                
+                return None
+        print('Clip does not exists, try it on your browser: ' + url)
+        return url
+    except:
+        print('Clip does not exists, try it on your browser: ' + url)
+        return url
+
+expected_columns_single_stimuli = {
+        'clips': ['rating_clips'],
+        'training': ['training_clips'],
+        'gold': ['gold_url'],
+        'trapping': ['trapping_clips'],
+}
+
+expected_columns_double_stimuli = {
+       'clips': ['rating_clips', 'references'],
+        'training': ['training_clips', 'training_references'],
+}
+
+def check_urls_in_files_exist(csv_file_path, columns):
+    """
+    Check if the csv file exists and contains the required columns.
+    :param csv_file_path: Path to the csv file.
+    :param columns: List of required columns.
+    :return: True if the file exists and contains the required columns, False otherwise.
+    """
+    
+    df = pd.read_csv(csv_file_path)
+
+    count_links = 0
+    # sort based on src
+    urls = []
+    for column in columns:
+        urls.extend(df[column].tolist())
+
+    # remove duplicates
+    urls = list(set(urls))
+    urls = [url for url in urls if isinstance(url, str) and url.strip()]
+ 
+    errors = []
+    print(" Checking URLs in the csv file:", csv_file_path, ', total links:', len(urls))
+    # get number of cores
+    n_cores = os.cpu_count()
+    pool_size = int(0.8* n_cores) if n_cores > 2 else n_cores
+    # use parallel processing to check the links
+    with Pool(pool_size) as p:
+        file_processed = 0
+        issues = 0
+        for result in p.imap_unordered(check_url_exist, urls, chunksize=10):
+            if result is None:
+                file_processed += 1
+                if (file_processed % 100) == 0:
+                    print('      Checked: ' + str(file_processed) + ' links')
+            else:
+                errors.append(result)
+                issues += 1
+
+               
+    if len(errors) > 0:
+        # Print in red if there are errors
+        print('\033[91m' + f'  Total links evaluated: {len(urls)} ({len(errors)} links are invalid)' + '\033[0m')
+    else:
+        print(f'  Total links evaluated: {len(urls)} ({len(errors)} links are invalid)')
+    if len(errors) > 0:
+        print('   Errors: ')
+        for error in errors:
+            print('   ',error)
+
 if __name__ == '__main__':
     print("Welcome to the Master script for P808 Toolkit.")
     parser = argparse.ArgumentParser(description='Master script to prepare the P.808 subjective test')
@@ -906,6 +981,10 @@ if __name__ == '__main__':
         help="A csv containing urls and details of gold training questions ",
         required=False
     )
+    # check links default to False
+    parser.add_argument("--check_urls", action='store_true', help="Check if all links in the csv files are valid. "
+                                                                    "Default is False")
+    
     # check input arguments
     args = parser.parse_args()
 
@@ -957,5 +1036,20 @@ if __name__ == '__main__':
         else:
             assert True, "Neither Trapping clips file nor store configuration provided"
 
-   
+    if args.check_urls:
+        # check if all links in the csv files are valid
+        #  'acr', 'dcr', 'ccr', 'p835','{p835_personalized}', p804, or 'echo_impairment_test'"
+        print("Checking if all links in the csv files are valid ...")
+        if test_method in ['acr', 'p835', f'{p835_personalized}', 'p804', 'echo_impairment_test']:
+            check_urls_in_files_exist(args.clips, expected_columns_single_stimuli['clips'])
+            check_urls_in_files_exist(args.training_gold_clips, expected_columns_single_stimuli['training'])
+            check_urls_in_files_exist(args.gold_clips, expected_columns_single_stimuli['gold'])
+            check_urls_in_files_exist(args.trapping_clips, expected_columns_single_stimuli['trapping'])
+        elif test_method in ['dcr', 'ccr']:
+            check_urls_in_files_exist(args.clips, expected_columns_double_stimuli['clips'])
+            check_urls_in_files_exist(args.training_gold_clips, expected_columns_double_stimuli['training'])
+            check_urls_in_files_exist(args.gold_clips, expected_columns_double_stimuli['gold'])
+            check_urls_in_files_exist(args.trapping_clips, expected_columns_double_stimuli['trapping'])
+        else:
+            raise SystemExit(f"Error: No such a method supported for checking links: {test_method}")
     asyncio.run(main(cfg, test_method, args))
