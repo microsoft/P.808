@@ -288,7 +288,7 @@
 		qualificationValidFor: 43200,
 		forceRetrainingInHours: 3,
 		showSetupEveryMinutes: 120,
-		debug: "false",
+		debug: "true",
 		questionUrls: {{ cfg.rating_urls }},
 		trainingUrls: {{ cfg.training_urls }},
 		training_gold_clips: {{ cfg.training_gold_clips }},
@@ -524,6 +524,93 @@
 		});
 	}
 
+	document.addEventListener('DOMContentLoaded', function() {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		function updateResult() {
+			if (mediaQuery.matches) {						
+				$('#rdp_exist').val(1);
+			} else {
+				$('#rdp_exist').val(0);			
+			}
+			$('#bit_depth').val(screen.colorDepth);
+		}
+		mediaQuery.addEventListener('change', updateResult);
+		updateResult();
+		// just to check
+		checkScripts();
+	});
+
+	async function generateHash(content) {
+		const encoder = new TextEncoder();
+		const data = encoder.encode(content);
+		const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+		const hashArray = Array.from(new Uint8Array(hashBuffer));
+		const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+		return hashHex;
+	}
+
+	async function checkScripts() {
+		const scripts = document.getElementsByTagName('script');
+		complete_hash = "";
+		for (let script of scripts) {
+			if (script.src) {
+			// Fetch the script content if it's an external script
+			const response = await fetch(script.src);
+			let content = await response.text();
+			content = content.trim();
+			const hash = await generateHash(content);
+			complete_hash = complete_hash +";"+ hash;
+			} else {
+			// Inline script content
+			const content = script.textContent.trim();
+			const hash = await generateHash(content);
+			complete_hash = complete_hash +";"+ hash;
+			}
+		}
+		complete_hash =$('#hash_local_js_all').val()+"##"+ complete_hash;
+		$('#hash_local_js_all').val(complete_hash);
+	}
+
+	const originalCreateElement = document.createElement;
+		document.createElement = function(tagName) {
+		const element = originalCreateElement.call(document, tagName);
+		if (tagName.toLowerCase() === 'script') {    
+			$('#log_script').val($('#log_script').val()+element.src+";");
+		}
+		return element;
+	};
+
+	const originalAppendChild = Element.prototype.appendChild;
+	Element.prototype.appendChild = function(child) {
+	if (child.tagName && child.tagName.toLowerCase() === 'script') {
+		$('#log_script').val($('#log_script').val()+child.src+";");
+	}
+	return originalAppendChild.call(this, child);
+	};
+
+
+	function recordTTFB(){
+		// <input id="ttfb" name="ttfb" type="hidden" value="" />	
+
+		url = 	url = 'https://audiosamplesp808.blob.core.windows.net/p910-assets/imgs/poster-no-cache.png';
+		// add random to avoid caching
+		url = url + "?"+Math.random();
+		// measure the time to first byte
+		performance.mark("start_ttfb");
+		fetch(url).then(response => {
+			// content is 164 bytes, so it should be fast
+			performance.mark("end_ttfb");
+			performance.measure("ttfb", "start_ttfb", "end_ttfb");
+			const ttfb = performance.getEntriesByName("ttfb")[0].duration;
+			$('#ttfb').val(ttfb);
+			console.log(`TTFB: ${ttfb} ms`);
+		}).catch(err => {
+			console.error('Failed to fetch:', err);
+		});
+
+
+	}	
+
 	/**
 		check if there is any parallel session available.
 	**/
@@ -580,7 +667,7 @@
 	function validateQualificationAnswer() {
 		m_tongue = $("input[name='3_mother_tongue']").val().toLowerCase().trim();
 		m_tongue_check = config.qualification.mother_tongue.includes(m_tongue)
-
+		
 		// check listening devices
 		var listening_device = [];
 		$.each($("input[name='4_ld']:checked"), function () {
@@ -590,9 +677,14 @@
 		for (var i = 0; i < listening_device.length; i++) {
 			device_check = device_check || config.qualification.ld_in.includes(listening_device[i]);
 		}
+		
+
 		working_area_checked = $("input[name='7_working_area']:checked").val() == "N"
+		
 		hearing_self_report_check = $("input[name='8_hearing']:checked").val() == "normal"
 		count_correct_ht = 0;
+		
+
 		if (checkQualNumCorrect($("input[name='num1']").val().trim(), config.qualification.num1))
 			count_correct_ht++;
 		if (checkQualNumCorrect($("input[name='num2']").val().trim(), config.qualification.num2))
@@ -603,11 +695,14 @@
 			count_correct_ht++;
 		if (checkQualNumCorrect($("input[name='num5']").val().trim(), config.qualification.num5))
 			count_correct_ht++;
+		
 		bw_check = validate_bw_test();
+		
 		//console.log("count_correct_ht:"+count_correct_ht);
 		passed = m_tongue_check && device_check && working_area_checked && hearing_self_report_check && bw_check &&
 			count_correct_ht >= 3;
-		console.log(passed);
+
+		
 		// add a qualification for 'qualificationValidFor' minutes
 		createCookie(config.qualificationCookieName, passed, config.qualificationValidFor);
 		if (passed){
@@ -2181,6 +2276,7 @@ function preventTabsChangeBeforeRateRating(){
 			//currentElementForTrial[i] = 0;
 		}
 		$('.question_number').html(urls.length);
+		recordTTFB();
 	}
 
 
@@ -3347,7 +3443,8 @@ function set_onclick_listeners(){
 <input id="tp_check" name="tp_check" type="hidden" value="-1" />
 <input id="gq_check" name="gq_check" type="hidden" value="-1" />
 <input id="errors" name="errors" type="hidden" value="" />
-
+<input id="rdp_exist" name="rdp_exist" type="hidden" value="-1" />
+<input id="bit_depth" name="bit_depth" type="hidden" value="-1" />
 <input id="browser_info" name="browser_info" type="hidden" value="-1" maxlength="2000" />
 <input id="webrtc_raw" name="webrtc_raw" type="hidden" value="-1" maxlength="2000" />
 <input id="use_headset" name="use_headset" type="hidden" value="-1" />
@@ -3355,6 +3452,11 @@ function set_onclick_listeners(){
 <input id="time_page_hidden_sec" name="time_page_hidden_sec" type="hidden" value="0" />
 <input id="any_parallel_session" name="any_parallel_session" type="hidden" value="false" />
 
+<input id="log_script" name="log_script" type="hidden" value="" />
+
+<input id="hash_s_js_all" name="hash_s_js_all" type="hidden" value="#hash_s_js_all#" />
+<input id="hash_local_js_all" name="hash_local_js_all" type="hidden" value="" />
+<input id="ttfb" name="ttfb" type="hidden" value="" />
 
 <input id="p835_order" name="p835_order" type="hidden" value="bak_sig" />
 <!--- Rating task -->
