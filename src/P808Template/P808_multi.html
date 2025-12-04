@@ -3177,7 +3177,29 @@ function preventTabsChangeBeforeRateRating(){
 		<div class="panel-collapse collapse in" id="details_instruction_in">
 			<div class="panel-body">
 				<p style="background-color:Tomato;"> <b>NOTE: This instruction is new. Please carefully read and follow the instruction.</b></p>
-				
+
+				{% if cfg.test_instructions_flavor == "conference" %}
+				<p>In this experiment, you will be rating audio quality of conversations where people in a conference room are talking
+					among themselves and with remote attendees (see the figure below).
+					Overlapping speech may occur — this is expected and does not necessarily indicate poor audio quality. In some cases,
+					certain voices may be degraded, missing, or partially lost due to issues such as poor microphone quality, low volume
+					or reverberation, making the audio difficult to understand.
+					Please focus on the clarity and intelligibility of the voices from the perspective of a remote listener. Your
+					ratings should reflect the quality of the audio signal and how well individual voices are captured.</p>
+				<!-- Conference Room Figure - Properly sized -->
+				<div class="row">
+					<div class="col-sm-3"></div>
+					<div class="col-sm-6">
+						<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/p804_multi_conference.jpg"
+							alt="Conference room scenario"
+							style="width: 100%; max-width: 400px; height: auto; display: block; margin: 15px auto; border: 1px solid #ddd; border-radius: 5px;">
+						<p align="center" style="font-size: 12px; color: #666; margin-top: 5px;"><i>Figure: Conference room setup with
+								multiple participants</i></p>
+					</div>
+					<div class="col-sm-3"></div>
+				</div>
+				{% endif %}
+
 				<p>In this experiment, you will be rating the speech quality of sound samples involving different speech impairments and background
 					noise. Each trial will include <b>1 audio sample</b>, which should be rated on <b>7 scales</b>. First, you must listen to the clip 
 					until the end, then start rating. In the meantime, the audio sample will be played in a loop until you finish rating all 7 scales (you can 
