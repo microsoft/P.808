@@ -176,7 +176,7 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     rating_urls = []
     n_clips = int(cfg_g['number_of_clips_per_session'])
     n_traps = int(cfg_g['number_of_trapping_per_session'])
-    # 'dummy':'dummy' is added becuase of current bug in AMT for replacing variable names. See issue #6
+    # 'dummy':'dummy' is added because of current bug in AMT for replacing variable names. See issue #6
     for i in range(0, n_clips):
         rating_urls.append({"ref": f"${{Q{i}_R}}", "processed": f"${{Q{i}_P}}", 'dummy': 'dummy'})
 

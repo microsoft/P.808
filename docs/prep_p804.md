@@ -17,7 +17,7 @@ column named `rating_clips` (see [rating_clips.csv](../src/test_inputs/rating_cl
         
     **Note on Reference Conditions**
     * It is strongly recommended to include Reference Conditions in your study to cover the entire range of MOS on all 
-    dimesions. 
+    dimensions.
 
 1. Upload your **training clips** in a cloud server and create `training_gold_clips.csv` file which contains all URLs in a 
 column named `training_clips` (see [training_gold_clips.csv](../src/test_inputs/training_gold_clips_p804.csv) as an example).
@@ -35,7 +35,7 @@ any given answer for that dimension will be considered to be correct.
     **Hint**: Gold standard clips are used as a hidden quality control item in each session. It is expected that their 
     answers are so obvious for all participants that they all give the `*_ans` rating (+/- 1 deviation is 
     accepted) for all dimensions. It is recommended to use clips with excellent (answer 5) or very bad 
-    (answer 1) quality. Also clips with extreme and oposite value for multiple dimensions works best (e.g. Coloration 5 and Discontinuty 1).
+    (answer 1) quality. Also clips with extreme and opposite value for multiple dimensions work best (e.g. Coloration 5 and Discontinuity 1).
     
 1. Create trapping stimuli set for your dataset.
 
