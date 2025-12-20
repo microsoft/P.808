@@ -87,6 +87,11 @@ If you use this tool in your research please cite it with the following referenc
 * [Preparation](docs/preparation.md)
 * [Running the Test on Amazon Mechanical Turk](docs/running_test_mturk.md)
 * [Analyzing Data](docs/results.md)
+* [Azure Blob Storage Support](docs/azure_support.md)
+
+By default the scripts expect CSV files listing the clip URLs.  When the optional
+Azure configuration is provided and the CSV arguments are omitted, the toolkit
+will download clip lists from an Azure Blob Storage container.
 
 
 ## News
