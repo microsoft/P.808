@@ -47,6 +47,7 @@ created in the first step ([preparation](preparation.md)).
     * `[downloaded_batch_result]_votes_per_clip.csv`: Aggregated result per clip, including MOS, standard deviations, and 95% Confidence Intervals.  
     * `[downloaded_batch_result]_votes_per_cond.csv`: Aggregated result per condition.
     * `[downloaded_batch_result]_votes_per_worker.csv`: Long format of rating per clip, includes: HITId, workerid, file, vote and condition.
+    * `[downloaded_batch_result]_aggregated_results.csv`: Aggregated MOS statistics per condition keys with 95% confidence intervals.
     * `[downloaded_batch_result]_quantity_bonus_report.csv`: List of workers who are eligible for quantity bonus with the amount of bonus (to be used with the mturk_utils.py).
     * `[downloaded_batch_result]_quality_bonus_report.csv`: List of workers who are eligible for quality bonus with the amount of bonus (to be used with the mturk_utils.py).
     * `[downloaded_batch_result]_extending.csv`: List of HITIds with number of assignment per each which are needed to reach a specific number of votes per clip. 
