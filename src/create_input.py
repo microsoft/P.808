@@ -20,6 +20,7 @@ from random import shuffle
 import itertools
 
 p835_personalized = 'pp835'
+p804_conference = 'p804_conference'
 
 
 def validate_inputs(cfg, df, method):
@@ -39,7 +40,7 @@ def validate_inputs(cfg, df, method):
     required_columns_gold_804 = ['gold_url', 'gold_sig_ans', 'gold_noise_ans', 'gold_ovrl_ans', 'gold_disc_ans', 'gold_col_ans', 'gold_loud_ans', 'gold_reverb_ans']
 
 
-    if method in ['acr', 'p835', 'echo_impairment_test', 'p804']:
+    if method in ['acr', 'p835', 'echo_impairment_test', 'p804', p804_conference]:
         req = required_columns_acr
     elif method in [p835_personalized]:
         req = required_columns_acr
@@ -60,7 +61,7 @@ def validate_inputs(cfg, df, method):
         #assert 'gold_enrolment_clips' in columns, f"No column found with 'gold_enrolment_clips' in input file"
         for column in required_columns_gold_personalized:
             assert column in columns, f"No column found with '{column}' in input file"
-    if method in ['p804']:
+    if method in ['p804', p804_conference]:
         for column in required_columns_gold_804:
             assert column in columns, f"No column found with '{column}' in input file"
 
@@ -377,7 +378,7 @@ def create_input_for_acr(cfg, df, output_path, method):
                 output_df[f'gold_bak_ans{suffix}'] = full_ans_bak
                 output_df[f'gold_ovrl_ans{suffix}'] = full_ans_ovrl
 
-        elif method == 'p804':
+        elif method == 'p804' or method == p804_conference:
             #tmp = df.sample(frac=1).reset_index(drop=True)   
             
             for j in range(0, number_of_gold_clips_per_session):                
@@ -522,7 +523,7 @@ def create_input_for_mturk(cfg, df, method, output_path):
     :param df:  row input, see validate_inputs for details
     :param output_path: path to output file
     """
-    if method in ['acr', 'p835', 'echo_impairment_test', p835_personalized, "p804"]:
+    if method in ['acr', 'p835', 'echo_impairment_test', p835_personalized, "p804", p804_conference]:
         return create_input_for_acr(cfg, df, output_path, method)
     else:
         return create_input_for_dcrccr(cfg, df, output_path)
@@ -530,7 +531,7 @@ def create_input_for_mturk(cfg, df, method, output_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description=f'Create input.csv for ACR, DCR, CCR, P835, {p835_personalized},p804 echo_impairment_test test. ')
+        description=f'Create input.csv for ACR, DCR, CCR, P835, {p835_personalized},p804, {p804_conference} echo_impairment_test test. ')
     # Configuration: read it from trapping clips.cfg
     parser.add_argument("--row_input", required=True,
                         help="All urls depending to the test method, for ACR: 'rating_clips', 'math', 'pair_a', "
@@ -540,7 +541,7 @@ if __name__ == '__main__':
                         help="explains the test")
 
     parser.add_argument("--method", default="acr", required=True,
-                        help=f"one of the test methods: acr, dcr, ccr, p835, {p835_personalized},p804, echo_impairment_test")
+                        help=f"one of the test methods: acr, dcr, ccr, p835, {p835_personalized},p804, {p804_conference}, echo_impairment_test")
     args = parser.parse_args()
 
     #row_input = join(dirname(__file__), args.row_input)
@@ -552,9 +553,9 @@ if __name__ == '__main__':
     assert os.path.exists(cfg_path), f"No file in {cfg_path}]"
 
     methods = ["acr", "dcr", "ccr", "p835",
-               p835_personalized, "echo_impairment_test", "p804"]
+               p835_personalized, "echo_impairment_test", "p804", p804_conference]
     exp_method = args.method.lower()
-    assert exp_method in methods, f"{exp_method} is not a supported method, select from: acr, dcr, ccr, p835, {p835_personalized}, echo_impairment_test."
+    assert exp_method in methods, f"{exp_method} is not a supported method, select from: acr, dcr, ccr, p835, {p835_personalized}, echo_impairment_test, p804, {p804_conference}."
 
     cfg = CP.ConfigParser()
     cfg._interpolation = CP.ExtendedInterpolation()
