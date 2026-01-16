@@ -6,8 +6,12 @@ The following steps should be performed to prepare the P.835 test setup.
 **Note**: make sure to first perform steps listed in the [general preparation process](preparation.md).
 
 
-1. Upload your **speech clips** in a cloud server and create `rating_clips.csv` file which contains all URLs in a 
+1. Upload your **speech clips** in a cloud server and create `rating_clips.csv` file which contains all URLs in a
 column named `rating_clips` (see [rating_clips.csv](../src/test_inputs/rating_clips.csv) as an example).
+
+    These are the clips that will be evaluated by the crowd workers. They may be clean speech,
+    processed/predicted speech, or any other material whose quality you want to measure. No
+    prior scores are required for these clips.
 
     **Note about file names**:
     * Later in the analyzes, clip's file name will be used as a unique key and appears in the results.    
@@ -21,16 +25,24 @@ column named `rating_clips` (see [rating_clips.csv](../src/test_inputs/rating_cl
     the entire range of scales, rather the framework propose in ETSI 103 281 Annex D can cover the entire range. We 
     recommend to use [3gpp_p501_FB](../p835_reference_conditions/3gpp_p501_FB) which is created base on the ETSI/3GPP framework.  
 
-1. Upload your **training clips** in a cloud server and create `training_clips.csv` file which contains all URLs in a 
+1. Upload your **training clips** in a cloud server and create `training_clips.csv` file which contains all URLs in a
 column named `training_clips` (see [training_clips.csv](../src/test_inputs/training_clips.csv) as an example).
+
+    Training clips are presented before the actual rating begins to familiarize participants
+    with the task. They should roughly cover the expected quality range of your dataset but
+    do not require any predefined scores.
   
     **Hint**: Training clips are used for anchoring participants perception, and should represent the entire dataset. 
     They should approximately cover the range from worst to best quality to be expected in the test. It may contain 
     about 5 clips. 
 
-1. Upload your **gold standard clips** in a cloud server and create `gold_clips.csv` file which contains all URLs in a 
-column named `gold_clips` and expected answer to each clip in a column named `gold_clips_ans` 
+1. Upload your **gold standard clips** in a cloud server and create `gold_clips.csv` file which contains all URLs in a
+column named `gold_clips` and expected answer to each clip in a column named `gold_clips_ans`
 (see [gold_clips.csv](../src/test_inputs/gold_clips.csv) as an example).
+
+    The values in `gold_clips_ans` are reference answers that you provide. They are
+    typically derived from expert annotation or from clips with obviously good or bad
+    quality. Crowd ratings for these items are compared against these expected scores.
   
     **Hint**: Gold standard clips are used as a hidden quality control item in each session. It is expected that their 
     answers are so obvious for all participants that they all give the `gold_clips_ans` rating (+/- 1 deviation is 
@@ -61,9 +73,13 @@ column named `gold_clips` and expected answer to each clip in a column named `go
     be found in `trapping clips\source\output_report.csv`. You can replace file names (appears in column named `trapping_clips`)
     with the URLs pointing to those files to create the `trapping_clips.csv` file (see below).
         
-1. Upload your **trapping clips** in a cloud server and create `trapping_clips.csv` file which contains all URLs in 
-a column named `trapping_clips` and expected answer to each clip in a column named `trapping_ans` 
+1. Upload your **trapping clips** in a cloud server and create `trapping_clips.csv` file which contains all URLs in
+a column named `trapping_clips` and expected answer to each clip in a column named `trapping_ans`
 (see [trapping_clips.csv](../src/test_inputs/trapping_clips.csv) as an example).
+
+    The `trapping_ans` column must contain the correct answer for each trap clip.
+    These answers are defined by you and are used to verify that participants pay
+    attention during the test.
 
 1. Create your custom project by running the master script: 
 	
