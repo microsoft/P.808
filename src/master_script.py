@@ -22,6 +22,9 @@ from azure_clip_storage import (
     GoldSamplesInStore,
     PairComparisonSamplesInStore,
 )
+from azure.storage.blob.pageblobservice import PageBlobService
+from azure.storage.blob.appendblobservice import AppendBlobService
+from azure.storage.blob.blockblobservice import BlockBlobService
 
 
 #p835_personalized = "p835_personalized"
