@@ -1617,6 +1617,8 @@ def calc_stats(input_file):
     # TODO: update for other methods
     if test_method in ['p835', 'multi', 'p804', p835_personalized]:
         only_rating = df_no_qual_no_setup[df_no_qual_no_setup['Answer.t1_ovrl'].isna()].copy()
+    elif test_method == 'echo_impairment_test':
+        only_rating = df_no_qual_no_setup[df_no_qual_no_setup['Answer.t1_echo'].isna()].copy()    
     else:
         only_rating = df_no_qual_no_setup[df_no_qual_no_setup['Answer.t1'].isna()].copy()
 
@@ -1868,10 +1870,10 @@ def analyze_results(config, test_method, answer_path, list_of_req, quality_bonus
                         merged_cond =  pd.merge(merged_cond, df, on='condition_name')   
 
             merged.to_csv(os.path.splitext(answer_path)[0]+ f"_votes_per_clip_all-scales.csv", index=False)
-            if use_condition_level:
-                merged_cond.sort_index(inplace = True, axis = 1)
-                merged_cond['M'] = ((merged_cond['MOS_SIG']-1) / 4 + (merged_cond['MOS_OVRL']-1) /4 ) / 2
-                merged_cond.to_csv(os.path.splitext(answer_path)[0]+ f"_votes_per_cond_all-scales.csv", index=False)
+            #if use_condition_level:
+            #    merged_cond.sort_index(inplace = True, axis = 1)
+            #    merged_cond['M'] = ((merged_cond['MOS_SIG']-1) / 4 + (merged_cond['MOS_OVRL']-1) /4 ) / 2
+            #    merged_cond.to_csv(os.path.splitext(answer_path)[0]+ f"_votes_per_cond_all-scales.csv", index=False)
 
         bonus_file = os.path.splitext(answer_path)[0] + '_quantity_bonus_report.csv'
         quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
