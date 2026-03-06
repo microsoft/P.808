@@ -25,7 +25,7 @@ The qualification will be assigned when a user
 
 #### Setup (every X minutes)
 Contains 6 questions: 1) To adjust the listening level, 2) A short math exercise with digits panning between left and 
-right in stereo to proove usage of two-eared headphones. 3-6) Environment Test in form of pair comparision test. Stimuli 
+right in stereo to prove usage of two-eared headphones. 3-6) Environment Test in form of pair comparison test. Stimuli
 presented here are carefully selected, to represent finest Just Noticeable Difference in Quality recognizable by normal
 participants in a laboratory session. It is expected with a proper setting, a crowd worker be able to answer  at least 
 2/4 questions correctly.

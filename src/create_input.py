@@ -385,7 +385,7 @@ def create_input_for_acr(cfg, df, output_path, method):
                 tmp = df_small[['gold_url', 'gold_ovrl_ans', 'gold_sig_ans', 'gold_noise_ans', 'gold_col_ans', 'gold_loud_ans', 'gold_disc_ans', 'gold_reverb_ans']].copy()
                 tmp = tmp.dropna(subset=['gold_url'])            
                 tmp = tmp.sample(frac=1, ignore_index=True)
-                # get dataframe lenght
+                # get dataframe length
                 size = len(tmp)
                 g_clips = tmp.copy()
                 for i in range (1, (n_gold_clips//size)+1):

@@ -17,7 +17,7 @@ column named `rating_clips` (see [rating_clips.csv](../src/test_inputs/rating_cl
         
     **Note on Reference Conditions**
     * It is strongly recommended to include Reference Conditions in your study to cover the entire range of MOS on all 
-    three scales. Results of our studies showed that Reference Conditions based on teh ITU-T Rec. P.835 does not cover
+    three scales. Results of our studies showed that Reference Conditions based on the ITU-T Rec. P.835 do not cover
     the entire range of scales, rather the framework propose in ETSI 103 281 Annex D can cover the entire range. We 
     recommend to use [3gpp_p501_FB](../p835_reference_conditions/3gpp_p501_FB) which is created base on the ETSI/3GPP framework.  
 

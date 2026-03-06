@@ -494,7 +494,7 @@
 			}
 
 			let gold_stat = getGoldQuestionStat();
-			console.log("gold_stat:"+ gold_stat['failed'] +"warining:" + gold_stat['warning_showed'] );
+			console.log("gold_stat:"+ gold_stat['failed'] +"warning:" + gold_stat['warning_showed'] );
 			let force_re_training = false;
 			if (gold_stat['failed']>= config['goldClip']['n_fail_block']) {
 				disableTheHIT(Hide_HIT_REASON.GOLD_FAILED);				
@@ -834,7 +834,7 @@
 	}
 
 	function checkGoldQCorrect(given_ans, accepted_var, correct_hash, url) {
-		// return true if correct_hash is null or its lenght after trim is 0
+		// return true if correct_hash is null or its length after trim is 0
 		if (!correct_hash || correct_hash.trim().length == 0)
 			return true;
 		
@@ -1239,7 +1239,7 @@ function preventTabsChangeBeforeRateRating(){
 
 
 	/**
-	 * Check is the givebn url belongs to a trapping questionin training section, If so returns its info, otherwise null-
+	 * Check is the givebn url belongs to a trapping question in training section, If so returns its info, otherwise null-
 	 * @param {*} element
 	 **/
 	function getGoldQuestionInTrainingInfo(url){
@@ -1471,7 +1471,7 @@ function preventTabsChangeBeforeRateRating(){
 			return;
 				
 		stat = getGoldQuestionStat();
-		console.log('current stat: faild '+stat['failed']+ ', sum: '+stat['sum']);
+		console.log('current stat: failed '+stat['failed']+ ', sum: '+stat['sum']);
 		is_correct = true;
 		// check the answers
 		if ( !checkGoldQCorrect(Number(given_ans), 1, ans, goldClipAns["url"])){			
@@ -1502,7 +1502,7 @@ function preventTabsChangeBeforeRateRating(){
 			}
 		}		
 		saveGoldQuestionStat(stat);
-		console.log('new stat: faild '+stat['failed']+ ', sum: '+stat['sum']);
+		console.log('new stat: failed '+stat['failed']+ ', sum: '+stat['sum']);
 	}
 
 	/*
@@ -1524,7 +1524,7 @@ function preventTabsChangeBeforeRateRating(){
 			return;
 				
 		stat = getGoldQuestionStat();
-		//console.log('current stat: faild '+stat['failed']+ ', sum: '+stat['sum']);
+		//console.log('current stat: failed '+stat['failed']+ ', sum: '+stat['sum']);
 		is_correct = true;
 		// check the answers
 		if ( !checkGoldQCorrect(Number(given_ans), 1, ans, goldClipAns["url"])){			
@@ -1556,7 +1556,7 @@ function preventTabsChangeBeforeRateRating(){
 			}
 		}		
 		saveGoldQuestionStat(stat);
-		//console.log('new stat: faild '+stat['failed']+ ', sum: '+stat['sum']);
+		//console.log('new stat: failed '+stat['failed']+ ', sum: '+stat['sum']);
 	}
 
 	/*
@@ -1866,7 +1866,7 @@ function preventTabsChangeBeforeRateRating(){
 					</div>
 					
 					<input type="range" min="1" max="5" step="1" value="0" class="slider_hide" id="T{0}-discontinuity-slider" name="t{0}_slide_disc" list="tickmarks" required>					
-					<label for="discontinous" class="pull-left">Continuous</label>
+					<label for="discontinuous" class="pull-left">Continuous</label>
 					<label for="" class="pull-right">Discontinuous</label>
 				</div></br></br></br>`;
 		
@@ -1887,7 +1887,7 @@ function preventTabsChangeBeforeRateRating(){
 							</tr>
 							</tbody>
 						</table>
-						<label for="discontinous" class="pull-left">Continuous</label>
+						<label for="discontinuous" class="pull-left">Continuous</label>
 						<label for="" class="pull-right">Discontinuous</label>
 					</div>
 					<div class="row">
@@ -2161,7 +2161,7 @@ function preventTabsChangeBeforeRateRating(){
 	}
 	/*
 		Generate the training section
-		lod, rev, col, dis
+                loud, rev, col, dis
 
 	*/
 	function generate_training_section() {
@@ -2599,7 +2599,7 @@ function preventTabsChangeBeforeRateRating(){
 </script>
 
 
-<!--    gold question warining -->
+<!--    gold question warning -->
 <section class="container" id="gold_warning" hidden>
 	<div class="alert alert-danger" role="alert">
 		<h5><b>Warning</b></h5>
@@ -2614,7 +2614,7 @@ function preventTabsChangeBeforeRateRating(){
 		<p> 
 
 			<div class="checkbox">
-				<label><input type="checkbox" value="warining" onchange="gold_warning()">I read this message carefully and understand it.</label>
+				<label><input type="checkbox" value="warning" onchange="gold_warning()">I read this message carefully and understand it.</label>
 			  </div>
 
 		</p>
@@ -2656,7 +2656,7 @@ function preventTabsChangeBeforeRateRating(){
 					<li><b>Qualification (just once):</b> Check if you are eligible to perform these HITs</li>
 					<li><b>Setup (every <b class="setup_time"> 0</b> minutes):</b> Configure your system and validate it
 						by answering 6 questions</li>
-					<li><b>Detailed instuction (only once):</b> 12 audio samples, and description of scale. It is crucial to understand what you should do.</li>
+					<li><b>Detailed instruction (only once):</b> 12 audio samples, and description of scale. It is crucial to understand what you should do.</li>
 					<li><b>Training (every <b class="training_time"> 0 </b> hour):</b> <b
 							class="question_number_training"> 0 </b> questions, same as "Ratings" but appears again after <b class="training_time"> 0 </b> hour from the last HIT you perform in this group.
 					<li><b>Rating:</b> Listen to <b class="question_number"> 0 </b> audio files and give <b>your opinion
@@ -2798,7 +2798,7 @@ function preventTabsChangeBeforeRateRating(){
 						</div>
 					</fieldset>
 
-					<fieldset class="qualificationFieldset"><label>6.&nbsp; I belive, ...</label>
+					<fieldset class="qualificationFieldset"><label>6.&nbsp; I believe, ...</label>
 						<div class="radio">
 							<label><input type="radio" name="8_hearing" value="normal" required="">I have a normal
 								hearing ability.</label>
@@ -3347,8 +3347,8 @@ function preventTabsChangeBeforeRateRating(){
 
 				<div class="alert alert-warning" role="alert">
 					<h4>Attention:</h4>
-					<p>You may hear an specific instruction in the speech sample starting by <b>"This is an interruption"</b> aksing you to select the scores
-						showsing the <b>best</b> or the <b>worst</b> quality. In that case follow the instruction to show your attention, <u>otherwise your submision will be rejected</u>.</p>
+					<p>You may hear an specific instruction in the speech sample starting by <b>"This is an interruption"</b> asking you to select the scores
+						showsing the <b>best</b> or the <b>worst</b> quality. In that case follow the instruction to show your attention, <u>otherwise your submission will be rejected</u>.</p>
 						<p>  Scores showing the <b>best</b> quality are: <b>Not noisy, Optimal loudness, Continuous, Uncolored, No reverb, Not distorted, and Excellent quality. </b></p>
 						<p>  Scores showing the <b>worst</b> quality are: <b>Noisy, Sub-optimal loudness, Discontinuous, Colored, High reverb, Very distorted, and Bad quality.</b></p>
 					<p>
@@ -3531,7 +3531,7 @@ function preventTabsChangeBeforeRateRating(){
 <section class="container" id="gold_rejected" hidden>
 	<p>The QA system recognized that you provided a wrong answer to multiple clips that their answers are known to us. 
 		To avoid more of your submissions potentially get rejected, no more HITs from this job is available for you until we check them. 
-	For any upcomming job, please carefully read the instruction and follow it. <u>The instruction can change from one job to the other.</u>
+	For any upcoming job, please carefully read the instruction and follow it. <u>The instruction can change from one job to the other.</u>
 	</p>
 
 	<div class="alert alert-danger" role="alert">

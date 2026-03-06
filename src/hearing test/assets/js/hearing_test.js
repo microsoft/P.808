@@ -208,7 +208,7 @@ var last_num="";
 function addJNDQuestion(n,snrLevel){
     pick_is_added = false ;
     // 0: question Number, 1: clip, 2: correct ans
-	var tempelate='<fieldset id="fieldset_{0}"><label>{0}.&nbsp;Listen to the following clip and enter the three numbers that you have understood.</label><div class="row" style="margin-top:10px;"> <div align="center">  <audio controls preload="auto" loop id ="audio_{0}"> <source src="{1}" type="audio/wav"></audio> </div> <div align="center"> <input type="text" id="num_{0}" name="num_{0}" required="" class="nospace" autocomplete="off"> </div> <div align="center" style="margin-top:20px"> 	<button type="button" class="btn btn-primary" id="bt{0}" onclick="submitAnsJnd({0},{2},\'{3}\');" >Next</button></div></div></fieldset>';
+	var template='<fieldset id="fieldset_{0}"><label>{0}.&nbsp;Listen to the following clip and enter the three numbers that you have understood.</label><div class="row" style="margin-top:10px;"> <div align="center">  <audio controls preload="auto" loop id ="audio_{0}"> <source src="{1}" type="audio/wav"></audio> </div> <div align="center"> <input type="text" id="num_{0}" name="num_{0}" required="" class="nospace" autocomplete="off"> </div> <div align="center" style="margin-top:20px"> 	<button type="button" class="btn btn-primary" id="bt{0}" onclick="submitAnsJnd({0},{2},\'{3}\');" >Next</button></div></div></fieldset>';
 
     a = snrLevel;
     b = config.snrEnd;
@@ -221,7 +221,7 @@ function addJNDQuestion(n,snrLevel){
     last_num = num;
 	f=fileName.f(snrLevel,num);
 
-	text = tempelate.f(n,f,snrLevel, num);
+	text = template.f(n,f,snrLevel, num);
 	console.log("Question "+n+", : num: "+num, 'f:'+f);
 
 	$("#cmp-body").append(text);
@@ -249,7 +249,7 @@ function addJNDQuestion(n,snrLevel){
 }
 
 /*
-Called when user submit an answer for a pair comparision by clicking on "Next"
+Called when user submits an answer for a pair comparison by clicking on "Next"
 */
 function submitAnsJnd(qNum,snr, correct_num){
 	if (!document.querySelector('input[name="num_'+qNum+'"]').value){

@@ -194,7 +194,7 @@ function start(){
 
 function addJNDQuestion(n,snrLevel){
     pick_is_added = false ;
-	var tempelate='<fieldset id="fieldset_{0}"><label>{0}.&nbsp;Which sample has a better quality compared to the other one?</label><div class="row" style="margin-top:10px;"><div class="col-sm-4"><div align="center"><b>Sample A</b></div><div align="right">  <audio controls preload="auto"> <source src="{1}" type="audio/wav"></audio> </div></div><div class="col-sm-4"></div><div class="col-sm-4"><div align="center"><b>Sample B</b></div><div align="left"> <audio controls preload="auto"> <source src="{2}" type="audio/wav"></audio></div></div></div><div class="row"><div class="col-sm-4"></div><div class="col-sm-5"><div class="radio"><label><input type="radio" name="cmp{0}" required="" value="{3}">Quality of <b>Sample A</b> is better.</label></div><div class="radio"><label><input type="radio" name="cmp{0}" required="" value="-1">Difference is <b>not detectable</b>.</label></div><div class="radio"><label><input type="radio" name="cmp{0}" required="" value="{4}">Quality of <b>Sample B</b> is better.</label></div></div><div class="col-sm-3"></div></div><div class="row text-center" style="margin-top:20px">	<button type="button" class="btn btn-primary" id="bt{0}" onclick="submitAnsJnd({0},{3},{4});" >Next</button></div></fieldset>';
+	var template='<fieldset id="fieldset_{0}"><label>{0}.&nbsp;Which sample has a better quality compared to the other one?</label><div class="row" style="margin-top:10px;"><div class="col-sm-4"><div align="center"><b>Sample A</b></div><div align="right">  <audio controls preload="auto"> <source src="{1}" type="audio/wav"></audio> </div></div><div class="col-sm-4"></div><div class="col-sm-4"><div align="center"><b>Sample B</b></div><div align="left"> <audio controls preload="auto"> <source src="{2}" type="audio/wav"></audio></div></div></div><div class="row"><div class="col-sm-4"></div><div class="col-sm-5"><div class="radio"><label><input type="radio" name="cmp{0}" required="" value="{3}">Quality of <b>Sample A</b> is better.</label></div><div class="radio"><label><input type="radio" name="cmp{0}" required="" value="-1">Difference is <b>not detectable</b>.</label></div><div class="radio"><label><input type="radio" name="cmp{0}" required="" value="{4}">Quality of <b>Sample B</b> is better.</label></div></div><div class="col-sm-3"></div></div><div class="row text-center" style="margin-top:20px">	<button type="button" class="btn btn-primary" id="bt{0}" onclick="submitAnsJnd({0},{3},{4});" >Next</button></div></fieldset>';
     a = snrLevel;
     b = config.snrEnd;
 
@@ -209,7 +209,7 @@ function addJNDQuestion(n,snrLevel){
 	f1=fileNames[index].f(fileName.f(a));
 	f2=fileNames[index].f(fileName.f(b));;
 
-	text=tempelate.f(n,f1,f2,a,b);
+	text=template.f(n,f1,f2,a,b);
 	console.log("Question "+n+", : A: "+a+", B: "+b);
 
 	$("#cmp-body").append(text);
@@ -221,7 +221,7 @@ function addJNDQuestion(n,snrLevel){
 }
 
 /*
-Called when user submit an answer for a pair comparision by clicking on "Next"
+Called when user submit an answer for a pair comparison by clicking on "Next"
 */
 function submitAnsJnd(qNum,aSNR,bSNR){
 	if (!document.querySelector('input[name="cmp'+qNum+'"]:checked')){

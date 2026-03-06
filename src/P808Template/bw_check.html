@@ -308,7 +308,7 @@
 			}
 
 			let gold_stat = getGoldQuestionStat();
-			console.log("gold_stat:"+ gold_stat['failed'] +"warining:" + gold_stat['warning_showed'] );
+			console.log("gold_stat:"+ gold_stat['failed'] +"warning:" + gold_stat['warning_showed'] );
 			let force_re_training = false;
 			if (gold_stat['failed']>= config['goldClip']['n_fail_block']) {
 				disableTheHIT(Hide_HIT_REASON.GOLD_FAILED);				
@@ -926,7 +926,7 @@
 	}
 	
 	/**
-	 * Check is the givebn url belongs to a trapping questionin training section, If so returns its info, otherwise null-
+	 * Check is the givebn url belongs to a trapping question in training section, If so returns its info, otherwise null-
 	 * @param {*} element
 	 **/
 	function getGoldQuestionInTrainingInfo(url){
@@ -1724,11 +1724,11 @@
         "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g5_48_n.wav":'nn',
     }
     bw_test_data_wrong_msg = {
-        "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g1_48_n.wav":'[3.5-24KHz - Basic faild]',
-        "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g2_48_n.wav":'[+8Khz (SWB) faild]',
-        "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g3_48_n.wav":'[+15Khz FB faild]',
-        "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g4_48_n.wav":'[trapping faild]',
-        "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g5_48_n.wav":'[trapping faild]',
+        "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g1_48_n.wav":'[3.5-24KHz - Basic failed]',
+        "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g2_48_n.wav":'[+8Khz (SWB) failed]',
+        "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g3_48_n.wav":'[+15Khz FB failed]',
+        "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g4_48_n.wav":'[trapping failed]',
+        "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/g5_48_n.wav":'[trapping failed]',
     }
 
     bw_v2_test_data ={
@@ -1740,11 +1740,11 @@
     }
 
     bw_v2_test_data_wrong_msg ={
-        "comb_bw1":'[3.5-24KHz - Basic faild]',
-        "comb_bw2":'[+8Khz (SWB) faild]',
-        "comb_bw3":'[+15Khz FB faild]',
-        "comb_bw4": '[trapping faild]',
-        "comb_bw5":'[trapping faild]'
+        "comb_bw1":'[3.5-24KHz - Basic failed]',
+        "comb_bw2":'[+8Khz (SWB) failed]',
+        "comb_bw3":'[+15Khz FB failed]',
+        "comb_bw4": '[trapping failed]',
+        "comb_bw5":'[trapping failed]'
         
     }
 
@@ -1979,7 +1979,7 @@
 
 
 
-<!--    gold question warining -->
+<!--    gold question warning -->
 <section class="container" id="gold_warning" hidden>
 	<div class="alert alert-danger" role="alert">
 		<h5><b>Warning</b></h5>
@@ -2153,7 +2153,7 @@
 						</div>
 					</fieldset>
 
-					<fieldset class="qualificationFieldset"><label>6.&nbsp; I belive, ...</label>
+					<fieldset class="qualificationFieldset"><label>6.&nbsp; I believe, ...</label>
 						<div class="radio">
 							<label><input type="radio" name="8_hearing" value="normal" required="">I have a normal
 								hearing ability.</label>
@@ -2415,13 +2415,13 @@
 					data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/personalized_p835/example2.wav">&nbsp;</span>
 				</p>
 
-				<p> <b>Example 3:</b></p><p> The <b>speech signal</b> of target speaker is completly removed from judgment segment (<b>very distorted, score1 </b>). Although in judgment segment there is no background noise, but 
+				<p> <b>Example 3:</b></p><p> The <b>speech signal</b> of target speaker is completely removed from judgment segment (<b>very distorted, score1 </b>). Although in judgment segment there is no background noise, but 
 					voice of another person. It is considered as a  <b> very intrusive background (score 1)</b>. The <b>overall quality is Bad (score 1)</b> as the system failed to recognize the target speaker and filter her out in the judgement segment.</p>
 				<p align="center"> <span class="baudio" id="exml3" data-onfinished="train_samples_finished" 
 					data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/personalized_p835/example3.wav">&nbsp;</span>
 				</p>
 				
-				<p> <b>Example 4:</b></p><p> The <b>speech signal</b> of target speaker is completly removed from judgment segment (<b>very distorted, score1 </b>). The judgment segment doesnot contain any voice but <b>slightly noticeable (score 4)</b> background noise. The <b>overall quality is Bad (score 1)</b> as the system completly removed target speaker from the judgement segment.</p>
+				<p> <b>Example 4:</b></p><p> The <b>speech signal</b> of target speaker is completely removed from judgment segment (<b>very distorted, score1 </b>). The judgment segment does not contain any voice but <b>slightly noticeable (score 4)</b> background noise. The <b>overall quality is Bad (score 1)</b> as the system completely removed target speaker from the judgement segment.</p>
 				<p align="center"> <span class="baudio" id="exml4" data-onfinished="train_samples_finished" 
 					data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/personalized_p835/example4.wav">&nbsp;</span>
 				</p>
@@ -2580,7 +2580,7 @@
 <section class="container" id="gold_rejected" hidden>
 	<p>The QA system recognized that you provided a wrong answer to multiple clips that their answers are known to us. 
 		To avoid more of your submissions potentially get rejected, no more HITs from this job is available for you until we check them. 
-	For any upcomming job, please carefully read the instruction and follow it. <u>The instruction can change from one job to the other.</u>
+	For any upcoming job, please carefully read the instruction and follow it. <u>The instruction can change from one job to the other.</u>
 	</p>
 
 	<div class="alert alert-danger" role="alert" >
