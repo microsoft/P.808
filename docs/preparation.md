@@ -19,8 +19,11 @@ The following steps should be performed to prepare the test setup.
     pip install -r requirements.txt
     ```
     
-1. (optional) Upload the general resources (found in `src\P809Template\assets`) in a cloud server and change the 
+1. (optional) Upload the general resources (found in `src\P809Template\assets`) in a cloud server and change the
 URLs associated to them as described in [General Resources](general_res.md)
+
+1. (optional) If you want to store clips in Azure Blob Storage instead of using CSV files,
+   configure the storage details as shown in [Azure Blob Storage Support](azure_support.md).
 
 1.  Follow the rest of preparation process based on the test methodology you want to apply:
 
