@@ -36,10 +36,11 @@ created in the first step ([preparation](preparation.md)).
     ```
     * `--cfg` use the configuration file generated for your project in the [preparation](preparation.md) step here (i.e.`YOUR_PROJECT_NAME_ccr_result_parser.cfg`).
     * `--method` could be either `acr`, `dcr`, `ccr`, `p835`, `pp835` or `p804`.
+    * if using Prolific, provide the csv file you downloaded from that platform as `--prolific_answers`. The answer you downloaded from HITAppServer should be provided as `--answers`
     * `--quantity_bonus` could be `all`, or `submitted`. It specify which assignments should be considered when calculating
     the amount of quantity bonus (everything i.e. `all` or just the assignments with status submitted i.e. `submitted`).
     
-    Beside the console outputs, following files will be generated in the same directory as the `--answers` file is located in.
+    Besides the console outputs, following files will be generated in the same directory as the `--answers` file is located in.
     All file names will start with the `--answers` file name.   
     * `[downloaded_batch_result]_data_cleaning_report`: Data cleansing report. Each line refers to one line in answer file. 
     * `[downloaded_batch_result]_accept_reject_gui.csv`: A report to be used for approving and rejecting assignments. One line
@@ -58,7 +59,7 @@ created in the first step ([preparation](preparation.md)).
     the "processed" clip Compared to the Quality of the "reference/unprocessed" Clip is .. (Much Worse:-3 to Much Better:+3)."
     On the loading time of Rating Section in the HIT APP order of processed and reference clips are randomized, but the sign
     of vote is always corrected to answer the above-mentioned question. Order of presentation is also saved in the downloaded
-    csv file from AMT per question in column `Answer.Qx_order` where x is the question's number. `rp` refers to refernce-processed. 
+    csv file from AMT per question in column `Answer.Qx_order` where x is the question's number. `rp` refers to reference-processed. 
     
     Note for **P835** method:
     * for each of the `Signal`, `Background` and `Overall` quality scales, aggregated ratings will be stored in a separate csv file 
@@ -67,11 +68,22 @@ created in the first step ([preparation](preparation.md)).
         * `[downloaded_batch_result]_votes_per_cond_[postfix].csv`: Aggregated result per condition.
     
     * In addition a summary in the condition level will be provided for all three scales in `[downloaded_batch_result]_votes_per_cond_all`.
-        
-        
-## Approve/Reject submissions
 
-Depending to how you create the HITs (using the AMT website or script) you should use the same method for approving/rejecting
+## Approve/Reject submissions - Prolific
+  - Get your API token from the Prolific website and add it to your [Prolific config file](../src/configurations/prolific.cfg).
+  
+  - run the below command
+
+  ``` bash
+    cd src
+    python prolific_utils.py ^
+        --cfg your_prolific_configuration_file.cfg ^ 
+        --review [path to you project's root directory] ^
+  ```
+        
+## Approve/Reject submissions - AMT
+
+Depending on how you create the HITs (using the AMT website or script) you should use the same method for approving/rejecting
 submission.
 
 ### Approve/Reject submissions - using website.
@@ -92,7 +104,7 @@ submission.
     ```
     
 
-## Assign bonuses
+## Assign bonuses - AMT only
 
  1. Run the following script with both `[downloaded_batch_result]_quantity_bonus_report.csv` and 
  `[downloaded_batch_result]_quality_bonus_report.csv`:
@@ -103,7 +115,7 @@ submission.
         --cfg mturk.cfg ^
         --send_bonus [downloaded_batch_result]_*_bonus_report.csv
     ```
- ## Extending HITs
+ ## Extending HITs - AMT only
  
  In case you want to reach the intended number of votes per clips, you may use the following procedure:
  

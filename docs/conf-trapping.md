@@ -9,7 +9,7 @@
  ## `[trappings]`
  `input_directory = trapping clips`: path pointing to the `trapping clips` directory. It is relative to the current working directory. 
  The directory should contain following subdirectories:
- * `source`: it should contains fair distributions of clips from your dataset under study. First couple of seconds from
+ * `source`: it should contain a fair distribution of clips from your dataset under study. The first couple of seconds from
  each clip in this directory will be used to generate the trapping clips.
  * `messages`: message clips found in this directory will be appended to first couple of seconds from each clip in the 
  `source` directory to create the trapping clips.

@@ -91,8 +91,6 @@ If you use this tool in your research please cite it with the following referenc
 * [Analyzing Data](docs/results.md)
 
 
-## News
-++ An update with support for [multi-dimensional quality assessment](https://arxiv.org/pdf/2309.07385.pdf) is published. 
 
 ## Troubleshooting
 For bug reports and issues with this code, please see the 
