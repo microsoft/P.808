@@ -38,7 +38,7 @@ p.increase_indent{	margin:20px; }
 .baudio .blabel{margin-top:50px;font-size: 70%;	color: #636363;}
 </style>
 
-<script type="text/javascript">
+<script type="text/javascript" id="js_part2" nonce="csp_nonce_token">
 
 $(document).ready(function(){
     randomizeHearingtestItems();
@@ -97,7 +97,7 @@ String.prototype.toMMSS = function () {
 }
 </script>
 
-<script type="text/javascript">
+<script type="text/javascript" id="js_part3" nonce="csp_nonce_token">
 //---------------- baudio.js -----------------
 var audioElements=[];
 function clickManager(event) {
@@ -203,6 +203,82 @@ $(function() {
 		audioElement.addEventListener("ended",isended.bind(audioElement),false);
 	});
 });
+
+	document.addEventListener('DOMContentLoaded', function() {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		function updateResult() {
+			if (mediaQuery.matches) {						
+				$('#rdp_exist').val(1);
+			} else {
+				$('#rdp_exist').val(0);			
+			}
+			$('#bit_depth').val(screen.colorDepth);
+		}
+		mediaQuery.addEventListener('change', updateResult);
+		updateResult();
+		checkScripts();
+	});
+
+	async function generateHash(content) {
+		const encoder = new TextEncoder();
+		const data = encoder.encode(content);
+		const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+		const hashArray = Array.from(new Uint8Array(hashBuffer));
+		const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+		return hashHex;
+	}
+
+	async function checkScripts() {
+		const scripts = document.getElementsByTagName('script');
+		complete_hash = "";
+		for (let script of scripts) {
+			if (script.src) {
+			const response = await fetch(script.src);
+			let content = await response.text();
+			content = content.trim();
+			const hash = await generateHash(content);
+			complete_hash = complete_hash +";"+ hash;
+			} else {
+			const content = script.textContent.trim();
+			const hash = await generateHash(content);
+			complete_hash = complete_hash +";"+ hash;
+			}
+		}
+		complete_hash =$('#hash_local_js_all').val()+"##"+ complete_hash;
+		$('#hash_local_js_all').val(complete_hash);
+	}
+
+	const originalCreateElement = document.createElement;
+		document.createElement = function(tagName) {
+		const element = originalCreateElement.call(document, tagName);
+		if (tagName.toLowerCase() === 'script') {    
+			$('#log_script').val($('#log_script').val()+element.src+";");
+		}
+		return element;
+	};
+
+	const originalAppendChild = Element.prototype.appendChild;
+	Element.prototype.appendChild = function(child) {
+	if (child.tagName && child.tagName.toLowerCase() === 'script') {
+		$('#log_script').val($('#log_script').val()+child.src+";");
+	}
+	return originalAppendChild.call(this, child);
+	};
+
+	function recordTTFB(){
+		url = 'https://audiosamplesp808.blob.core.windows.net/p910-assets/imgs/poster-no-cache.png';
+		url = url + "?"+Math.random();
+		performance.mark("start_ttfb");
+		fetch(url).then(response => {
+			performance.mark("end_ttfb");
+			performance.measure("ttfb", "start_ttfb", "end_ttfb");
+			const ttfb = performance.getEntriesByName("ttfb")[0].duration;
+			$('#ttfb').val(ttfb);
+			console.log(`TTFB: ${ttfb} ms`);
+		}).catch(err => {
+			console.error('Failed to fetch:', err);
+		});
+	}
 </script>
 
 
@@ -414,6 +490,13 @@ $(function() {
 	  </div>
   </div>
 </div>
+
+<input id="rdp_exist" name="rdp_exist" type="hidden" value="-1" />
+<input id="bit_depth" name="bit_depth" type="hidden" value="-1" />
+<input id="log_script" name="log_script" type="hidden" value="" />
+<input id="hash_s_js_all" name="hash_s_js_all" type="hidden" value="#hash_s_js_all#" />
+<input id="hash_local_js_all" name="hash_local_js_all" type="hidden" value="" />
+<input id="ttfb" name="ttfb" type="hidden" value="" />
 
 </div>
 </section>

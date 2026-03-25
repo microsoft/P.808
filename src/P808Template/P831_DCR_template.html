@@ -49,7 +49,7 @@ section {
 fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5px; }
 </style>
 
-<script type="text/javascript">
+<script id="js_part2" nonce="csp_nonce_token" type="text/javascript">
 
 /*
 General configuration file:
@@ -175,6 +175,7 @@ $(function() {
 		// for qualification section
 		initializeQualification();
 		cmp_check_on_load();
+		set_onclick_listeners();
 
 	}catch(err){
 		console.error(err);
@@ -182,6 +183,82 @@ $(function() {
 
 	}
 });
+
+	document.addEventListener('DOMContentLoaded', function() {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		function updateResult() {
+			if (mediaQuery.matches) {						
+				$('#rdp_exist').val(1);
+			} else {
+				$('#rdp_exist').val(0);			
+			}
+			$('#bit_depth').val(screen.colorDepth);
+		}
+		mediaQuery.addEventListener('change', updateResult);
+		updateResult();
+		checkScripts();
+	});
+
+	async function generateHash(content) {
+		const encoder = new TextEncoder();
+		const data = encoder.encode(content);
+		const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+		const hashArray = Array.from(new Uint8Array(hashBuffer));
+		const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+		return hashHex;
+	}
+
+	async function checkScripts() {
+		const scripts = document.getElementsByTagName('script');
+		complete_hash = "";
+		for (let script of scripts) {
+			if (script.src) {
+			const response = await fetch(script.src);
+			let content = await response.text();
+			content = content.trim();
+			const hash = await generateHash(content);
+			complete_hash = complete_hash +";"+ hash;
+			} else {
+			const content = script.textContent.trim();
+			const hash = await generateHash(content);
+			complete_hash = complete_hash +";"+ hash;
+			}
+		}
+		complete_hash =$('#hash_local_js_all').val()+"##"+ complete_hash;
+		$('#hash_local_js_all').val(complete_hash);
+	}
+
+	const originalCreateElement = document.createElement;
+		document.createElement = function(tagName) {
+		const element = originalCreateElement.call(document, tagName);
+		if (tagName.toLowerCase() === 'script') {    
+			$('#log_script').val($('#log_script').val()+element.src+";");
+		}
+		return element;
+	};
+
+	const originalAppendChild = Element.prototype.appendChild;
+	Element.prototype.appendChild = function(child) {
+	if (child.tagName && child.tagName.toLowerCase() === 'script') {
+		$('#log_script').val($('#log_script').val()+child.src+";");
+	}
+	return originalAppendChild.call(this, child);
+	};
+
+	function recordTTFB(){
+		url = 'https://audiosamplesp808.blob.core.windows.net/p910-assets/imgs/poster-no-cache.png';
+		url = url + "?"+Math.random();
+		performance.mark("start_ttfb");
+		fetch(url).then(response => {
+			performance.mark("end_ttfb");
+			performance.measure("ttfb", "start_ttfb", "end_ttfb");
+			const ttfb = performance.getEntriesByName("ttfb")[0].duration;
+			$('#ttfb').val(ttfb);
+			console.log(`TTFB: ${ttfb} ms`);
+		}).catch(err => {
+			console.error('Failed to fetch:', err);
+		});
+	}
 
 /**
  central method to record errors
@@ -816,9 +893,18 @@ function userAnsweringToSetupQuestions(){
 	$('input[name="math"]').off('change');
 }
 
+function set_onclick_listeners(){
+	$('#Math').on('change', function(){ userAnsweringToSetupQuestions(); });
+	$('#btn_start_headset').on('click', function(){ startHeadsetCheck(); });
+	$('#prev-training').on('click', function(){ showPreviousQuestionInTrainingSection(); });
+	$('#next-training').on('click', function(){ showNextQuestionInTrainingSection(); });
+	$('#prev-rating').on('click', function(){ showPreviousQuestionInRatingSection(); });
+	$('#next-rating').on('click', function(){ showNextQuestionInRatingSection(); });
+}
+
 </script>
 
-<script type="text/javascript">
+<script id="js_part3" nonce="csp_nonce_token" type="text/javascript">
 
 /*
 	functions responsible to headset check
@@ -862,7 +948,7 @@ const startHeadsetCheck = async function() {
 
 </script>
 
-<script type="text/javascript">
+<script id="js_part4" nonce="csp_nonce_token" type="text/javascript">
 
 /*
 	shuffle function for randomization of items -->
@@ -974,6 +1060,7 @@ function generate_rating_section(){
 					<li>Do not change the volume after modifying it in the Setup section.</li>
 				</ul>
 
+				<div class ="not_show_in_pl">
 				<p><b>Payment:</b></p>
 				<p>The result of this experiment is <b>very important for us and other scientist</b> working in this area. We have methods that analyse the consistency of your answers. We will use these methods to rank the submitted assignments according to quality.</p>
 				<p>For this experiment, we will pay a base reward of <b>${{cfg.hit_base_payment}}/HIT</b> for every accepted HIT. We have made available a set of <b class="max_allowed_hits">0 </b> different HITs. You will receive a bonus of:</p>
@@ -985,6 +1072,7 @@ function generate_rating_section(){
 
 				<p>Bonuses will be assigned with in 7 days.</p>
 				  <b>Please perform up to <b class="max_allowed_hits"> 0 </b> HITs from this group. If you do more than that, the <u>rest will be rejected.</u></b>
+				</div>
 			</div>
 		</div>
 
@@ -1196,7 +1284,7 @@ function generate_rating_section(){
 				<div align="center"> <span class="baudio" id="math1" data-src="${math}" >&nbsp;</span> </div>
 
 
-		<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" onchange="userAnsweringToSetupQuestions()"/> </div>
+		<div align="center">Result: &nbsp; <input id="Math" name="Math" required="" size="10" type="text" /> </div>
 
 		</fieldset>
 
@@ -1321,7 +1409,7 @@ function generate_rating_section(){
 					  After that, you might see a popup message from your browser asking for allowance to use your microphone.
 					  Please click on <b>Allow</b> (on some of smartphones there will be no message). <u>We do not process or record any audio with your microphone</u>.
 				 <div class="center">
-						<button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
+						<button id="btn_start_headset" type="button" class="btn btn-primary center" >Start</button>
 						<div id="status"> </div>
 			  	</div>
 			</div>
@@ -1355,8 +1443,8 @@ function generate_rating_section(){
 			<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number_training"> 0 </b> questions.</div>
 			<nav aria-label="..." id="navNextPreT">
 			  <ul class="pager">
-				<li class="previous" onclick="showPreviousQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
-				<li class="next" onclick="showNextQuestionInTrainingSection();"><a href="#trainingTabs" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+				<li class="previous" id="prev-training" ><a href="#trainingTabs" class="page-link"  role="button"><span aria-hidden="true">&larr;</span>Previous</a></li>
+				<li class="next" id="next-training" ><a href="#trainingTabs" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 			  </ul>
 			</nav>
 
@@ -1370,10 +1458,16 @@ function generate_rating_section(){
 <input id="tp_check" name="tp_check" type="hidden" value="-1" />
 <input id="gq_check" name="gq_check" type="hidden" value="0" />
 <input id="errors" name="errors" type="hidden" value="" />
+<input id="rdp_exist" name="rdp_exist" type="hidden" value="-1" />
+<input id="bit_depth" name="bit_depth" type="hidden" value="-1" />
 
 <input id="browser_info" name="browser_info" type="hidden" value="-1" maxlength="2000"/>
 <input id="webrtc_raw" name="webrtc_raw" type="hidden" value="-1" maxlength="2000"/>
 <input id="use_headset" name="use_headset" type="hidden" value="-1" />
+<input id="log_script" name="log_script" type="hidden" value="" />
+<input id="hash_s_js_all" name="hash_s_js_all" type="hidden" value="#hash_s_js_all#" />
+<input id="hash_local_js_all" name="hash_local_js_all" type="hidden" value="" />
+<input id="ttfb" name="ttfb" type="hidden" value="" />
 
 <!--- Rating task -->
 <section class="container" id="rating_section">
@@ -1392,8 +1486,8 @@ function generate_rating_section(){
 				<div style="margin-top:0px;font-size:90%;text-align:center">Click <b>next</b> to answer all <b class="question_number">0</b> questions, then submit your response.</div>
 				<nav aria-label="..." id="navNextPre">
 				  <ul class="pager">
-					<li class="previous" id="prev-rating" onclick="showPreviousQuestionInRatingSection();"><a href="#navNextPre" class="page-link"  role="button" ><span aria-hidden="true">&larr;</span>Previous</a></li>
-					<li class="next" id= "next-rating" onclick="showNextQuestionInRatingSection();" ><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
+					<li class="previous" id="prev-rating" ><a href="#navNextPre" class="page-link"  role="button" ><span aria-hidden="true">&larr;</span>Previous</a></li>
+					<li class="next" id="next-rating" ><a href="#navNextPre" class="page-link"  role="button">Next <span aria-hidden="true">&rarr;</span></a></li>
 				  </ul>
 				</nav>
 
