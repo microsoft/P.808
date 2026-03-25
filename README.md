@@ -1,6 +1,6 @@
 # P.808 Toolkit
 The P.808 Toolkit is a software package that enables users to run subjective speech quality assessment test
-in Amazon Mechanical Turk (AMT) crowdsourcing platform, according to the ITU-T Recommendation P.808. 
+in crowdsourcing platforms like Amazon Mechanical Turk (AMT), Prolific, or conduct remote testing with a dedicated panel of workers, according to the ITU-T Recommendation P.808. 
 It includes following test methods:
 * Absolute Category Rating (ACR) -- Annex A, P.808
 * Degradation Category Ratings (DCR) -- Annex B, P.808
@@ -12,9 +12,9 @@ It also extends P.808 in the following ways:
 
 * Includes implementation of the ITU-T Rec. P.831 for the crowdsourcing approach is also provided based on the recommendations given in the ITU-T Rec. P.808.
 
-* **NEW** - Multi-dimensional Speech Quality Assessment - Following the ITU-T Rec. P.804 and extending it with reverberation, signal and overall quality.
+* Multi-dimensional Speech Quality Assessment - Following the ITU-T Rec. P.804 and extending it with reverberation, signal and overall quality.
 
-* **NEW** - Extending P.835 test to evaluate personalized noise suppression
+* Extending P.835 test to evaluate personalized noise suppression
 
 
 Relevant ITU-T Recommendations are :
@@ -85,7 +85,9 @@ If you use this tool in your research please cite it with the following referenc
 
 ## Getting Started
 * [Preparation](docs/preparation.md)
-* [Running the Test on Amazon Mechanical Turk](docs/running_test_mturk.md)
+* Running the Test on crowdsourcing platform
+  * [Using Amazon Mechanical Turk](docs/running_test_mturk.md)
+  * [Using Prolific](docs/running_test_prolific.md)
 * [Analyzing Data](docs/results.md)
 
 

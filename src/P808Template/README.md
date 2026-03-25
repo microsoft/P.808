@@ -3,6 +3,9 @@ Templates for  ACR, DCR, and CCR methods to be used in Amazon Mechanical Turk pl
 The ACR implementation is based on the ITU-T P.808 Recommendation and implementation of DCR and CCR are based on 
 ITU-T P.800 Recommendation adapted to the crowdsourcing approach.
 
+Note: JQuery and Bootstrap are required for templates to work. We provide a public link for them, however if the link stop working, you can change them with other CDNs.
+
+
 ## Qualification
 The qualification can be used as a separate HIT or in the integrated mode i.e. a section in the main HIT.
 The qualification contains 10 questions including a hearing test.  

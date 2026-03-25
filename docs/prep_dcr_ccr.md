@@ -44,6 +44,8 @@ column named `training_clips` and URLs to corresponding reference clips in colum
             --clips rating_clips.csv ^
             --training_clips training_clips.csv 
         ```
+        Optionally add `--create_local_test` to generate a local preview HTML file for testing. See [preview_html](preview_html.md) for details.
+
         Note: file paths are expected to be relative to the current working directory.
     
     1. Double check the outcome of the script. A folder should be created with YOUR_PROJECT_NAME in current working 

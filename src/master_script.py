@@ -10,6 +10,8 @@ import argparse
 import os
 import asyncio
 import base64
+import random
+import string
 
 import configparser as CP
 import pandas as pd
@@ -25,9 +27,23 @@ from azure_clip_storage import (
 
 import requests
 from multiprocessing import Pool
+from utils.preview_html import generate_previews
 
 #p835_personalized = "p835_personalized"
 p835_personalized = "pp835"
+
+
+def _get_cookie_value(cfg, key):
+    """
+    Return the cookie value from cfg if available, otherwise generate a random string.
+
+    :param cfg: Configuration section (dict-like).
+    :param key: The key to look up (e.g. 'cookie_name' or 'qual_cookie_name').
+    :return: The value from cfg or a randomly generated 10-character string.
+    """
+    if key in cfg and cfg[key]:
+        return cfg[key]
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
 
 """
 def create_analyzer_cfg_acr(cfg, template_path, out_path):
@@ -160,8 +176,8 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     print("Start creating custom hit_app (html)")
 
     config = {}
-    config['cookie_name'] = cfg['cookie_name']
-    config['qual_cookie_name'] = cfg['qual_cookie_name']
+    config['cookie_name'] = _get_cookie_value(cfg, 'cookie_name')
+    config['qual_cookie_name'] = _get_cookie_value(cfg, 'qual_cookie_name')
     config['allowed_max_hit_in_project'] = cfg['allowed_max_hit_in_project']
     config['contact_email'] = cfg["contact_email"] if "contact_email" in cfg else ""
 
@@ -227,6 +243,8 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     if trap_path and os.path.exists(trap_path):
         df_trap = pd.read_csv(trap_path, nrows=1)
     else:
+        if cfg_trapping_store  is None:
+            raise Exception("cfg_trapping_store is required when trap_path is not provided or invalid.")
         trapclipsstore = TrappingSamplesInStore(cfg_trapping_store, 'TrappingQuestions')
         df_trap = await trapclipsstore.get_dataframe()
     # trapping clips are required, at list 1 clip should be available here
@@ -237,8 +255,8 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
         trap_ans = row['trapping_ans']
 
     config = {}
-    config['cookie_name'] = cfg['cookie_name']
-    config['qual_cookie_name'] = cfg['qual_cookie_name']
+    config['cookie_name'] = _get_cookie_value(cfg, 'cookie_name')
+    config['qual_cookie_name'] = _get_cookie_value(cfg, 'qual_cookie_name')
     config['allowed_max_hit_in_project'] = cfg["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg else nHITs
     config['training_trap_urls'] = trap_url
     config['training_trap_ans'] = trap_ans
@@ -310,6 +328,8 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     if trap_path and os.path.exists(trap_path):
         df_trap = pd.read_csv(trap_path, nrows=1)
     else:
+        if cfg_trapping_store  is None:
+            raise Exception("cfg_trapping_store is required when trap_path is not provided or invalid.")
         trapclipsstore = TrappingSamplesInStore(cfg_trapping_store, 'TrappingQuestions')
         df_trap = await trapclipsstore.get_dataframe()
     # trapping clips are required, at list 1 clip should be available here
@@ -320,8 +340,8 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
         trap_ans = row['trapping_ans']
 
     config = {}
-    config['cookie_name'] = cfg['cookie_name']
-    config['qual_cookie_name'] = cfg['qual_cookie_name']
+    config['cookie_name'] = _get_cookie_value(cfg, 'cookie_name')
+    config['qual_cookie_name'] = _get_cookie_value(cfg, 'qual_cookie_name')
     config['allowed_max_hit_in_project'] = cfg["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg else  min(50, nHITs) 
     config['training_trap_urls'] = trap_url
     config['training_trap_ans'] = trap_ans
@@ -397,6 +417,8 @@ async def create_hit_app_pp835_p804(
     if trap_path and os.path.exists(trap_path):
         df_trap = pd.read_csv(trap_path, nrows=1)
     else:
+        if cfg_trapping_store is None:
+            raise Exception("cfg_trapping_store is required when trap_path is not provided or invalid.")
         trapclipsstore = TrappingSamplesInStore(cfg_trapping_store, "TrappingQuestions")
         df_trap = await trapclipsstore.get_dataframe()
     # trapping clips are required, at list 1 clip should be available here
@@ -407,8 +429,8 @@ async def create_hit_app_pp835_p804(
         trap_ans = row["trapping_ans"]
 
     config = {}
-    config["cookie_name"] = cfg["cookie_name"]
-    config["qual_cookie_name"] = cfg["qual_cookie_name"]
+    config["cookie_name"] = _get_cookie_value(cfg, "cookie_name")
+    config["qual_cookie_name"] = _get_cookie_value(cfg, "qual_cookie_name")
     config["allowed_max_hit_in_project"] = cfg["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg else  min(50, nHITs) 
     config["training_trap_urls"] = trap_url
     config["training_trap_ans"] = trap_ans
@@ -854,12 +876,14 @@ async def main(cfg, test_method, args):
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831_fest else f"{args.project}_{test_method}.html"       
     output_html_file = os.path.join(output_dir, output_file_name)
 
+    cfg_trapping = cfg['TrappingQuestions'] if cfg.has_section('TrappingQuestions') else None
+
     if test_method == 'acr':
         await create_hit_app_acr(cfg_hit_app, template_path, output_html_file, args.training_clips,
-                                 args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg, n_HITs)
+                                 args.trapping_clips, cfg['create_input'], cfg_trapping, general_cfg, n_HITs)
     elif test_method in ['p835', 'echo_impairment_test']:
         await create_hit_app_p835(cfg_hit_app, template_path, output_html_file, args.training_clips,
-                                  args.trapping_clips, cfg['create_input'], cfg['TrappingQuestions'], general_cfg)
+                                  args.trapping_clips, cfg['create_input'], cfg_trapping, general_cfg, n_HITs)
     elif test_method in [p835_personalized, 'p804']:
         await create_hit_app_pp835_p804(
             cfg_hit_app,
@@ -868,7 +892,7 @@ async def main(cfg, test_method, args):
             args.training_clips if args.training_clips else None,
             args.trapping_clips,
             cfg["create_input"],
-            cfg["TrappingQuestions"],
+            cfg_trapping,
             general_cfg,
             n_HITs
         )
@@ -984,6 +1008,8 @@ if __name__ == '__main__':
     # check links default to False
     parser.add_argument("--check_urls", action='store_true', help="Check if all links in the csv files are valid. "
                                                                     "Default is False")
+    parser.add_argument("--create_local_test", action='store_true',
+                        help="Generate a local preview HTML file after the project is created.")
     
     # check input arguments
     args = parser.parse_args()
@@ -1053,3 +1079,7 @@ if __name__ == '__main__':
         else:
             raise SystemExit(f"Error: No such a method supported for checking links: {test_method}")
     asyncio.run(main(cfg, test_method, args))
+
+    if args.create_local_test:
+        print("Generating local test preview...")
+        generate_previews(args.project, samples=1)
