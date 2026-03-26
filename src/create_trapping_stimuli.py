@@ -14,6 +14,8 @@ import librosa as lr
 import numpy as np
 import soundfile as sf
 import csv
+import random
+import string
 
 message_to_values={
     "bad_short": 1,
@@ -31,11 +33,23 @@ message_to_values={
 audio_extension = '.wav'
 
 
-def create_trap_db(cfg, cfg_dir_name):
+def _generate_anonymous_name():
     """
-    Creates the trapping clips dataset
-    :param cfg: configuration file
-    :return:
+    Generate a random anonymous filename that reveals nothing about the clip's content.
+
+    :return: A random 12-character alphanumeric string.
+    """
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
+
+
+def create_trap_db(cfg, cfg_dir_name, anonymize=True):
+    """
+    Creates the trapping clips dataset.
+
+    :param cfg: Configuration section (dict-like).
+    :param cfg_dir_name: Directory name of the configuration file.
+    :param anonymize: If True, use random filenames; if False, use descriptive names.
+    :return: Number of files created.
     """
     # create directory names
     source_folder = join(cfg['input_directory'], 'source')
@@ -54,6 +68,7 @@ def create_trap_db(cfg, cfg_dir_name):
     msg_files = [join(msg_folder, f) for f in os.listdir(msg_folder)
                  if isfile(join(msg_folder, f)) and cfg['message_file_prefix'] in f and audio_extension in f]
     count = 0
+    used_names = set()
     list_of_file=[]
     for s_f in source_files:
         for msg_f in msg_files:
@@ -61,10 +76,18 @@ def create_trap_db(cfg, cfg_dir_name):
             # e.g. from "ACR_Bad_short.wav" --> took "Bad_short"
             msg = os.path.splitext(
                 basename(msg_f))[0].replace(cfg['message_file_prefix'], '').lower()
-            # create output filename format [source_filename]_tp_[suffix from
-            output_f_name = f'{os.path.splitext(basename(s_f))[0]}_{msg}.wav'
-            output_path = join(output_folder,
-                               output_f_name)
+
+            if anonymize:
+                while True:
+                    anon_name = _generate_anonymous_name()
+                    if anon_name not in used_names:
+                        used_names.add(anon_name)
+                        break
+                output_f_name = f'{anon_name}.wav'
+            else:
+                output_f_name = f'{os.path.splitext(basename(s_f))[0]}_{msg}.wav'
+
+            output_path = join(output_folder, output_f_name)
             create_trap_stimulus(s_f,
                                  msg_f,
                                  output_path,cfg)
@@ -115,6 +138,9 @@ if __name__ == '__main__':
     # Configuration: read it from trapping.cfg
     parser.add_argument("--cfg",
                         help="Check trapping.cfg for all the details", required=True)
+    parser.add_argument("--no_anonymize", action='store_true',
+                        help="Use descriptive filenames instead of anonymous random names. "
+                             "Default is to anonymize filenames.")
     args = parser.parse_args()
 
     #cfgpath = join(dirname(__file__), args.cfg)
@@ -128,6 +154,6 @@ if __name__ == '__main__':
     tp_cfg = cfg._sections['trappings']
 
     print('Start creating files')
-    n_created_files= create_trap_db(tp_cfg, cfg_dir_name)
+    n_created_files= create_trap_db(tp_cfg, cfg_dir_name, anonymize=not args.no_anonymize)
     print(f'{n_created_files} files created.')
 

@@ -36,6 +36,7 @@ any given answer for that dimension will be considered to be correct.
     answers are so obvious for all participants that they all give the `*_ans` rating (+/- 1 deviation is 
     accepted) for all dimensions. It is recommended to use clips with excellent (answer 5) or very bad 
     (answer 1) quality. Also clips with extreme and opposite values for multiple dimensions work best (e.g. Coloration 5 and Discontinuity 1).
+    You can use `create_gold_clips.py` to generate gold clips automatically. See [Gold Standard Clips](gold_clips.md) for details.
     
 1. Create trapping stimuli set for your dataset.
 

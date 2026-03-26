@@ -1,41 +1,36 @@
 # Create subjective test instructions
 
-Use this runbook when an agent is asked to create and publish a new subjective video quality test with the P.910 toolkit.
+Use this runbook when an agent is asked to create and publish a new subjective speech quality test with the P.808 toolkit.
 
 ## Best-practice variables
 
-These are best-practice defaults, not hard requirements. Confirm or override them with the requester before execution.
+These are best-practice defaults, not hard requirements. Confirm or override them with the requester before execution. After confirmation, create a .cfg file for that specific project and save it next to the input files, so next time being able to offer repeating as "useual" case.
+If you are asked to re-run a test or go yolo, look for that config file for the project, if it doesnot exist use the below best practice values.
 
 ```text
 BEST_PRACTICE_PLATFORM=Prolific
-BEST_PRACTICE_DEFAULT_SCALE_ACR_DCR=5
-BEST_PRACTICE_DEFAULT_SCALE_CCR=7
 BEST_PRACTICE_VALID_VOTE_BUFFER=20%
 BEST_PRACTICE_GOLD_SOURCE_SAMPLE_RATE=5%
 BEST_PRACTICE_TRAPPING_SOURCE_SAMPLE_RATE=5%
-BEST_PRACTICE_MAX_GOLD_SOURCE_CLIPS=20
-BEST_PRACTICE_MAX_TRAPPING_SOURCE_CLIPS=20
-BEST_PRACTICE_MIN_DEVICE_RESOLUTION=1920x1080
+BEST_PRACTICE_MAX_GOLD_SOURCE_CLIPS=15
+BEST_PRACTICE_MAX_TRAPPING_SOURCE_CLIPS=15
 BEST_PRACTICE_ALLOWED_MAX_HITS=min(int(number_of_rating_clips / 10), 50)
-BEST_PRACTICE_VIDEO_PLAYBACK=no-scale
 ```
 
 ## Scope
 
 This instruction covers:
 
-1. Preparing inputs for `acr`, `acr-hr`, `dcr`, or `ccr`.
-2. Generating gold clips and trapping clips when needed.
-3. Running `master_script.py` to build the project.
+1. Preparing inputs for Test method.
+2. Generating gold clips and trapping clips when needed. Upload them to openly accessible storage.
+3. Running `master_script.py` to build the project with `--check_urls`.
 4. Publishing the generated test through the HITAPP Server.
 5. Handing off the generated project for publishing on the chosen crowd platform.
 
 Platform note:
 
 1. Prolific is the recommended crowd platform for this guide.
-2. The repository README links to an external Prolific wiki, but does not contain a full in-repo Prolific publishing tutorial.
-3. The repository does contain an in-repo AMT guide at `docs\running_test_mturk.md`.
-4. Setting up the HIT in HITApp server and publishing it on crowdsourcing platform should be done by the user, following the instrudction.
+2. Setting up the HIT in HITApp server and publishing it on crowdsourcing platform should be done by the user, following the instrudction.
 
 ## Mandatory pre-check
 
@@ -43,24 +38,21 @@ Before editing or running anything in this repository:
 
 1. Read `AGENTS.md`.
 2. Read `.github\copilot-instructions.md`.
-3. Confirm that the task is a creation or publishing task, not a result-analysis task. If it is an analysis task, use `.github\evaluate.instruction.md` instead.
+3. Confirm that the task is a creation or publishing task, not a result-analysis task. If it is an analysis task, use `.github\evaluate.instruction.md` (tba) instead.
 
 ## Inputs the agent must confirm
 
 Do not guess these values if they are missing:
 
-1. Test method: `acr`, `acr-hr`, `dcr`, or `ccr`.
+1. Test method:  `acr`, `dcr`, `ccr`, `p835`, `p804`, `echo_impairment_test` and `pp835` (stand for personalized p835).
 2. Crowd platform: Prolific, AMT, or another panel.
-3. Whether a HITAPP Server already exists, and if so, its URL.
-4. The project name to use for generated outputs.
-5. Where the rating, training, gold, and trapping media are stored or should be uploaded.
-6. The rating scale to use.
-	- `acr`, `acr-hr`, `dcr`: usually `5` or `9`; if unspecified, suggest `BEST_PRACTICE_DEFAULT_SCALE_ACR_DCR`.
-	- `ccr`: usually `4` or `7`; if unspecified, suggest `BEST_PRACTICE_DEFAULT_SCALE_CCR`.
+3. The project name to use for generated outputs.
+4. Input resources including rating (required), training (required), gold (optional), and trapping media (optional).
+5. Create gold and trapping media when they are not provided. if so clean refernce clips should be provided by requester.
+6. Where the rating, training, gold, and trapping media are stored or should be uploaded (final location should be openly accesible location).
 7. Worker requirements, payment, target countries, and maximum assignments per worker in case of AMT. For Prolific, only maximum assignments per worker.
 8. The target number of valid votes per clip.
 	- If the requester specifies `X` valid votes per clip and asks for a planning heuristic, suggest publishing about `X` plus `BEST_PRACTICE_VALID_VOTE_BUFFER` to absorb rejects and unusable sessions.
-9. Whether condition-level aggregation is needed later, because that affects `condition_pattern` and clip naming.
 
 ## Execution workflow
 
@@ -263,14 +255,10 @@ Before considering creation complete, make sure you can point to:
 
 If any of the following is unknown, ask the requester before execution or leave the task blocked:
 
-1. Which test method should be used: `acr`, `acr-hr`, `dcr`, or `ccr`?
+1. Which test method should be used?
 2. Is the study going to Prolific, AMT, or another platform?
 3. Is there an existing HITAPP Server?
 4. Where should the media be hosted publicly?
 5. Are the source assets currently in private storage, and if so, what is the approved copy or publishing path?
 6. Should the agent generate gold clips and trapping clips, or are ready-made CSVs already available?
-7. What rating scale should be used?
-8. What is the target number of valid votes per clip?
-9. Should videos be kept at original resolution, scaled with `max-height`, or set to a fixed percentage?
-10. Is condition-level aggregation required later?
-11. If Prolific is being used, what exact study-creation workflow should replace the missing in-repo publishing guide?
+7. What is the target number of valid votes per clip?

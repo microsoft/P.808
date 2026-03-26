@@ -31,6 +31,7 @@ column named `gold_clips` and expected answer to each clip in a column named `go
     **Hint**: Gold standard clips are used as a hidden quality control item in each session. It is expected that their 
     answers are so obvious for all participants that they all give the `gold_clips_ans` rating (+/- 1 deviation is 
     accepted). It is recommended to use clips with excellent (answer 5) or very bad (answer 1) quality.
+    You can use `create_gold_clips.py` to generate gold clips automatically. See [Gold Standard Clips](gold_clips.md) for details.
     
 1. Create trapping stimuli set for your dataset.
 
