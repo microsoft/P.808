@@ -118,8 +118,8 @@ def create_trap_stimulus(source, message, output, cfg):
     # check how to set the duration
     if ('keep_original_duration' in cfg) and \
             (cfg['keep_original_duration'].upper() == 'TRUE'):
-        source_duration = lr.get_duration(filename=source)
-        msg_duration = lr.get_duration(filename=message)
+        source_duration = lr.get_duration(path=source)
+        msg_duration = lr.get_duration(path=message)
         # if it negative, just use the default 3 seconds
         prefix_duration = source_duration -msg_duration
         if prefix_duration <= 0:
@@ -128,7 +128,7 @@ def create_trap_stimulus(source, message, output, cfg):
     else:
         source, source_sr = lr.load(source, duration=int(cfg["include_from_source_stimuli_in_second"]))
     msg, msg_sr = lr.load(message)
-    msg = lr.resample(msg,source_sr,msg_sr)
+    msg = lr.resample(msg, orig_sr=msg_sr, target_sr=source_sr)
     merged = np.append(source, msg)
     sf.write(output, merged, source_sr, subtype='PCM_24')
 

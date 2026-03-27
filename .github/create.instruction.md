@@ -1,264 +1,428 @@
 # Create subjective test instructions
 
-Use this runbook when an agent is asked to create and publish a new subjective speech quality test with the P.808 toolkit.
+Use this runbook when asked to create a new subjective speech quality test with the P.808 toolkit.
+
+**Trigger phrases**: "create a study", "run a [method] test", "set up a [method] study", "prepare a
+[method] test for these files".
 
 ## Best-practice variables
 
-These are best-practice defaults, not hard requirements. Confirm or override them with the requester before execution. After confirmation, create a .cfg file for that specific project and save it next to the input files, so next time being able to offer repeating as "useual" case.
-If you are asked to re-run a test or go yolo, look for that config file for the project, if it doesnot exist use the below best practice values.
+These are best-practice defaults. Confirm or override them with the requester before first use.
+After confirmation, save a `.cfg` file next to the input files so future runs can reuse it.
+When asked to re-run a test or "go yolo", look for an existing config file first.
 
 ```text
-BEST_PRACTICE_PLATFORM=Prolific
-BEST_PRACTICE_VALID_VOTE_BUFFER=20%
-BEST_PRACTICE_GOLD_SOURCE_SAMPLE_RATE=5%
-BEST_PRACTICE_TRAPPING_SOURCE_SAMPLE_RATE=5%
-BEST_PRACTICE_MAX_GOLD_SOURCE_CLIPS=15
-BEST_PRACTICE_MAX_TRAPPING_SOURCE_CLIPS=15
-BEST_PRACTICE_ALLOWED_MAX_HITS=min(int(number_of_rating_clips / 10), 50)
+BEST_PRACTICE_PLATFORM             = Prolific
+BEST_PRACTICE_VALID_VOTE_BUFFER    = 20%
+BEST_PRACTICE_CLIPS_PER_SESSION    = 10
+BEST_PRACTICE_GOLD_PER_SESSION     = 1
+BEST_PRACTICE_TRAPPING_PER_SESSION = 1
+BEST_PRACTICE_TRAINING_CLIPS       = 5
+BEST_PRACTICE_GOLD_SOURCE_COUNT    = max(3, ceil(0.05 * number_of_rating_clips))
+BEST_PRACTICE_TRAPPING_SOURCE_COUNT= max(3, ceil(0.05 * number_of_rating_clips))
+BEST_PRACTICE_MAX_GOLD_SOURCE_CLIPS    = 15
+BEST_PRACTICE_MAX_TRAPPING_SOURCE_CLIPS= 15
+BEST_PRACTICE_ALLOWED_MAX_HITS     = min(int(number_of_rating_clips / 10), 50)
+BEST_PRACTICE_BASE_PAYMENT         = 0.50
+BEST_PRACTICE_QUANTITY_BONUS       = 0.10
+BEST_PRACTICE_QUALITY_BONUS        = 0.15
 ```
 
 ## Scope
 
 This instruction covers:
 
-1. Preparing inputs for Test method.
-2. Generating gold clips and trapping clips when needed. Upload them to openly accessible storage.
-3. Running `master_script.py` to build the project with `--check_urls`.
-4. Publishing the generated test through the HITAPP Server.
+1. Preparing inputs for all supported test methods.
+2. Generating gold clips and trapping clips when needed.
+3. Preparing upload commands for generated clips to public storage.
+4. Running `master_script.py` to build the project.
 5. Handing off the generated project for publishing on the chosen crowd platform.
 
-Platform note:
-
-1. Prolific is the recommended crowd platform for this guide.
-2. Setting up the HIT in HITApp server and publishing it on crowdsourcing platform should be done by the user, following the instrudction.
+Platform note: Setting up the HIT in a HITAPP server and publishing on the crowdsourcing platform
+is done by the requester following the generated artifacts and platform docs.
 
 ## Mandatory pre-check
 
 Before editing or running anything in this repository:
 
-1. Read `AGENTS.md`.
-2. Read `.github\copilot-instructions.md`.
-3. Confirm that the task is a creation or publishing task, not a result-analysis task. If it is an analysis task, use `.github\evaluate.instruction.md` (tba) instead.
+1. Read `AGENTS.md` and `.github\copilot-instructions.md`.
+2. Confirm this is a creation task, not analysis. For analysis, use
+   `.github\evaluate.instruction.md` instead.
+
+## Supported test methods
+
+| Method | `--method` flag | Gold clip generation | Trapping config | Template |
+|--------|-----------------|---------------------|-----------------|----------|
+| ACR | `acr` | `--method acr` | `trapping.cfg` or `trapping_p835.cfg` | `ACR_template.html` |
+| DCR | `dcr` | N/A (manual) | N/A (uses references) | `DCR_template.html` |
+| CCR | `ccr` | N/A (manual) | N/A (uses references) | `CCR_template.html` |
+| P.835 | `p835` | `--method acr` (**not** `p835`) | `trapping.cfg` or `trapping_p835.cfg` | `P835_template.html` |
+| P.804 | `p804` | `--method p804` | `trapping_p804.cfg` | via `pp835_p804` path |
+| Echo impairment | `echo_impairment_test` | `--method acr` | `trapping.cfg` | `echo_impairment_test_template.html` |
+| Personalized P.835 | `pp835` | special (per-dimension) | `trapping.cfg` | `P835_personalized_template3.html` |
+
+**Critical**: For plain `p835`, use `--method acr` when generating gold clips with
+`create_gold_clips.py`. The `p835` method in the gold generator produces per-dimension columns
+(`gold_sig_ans`, `gold_bak_ans`, `gold_ovrl_ans`) but `master_script.py` expects `gold_clips_ans`
+for plain P.835.
 
 ## Inputs the agent must confirm
 
 Do not guess these values if they are missing:
 
-1. Test method:  `acr`, `dcr`, `ccr`, `p835`, `p804`, `echo_impairment_test` and `pp835` (stand for personalized p835).
-2. Crowd platform: Prolific, AMT, or another panel.
-3. The project name to use for generated outputs.
-4. Input resources including rating (required), training (required), gold (optional), and trapping media (optional).
-5. Create gold and trapping media when they are not provided. if so clean refernce clips should be provided by requester.
-6. Where the rating, training, gold, and trapping media are stored or should be uploaded (final location should be openly accesible location).
-7. Worker requirements, payment, target countries, and maximum assignments per worker in case of AMT. For Prolific, only maximum assignments per worker.
-8. The target number of valid votes per clip.
-	- If the requester specifies `X` valid votes per clip and asks for a planning heuristic, suggest publishing about `X` plus `BEST_PRACTICE_VALID_VOTE_BUFFER` to absorb rejects and unusable sessions.
+1. **Test method**: one of `acr`, `dcr`, `ccr`, `p835`, `p804`, `echo_impairment_test`, `pp835`.
+2. **Crowd platform**: Prolific (recommended), AMT, or another panel.
+3. **Project name**: for generated output folder and files.
+4. **Input resources**:
+	- `rating_clips.csv` — **required**.
+	- `training_clips.csv` — **required** (can be auto-generated from rating clips).
+	- `gold_clips.csv` — optional (can be generated from source clips).
+	- `trapping_clips.csv` — optional (can be generated from source clips).
+5. **Source clips** for gold/trapping generation: if gold and trapping CSVs are not provided,
+   ask whether the requester has clean reference clips or whether to download a sample of rating
+   clips for generation.
+6. **Storage**: where generated clips should be uploaded (URL pattern for public access).
+7. **Max assignments per worker** (for Prolific) or worker requirements and payment (for AMT).
+8. **Target valid votes per clip**: suggest publishing `target + BEST_PRACTICE_VALID_VOTE_BUFFER`.
+
+## CSV column names by method
+
+These are the **actual column names** expected by the code in `src\create_input.py` and
+`src\master_script.py`.
+
+### Single-stimulus methods (ACR, P.835, echo_impairment_test, P.804)
+
+| CSV file | Columns |
+|----------|---------|
+| `rating_clips.csv` | `rating_clips` |
+| `training_clips.csv` | `training_clips` |
+| `gold_clips.csv` | `gold_clips`, `gold_clips_ans` |
+| `trapping_clips.csv` | `trapping_clips`, `trapping_ans` |
+
+### Double-stimulus methods (DCR, CCR)
+
+| CSV file | Columns |
+|----------|---------|
+| `rating_clips.csv` | `rating_clips`, `references` |
+| `training_clips.csv` | `training_clips`, `training_references` |
+| `trapping_clips.csv` | `trapping_clips` (uses references as trapping) |
+
+### Personalized P.835 (`pp835`)
+
+| CSV file | Columns |
+|----------|---------|
+| `gold_clips.csv` | `gold_url`, `gold_sig_ans`, `gold_bak_ans`, `gold_ovrl_ans` |
+
+See `src\test_inputs\` for example CSV files.
 
 ## Execution workflow
 
 ### 1. Prepare the environment
 
-1. Work from the repository root.
-2. Install Python dependencies for the main toolkit:
-
 ```powershell
-Set-Location C:\my\repos\internal_p910\src
-pip install -r requirements.txt
+Set-Location C:\my\repos\P.808\src
+pip install -r requirements.txt --quiet
 ```
 
-3. If trapping clips must be generated, also install the extra trapping dependency set:
+No extra dependency installs are needed for trapping clip generation — it uses the same
+`requirements.txt`.
+
+### 2. Check for existing project config
+
+Look for a `.cfg` file next to the `rating_clips.csv` in the requester's data directory.
+If one exists, offer to reuse it. If this is a re-run or "go yolo" request, use it directly.
+
+### 3. Generate training clips (if not provided)
+
+If the requester did not provide `training_clips.csv`, generate one from rating clips:
 
 ```powershell
-Set-Location C:\my\repos\internal_p910\src\trapping_clips
-pip install -r requirements.txt
+Set-Location C:\my\repos\P.808\src
+python utils\select_training_clips.py `
+	--input RATING_CLIPS_PATH\rating_clips.csv `
+	--output RATING_CLIPS_PATH\training_clips.csv `
+	--count 5
 ```
 
-4. If the requester needs a new HITAPP Server, first ask whether the team already has a managed installation. If not, point them to `hitapp_server\README.md`. Do not deploy infrastructure on your own unless the requester explicitly wants that and the required security review is already approved.
+The script selects evenly spaced clips from the rating set to cover the quality range.
 
-### 2. Prepare public media and static assets
+### 4. Generate gold clips (if not provided)
 
-1. Upload the PVS clips and any required source clips to publicly reachable storage.
-2. Make sure the public storage allows CORS with `Access-Control-Allow-Origin: *`.
-3. Prefer a CDN for video delivery when available.
-4. If the user currently has private blob URLs or blob-relative paths, confirm how those should be converted into public URLs before editing CSVs.
-5. A helper script exists at `src\utility\copy_to_pub_storage.py`. Review and adapt it before using it.
-6. If general UI assets are not already hosted, upload the files from `src\template\assets\imgs` and update the links described in `docs\general_res.md`.
-
-### 3. Build the required CSV inputs
-
-Use the files in `sample_inputs\` as concrete examples.
-
-Required CSV shapes by method:
-
-1. `rating_clips.csv`
-	- `acr`: column `pvs`
-	- `acr-hr`: columns `pvs`, `src`
-	- `dcr` or `ccr`: columns `pvs`, `src`
-2. `training_clips.csv`
-	- `acr`: column `training_pvs`
-	- `acr-hr`, `dcr`, `ccr`: columns `training_pvs`, `training_src`
-3. `gold_clips.csv`
-	- `acr`: columns `gold_clips_pvs`, `gold_clips_ans`
-	- `acr-hr`: same shape as `acr`
-	- `dcr` or `ccr`: columns `gold_clips_pvs`, `gold_clips_src`, `gold_clips_ans`
-4. `trapping_clips.csv`
-	- `acr`: columns `trapping_pvs`, `trapping_ans`
-	- `acr-hr`: same shape as `acr`
-	- `dcr` or `ccr`: columns `trapping_pvs`, `trapping_src`, `trapping_ans`
-
-Clip naming guidance:
-
-1. Use stable file names, because the parser later uses the clip file name as a key.
-2. If one condition spans multiple clips, encode the condition in the file name and carry that through into `condition_pattern`.
-
-### 4. Generate gold clips if they do not already exist
-
-`src\gold_clips\create_gold_clips.py` only supports `acr` and `ccr` as `--test_method` values.
-
-Use:
-
-1. `acr` for both `acr` and `acr-hr` projects.
-2. `ccr` for both `dcr` and `ccr` projects.
-
-Input guidance:
-
-1. `input_csv` should list source clips from the same dataset as the one being studied.
-2. Those source clips should be available locally before running the script.
-3. For `dcr` or `ccr`, a reasonable source of candidate references is the `src` column from `rating_clips.csv`.
-4. If the requester asks for a heuristic and no project rule exists, suggest selecting about `BEST_PRACTICE_GOLD_SOURCE_SAMPLE_RATE` of the source clips, capped at `BEST_PRACTICE_MAX_GOLD_SOURCE_CLIPS`.
-5. Given any error, stop and provide the message to requester. 
-6. Check the number of generated clips, it depends to the number of source clips and the test method.
-
-Example:
+Gold clips require local source WAV files. If the requester does not have clean reference
+clips, download a sample of rating clips:
 
 ```powershell
-Set-Location C:\my\repos\internal_p910\src\gold_clips
+Set-Location C:\my\repos\P.808\src
+python utils\download_clips.py `
+	--input RATING_CLIPS_PATH\rating_clips.csv `
+	--column rating_clips `
+	--output_dir RATING_CLIPS_PATH\gold_source `
+	--sample BEST_PRACTICE_GOLD_SOURCE_COUNT
+```
+
+Then generate gold clips:
+
+```powershell
 python create_gold_clips.py `
-	--input_csv YOUR_INPUT.csv `
-	--test_method acr `
-	--output_dir YOUR_OUT_DIR
+	--input_dir RATING_CLIPS_PATH\gold_source `
+	--output_dir RATING_CLIPS_PATH\gold_output `
+	--method GOLD_METHOD `
+	--no_anonymize
 ```
 
-After generation:
+**Method mapping for `create_gold_clips.py`:**
 
-1. Upload the produced gold clips to public storage.
-2. The generated clip list and answers are saved to `{output_dir}\{test_method}_gold_clips.csv`.
-3. Save a copy of that file as `gold_clips.csv` next to `rating_clips.csv`.
-4. Update `gold_clips.csv` so it uses the method-specific column names and the final hosted clip URLs.
+| Study method | Use `--method` | Output columns |
+|--------------|---------------|----------------|
+| `acr` | `acr` | `gold_clips`, `gold_clips_ans` |
+| `p835` | `acr` | `gold_clips`, `gold_clips_ans` |
+| `echo_impairment_test` | `acr` | `gold_clips`, `gold_clips_ans` |
+| `p804` | `p804` | `gold_clips` + per-dimension answers |
+| `pp835` | `p835` | `gold_clips`, `gold_sig_ans`, `gold_bak_ans`, `gold_ovrl_ans` |
 
-### 5. Generate trapping clips if they do not already exist
+**Note**: Each source clip produces 4 gold clips (clean, noisy, distorted, both).
+With 3 source clips you get 12 gold clips.
 
-1. Copy `src\configurations\trappings.cfg` and edit the copy.
-2. Note that the actual sample file on disk is `trappings.cfg` with an `s`, even though some docs refer to `trapping.cfg`.
-3. Put representative source clips into a staging folder such as `tp_src`.
-	- Use clips from the same dataset the user wants to evaluate.
-	- Avoid using same set of clips as gold clips.
-	- For `dcr` or `ccr`, you can use reference clips from the `src` column of `rating_clips.csv` if needed.
-	- If the requester asks for a heuristic and no project rule exists, suggest selecting about `BEST_PRACTICE_TRAPPING_SOURCE_SAMPLE_RATE` of the evaluated clips, capped at `BEST_PRACTICE_MAX_TRAPPING_SOURCE_CLIPS`.
-4. Update `scale_min` and `scale_max` in `trappings.cfg` so they match the selected test method and rating scale.
-
-Example:
+After generation, prepare for upload:
 
 ```powershell
-Set-Location C:\my\repos\internal_p910\src\trapping_clips
-python create_trapping_clips.py `
-	--source tp_src `
-	--des tp_out `
-	--cfg YOUR_TRAPPINGS_CFG
+python utils\copy_to_pub_storage.py upload-local `
+	--input RATING_CLIPS_PATH\gold_output\gold_clips_report.csv `
+	--columns gold_clips `
+	--local-dir RATING_CLIPS_PATH\gold_output `
+	--dest-storage-url DEST_STORAGE_URL `
+	--target-container TARGET_CONTAINER
 ```
 
-Then:
+This produces:
+- `gold_clips_report_public.csv` — CSV with public URLs (use as `gold_clips.csv`).
+- `gold_clips_report_to_upload.txt` — file list for azcopy.
+- A ready-to-use azcopy command (printed to console).
 
-1. Upload the generated trapping clips to public storage.
-2. The clip list and expected answers will be saved in `tp_out\output_report.csv`.
-3. Use `tp_out\output_report.csv` to build `trapping_clips.csv` with the correct method-specific columns and the final hosted clip URLs.
-4. Save a copy of `trapping_clips.csv` next to `rating_clips.csv`.
+Copy the public CSV as `gold_clips.csv` next to the rating clips.
 
-### 6. Configure `master_script.py`
+### 5. Generate trapping clips (if not provided)
 
-1. Copy `src\configurations\master.cfg` or `sample_inputs\master.cfg` to a project-specific config file.
-2. Review at minimum:
-	- `condition_pattern` and `condition_keys` if condition-level analysis will be needed
-	- `scale`
-	- `video_player`
-	- `allowed_max_hit_in_project`
-	- `min_device_resolution`
-3. `video_player` supports values such as `no-scale`, `max-height`, or a percentage like `80%`. These control scaling, not browser full-screen mode. Use `BEST_PRACTICE_VIDEO_PLAYBACK` if nothing specified.
-4. If the requester wants heuristics and does not provide values:
-	- suggest `BEST_PRACTICE_ALLOWED_MAX_HITS` for `allowed_max_hit_in_project`
-	- suggest `BEST_PRACTICE_MIN_DEVICE_RESOLUTION` for `min_device_resolution`
+Download a **different** sample of rating clips than used for gold (no overlap):
+
+```powershell
+python utils\download_clips.py `
+	--input RATING_CLIPS_PATH\rating_clips.csv `
+	--column rating_clips `
+	--output_dir RATING_CLIPS_PATH\trapping_source `
+	--sample BEST_PRACTICE_TRAPPING_SOURCE_COUNT `
+	--strategy random `
+	--seed 99
+```
+
+Use a different seed or strategy than gold to avoid overlap.
+
+Clear the toolkit's trapping source directory and copy source clips there:
+
+```powershell
+$trapSrc = "C:\my\repos\P.808\src\trapping clips\source"
+$trapOut = "C:\my\repos\P.808\src\trapping clips\output"
+Get-ChildItem $trapSrc -File | Remove-Item -Force
+if (Test-Path $trapOut) { Get-ChildItem $trapOut -File | Remove-Item -Force }
+Copy-Item "RATING_CLIPS_PATH\trapping_source\*.wav" $trapSrc -Force
+```
+
+Select the correct trapping config:
+
+| Study method | Config file |
+|-------------|-------------|
+| `acr` | `configurations\trapping.cfg` or `configurations\trapping_p835.cfg` |
+| `p835` | `configurations\trapping.cfg` or `configurations\trapping_p835.cfg` |
+| `echo_impairment_test` | `configurations\trapping.cfg` |
+| `p804` | `configurations\trapping_p804.cfg` |
+
+Run the trapping clip generator:
+
+```powershell
+Set-Location C:\my\repos\P.808\src
+python create_trapping_stimuli.py `
+	--cfg configurations\TRAPPING_CONFIG
+```
+
+Output goes to `trapping clips\output\`. The report is at
+`trapping clips\output\output_report.csv` with columns `trapping_ans`, `trapping_clips`.
+
+Prepare for upload:
+
+```powershell
+python utils\copy_to_pub_storage.py upload-local `
+	--input "trapping clips\output\output_report.csv" `
+	--columns trapping_clips `
+	--local-dir "trapping clips\output" `
+	--dest-storage-url DEST_STORAGE_URL `
+	--target-container TARGET_CONTAINER
+```
+
+Copy the public CSV as `trapping_clips.csv` next to the rating clips.
+
+### 6. Create the project config
+
+Create a `.cfg` file next to the input CSVs. Save it with the project name so future
+runs can reuse it.
+
+Template (all values **unquoted**, no extra spaces around `:`):
+
+```ini
+[create_input]
+number_of_clips_per_session:10
+number_of_trapping_per_session:1
+number_of_gold_clips_per_session:1
+clip_packing_strategy: random
+
+[hit_app_html]
+allowed_max_hit_in_project:COMPUTED_VALUE
+bw_min: NB-WB
+bw_max: FB
+hit_base_payment:0.5
+quantity_hits_more_than: COMPUTED_VALUE
+quantity_bonus: 0.1
+quality_top_percentage: 20
+quality_bonus: 0.15
+contact_email:ic3ai@outlook.com
+```
+
+**Important config rules:**
+
+- Do **not** quote values. `bw_min: NB-WB` is correct. `bw_min: "NB-WB"` will fail.
+- `allowed_max_hit_in_project` = the max number of HITs a single worker can complete.
+  Use the requester's value or `BEST_PRACTICE_ALLOWED_MAX_HITS`.
+- `quantity_hits_more_than` = threshold for quantity bonus. Should be approximately
+  `floor(total_sessions / 2)` but at least 2. `total_sessions` is printed by the master
+  script ("There are N clips and M sessions").
+  If unsure, set to 2 and adjust after seeing the session count.
+- `bw_min` and `bw_max` must be one of: `NB-WB`, `SWB`, `FB`.
 
 ### 7. Run the master script
 
-Example:
-
 ```powershell
-Set-Location C:\my\repos\internal_p910\src
-python master_script.py `
-	--project YOUR_PROJECT_NAME `
-	--method acr `
-	--cfg YOUR_MASTER_CFG `
+Set-Location RATING_CLIPS_PATH
+python C:\my\repos\P.808\src\master_script.py `
+	--project PROJECT_NAME `
+	--method METHOD `
+	--cfg PROJECT_CONFIG.cfg `
 	--clips rating_clips.csv `
 	--training_clips training_clips.csv `
 	--gold_clips gold_clips.csv `
-	--trapping_clips trapping_clips.csv `
-	--check_urls
+	--trapping_clips trapping_clips.csv
 ```
 
-Validation notes:
+**Notes:**
 
-1. Keep paths relative to the current working directory when following the documented flow.
-2. Keep `--method` aligned with the actual study type: `acr`, `acr-hr`, `dcr`, or `ccr`.
-3. Review console warnings carefully. If the warning is only about `quantity_hits_more_than` and the study will not use the AMT bonus workflow, confirm with the requester whether it can be ignored.
+- Use **full absolute paths** for all arguments to avoid path resolution issues.
+- Add `--check_urls` only when clips are already uploaded to public storage.
+- The working directory should be the folder containing the input CSVs so that the
+  project output directory is created there.
+- Supported `--method` values: `acr`, `dcr`, `ccr`, `p835`, `echo_impairment_test`,
+  `pp835`, `p804`.
 
 ### 8. Verify the generated project artifacts
 
-The output project directory should contain:
+The output project directory (`PROJECT_NAME\`) should contain:
 
-1. `YOUR_PROJECT_NAME\YOUR_PROJECT_NAME_METHOD.html`
-2. `YOUR_PROJECT_NAME\YOUR_PROJECT_NAME_publish_batch.csv`
-3. `YOUR_PROJECT_NAME\YOUR_PROJECT_NAME_METHOD_result_parser.cfg`
+| File | Purpose |
+|------|---------|
+| `PROJECT_NAME_METHOD.html` | HIT app (HTML) for the crowd platform |
+| `PROJECT_NAME_publish_batch.csv` | Session data with clip URLs for publishing |
+| `PROJECT_NAME_METHOD_result_parser.cfg` | Config for `result_parser.py` when analyzing results |
 
-Do not hardcode a `_dcr` suffix when validating outputs. The actual file names are method-based in code, for example `myproj_acr.html` and `myproj_acr_result_parser.cfg`.
+Verify:
 
-### 9. Publish through the HITAPP Server
+1. All three files exist.
+2. The publish batch CSV has the expected number of rows (sessions).
+3. The HTML file is non-empty.
 
-Ask requester to follow instruction to publish the HITs in HITAPP server.
+### 9. Generate local preview (optional)
 
-### 10. Publish through the crowd platform
+```powershell
+Set-Location C:\my\repos\P.808\src
+python utils\preview_html.py `
+	--dir RATING_CLIPS_PATH\PROJECT_NAME `
+	--samples 1
+```
 
-For Prolific:
+This generates a `_row-1.html` file that can be opened in a browser for a quick visual check.
 
-1. Prolific is the recommended platform for this guide.
-2. The README points to an external Prolific wiki rather than a full in-repo guide.
-3. If the requester has an approved team workflow for Prolific study creation, follow it.
-4. Otherwise, hand off the generated project files and ask the requester to provide the exact Prolific publishing process they want the agent to follow.
+### 10. Handoff
 
-For AMT:
+**Upload reminder**: If gold and trapping clips were generated locally, remind the requester
+to run the azcopy commands (printed during step 4 and 5) before publishing the study. The
+publish batch CSV already contains the expected public URLs.
 
-1. Follow `docs\running_test_mturk.md`.
-2. Use the HITAPP-generated `AMT HIT` and `AMT Input File` artifacts.
+**Handoff checklist:**
 
-### 11. Handoff checklist
+1. The project directory with all three artifacts.
+2. The config file used (saved next to input CSVs for future re-runs).
+3. The azcopy commands for uploading generated clips (if applicable).
+4. The method and scale used.
+5. Any warnings or deviations from the documented flow.
+6. Instructions for the requester to publish on their chosen platform:
+	- **Prolific**: follow the team's Prolific workflow or `docs\running_test_prolific.md`.
+	- **AMT**: follow `docs\running_test_mturk.md`.
 
-Before considering creation complete, make sure you can point to:
+## Quick-reference: end-to-end for single-stimulus methods
 
-1. The project directory generated by `master_script.py`.
-2. The exact config files used.
-3. The hosted media locations.
-4. The HITAPP Server project entry.
-5. The platform-specific handoff artifacts that were generated.
-6. The method and scale used.
-7. Any warnings or deviations from the documented flow.
+This is the condensed version for ACR / P.835 / echo_impairment_test studies when starting
+from only a `rating_clips.csv`. Replace placeholders in CAPS.
 
-## Questions that must be answered when missing
+```powershell
+Set-Location C:\my\repos\P.808\src
 
-If any of the following is unknown, ask the requester before execution or leave the task blocked:
+# 1. Training clips
+python utils\select_training_clips.py -i DATA_DIR\rating_clips.csv -o DATA_DIR\training_clips.csv -n 5
 
-1. Which test method should be used?
-2. Is the study going to Prolific, AMT, or another platform?
-3. Is there an existing HITAPP Server?
-4. Where should the media be hosted publicly?
-5. Are the source assets currently in private storage, and if so, what is the approved copy or publishing path?
-6. Should the agent generate gold clips and trapping clips, or are ready-made CSVs already available?
-7. What is the target number of valid votes per clip?
+# 2. Download source clips for gold generation
+python utils\download_clips.py -i DATA_DIR\rating_clips.csv -o DATA_DIR\gold_source -n GOLD_SRC_COUNT
+
+# 3. Generate gold clips (use --method acr for both ACR and P.835)
+python create_gold_clips.py --input_dir DATA_DIR\gold_source --output_dir DATA_DIR\gold_output --method acr --no_anonymize
+
+# 4. Prepare gold upload + create gold_clips.csv with public URLs
+python utils\copy_to_pub_storage.py upload-local -i DATA_DIR\gold_output\gold_clips_report.csv -c gold_clips -l DATA_DIR\gold_output --dest-storage-url STORAGE_URL -t CONTAINER
+Copy-Item DATA_DIR\gold_output\gold_clips_report_public.csv DATA_DIR\gold_clips.csv
+
+# 5. Download source clips for trapping (different set than gold)
+python utils\download_clips.py -i DATA_DIR\rating_clips.csv -o DATA_DIR\trapping_source -n TRAP_SRC_COUNT --strategy random --seed 99
+
+# 6. Generate trapping clips
+$trapSrc = "C:\my\repos\P.808\src\trapping clips\source"
+$trapOut = "C:\my\repos\P.808\src\trapping clips\output"
+Get-ChildItem $trapSrc -File | Remove-Item -Force
+if (Test-Path $trapOut) { Get-ChildItem $trapOut -File | Remove-Item -Force }
+Copy-Item "DATA_DIR\trapping_source\*.wav" $trapSrc -Force
+python create_trapping_stimuli.py --cfg configurations\TRAPPING_CFG
+
+# 7. Prepare trapping upload + create trapping_clips.csv
+python utils\copy_to_pub_storage.py upload-local -i "$trapOut\output_report.csv" -c trapping_clips -l $trapOut --dest-storage-url STORAGE_URL -t CONTAINER
+Copy-Item "$trapOut\output_report_public.csv" DATA_DIR\trapping_clips.csv
+
+# 8. Create project config (see section 6 template)
+# 9. Run master script
+Set-Location DATA_DIR
+python C:\my\repos\P.808\src\master_script.py --project PROJECT --method METHOD --cfg CONFIG.cfg --clips rating_clips.csv --training_clips training_clips.csv --gold_clips gold_clips.csv --trapping_clips trapping_clips.csv
+```
+
+## Known issues
+
+1. **Config values must not be quoted.** `bw_min: NB-WB` works; `bw_min: "NB-WB"` causes an
+   assertion error in `extend_general_cfg_bw()`.
+2. **`quantity_hits_more_than` warning.** If the computed session count is small, the script
+   warns about this value. Set it to approximately `floor(sessions / 2)`, minimum 2.
+3. **Gold clips method mismatch for P.835.** `create_gold_clips.py --method p835` produces
+   per-dimension columns but `create_input.py` expects `gold_clips_ans`. Use `--method acr`
+   for plain P.835 studies.
+
+## Utility scripts reference
+
+| Script | Purpose |
+|--------|---------|
+| `src\utils\download_clips.py` | Download clips from URLs in a CSV to local directory |
+| `src\utils\select_training_clips.py` | Select N evenly-spaced training clips from rating clips |
+| `src\utils\copy_to_pub_storage.py` | Prepare upload commands and public-URL CSVs for Azure Blob Storage |
+| `src\utils\preview_html.py` | Generate local preview HTML from master script output |
+| `src\create_gold_clips.py` | Generate gold standard clips from clean source WAVs |
+| `src\create_trapping_stimuli.py` | Generate trapping stimuli by overlaying messages on source clips |
