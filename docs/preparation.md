@@ -31,3 +31,8 @@ URLs associated to them as described in [General Resources](general_res.md)
     - Preparation for the P.831
     - Preparation for Personalized P.835
     - [Preparation for the P.804](prep_p804.md)
+
+## Utility Scripts
+
+- [Gold Standard Clips](gold_clips.md) — Generate gold clips for quality control.
+- [Upload Clips to Storage](upload_clips.md) — Upload local clips or copy from private to public Azure storage.
