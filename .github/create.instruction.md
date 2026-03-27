@@ -81,7 +81,10 @@ Do not guess these values if they are missing:
 5. **Source clips** for gold/trapping generation: if gold and trapping CSVs are not provided,
    ask whether the requester has clean reference clips or whether to download a sample of rating
    clips for generation.
-6. **Storage**: where generated clips should be uploaded (URL pattern for public access).
+6. **Storage**: the Azure storage account name and container for uploading generated clips
+   (e.g. account `crowdsourcedatapub`, container `crowdsource-data`). The `upload` mode in
+   `copy_to_pub_storage.py` uses `az login` credentials — no SAS tokens needed. If the
+   rating clips are already on a known storage account, reuse the same one.
 7. **Max assignments per worker** (for Prolific) or worker requirements and payment (for AMT).
 8. **Target valid votes per clip**: suggest publishing `target + BEST_PRACTICE_VALID_VOTE_BUFFER`.
 
@@ -183,21 +186,23 @@ python create_gold_clips.py `
 **Note**: Each source clip produces 4 gold clips (clean, noisy, distorted, both).
 With 3 source clips you get 12 gold clips.
 
-After generation, prepare for upload:
+After generation, upload to public storage and create the gold_clips.csv:
 
 ```powershell
-python utils\copy_to_pub_storage.py upload-local `
+python utils\copy_to_pub_storage.py upload `
 	--input RATING_CLIPS_PATH\gold_output\gold_clips_report.csv `
 	--columns gold_clips `
 	--local-dir RATING_CLIPS_PATH\gold_output `
-	--dest-storage-url DEST_STORAGE_URL `
-	--target-container TARGET_CONTAINER
+	--account-name STORAGE_ACCOUNT_NAME `
+	--target-container TARGET_CONTAINER `
+	--dest-path PROJECT_NAME/gold
 ```
 
-This produces:
-- `gold_clips_report_public.csv` — CSV with public URLs (use as `gold_clips.csv`).
-- `gold_clips_report_to_upload.txt` — file list for azcopy.
-- A ready-to-use azcopy command (printed to console).
+This directly uploads via `az login` credentials (no SAS tokens needed) and produces
+`gold_clips_report_public.csv` with public URLs.
+
+If `az` CLI is not available or login has expired, fall back to `upload-local` mode which
+generates an azcopy command for manual upload instead.
 
 Copy the public CSV as `gold_clips.csv` next to the rating clips.
 
@@ -250,12 +255,13 @@ Output goes to `trapping clips\output\`. The report is at
 Prepare for upload:
 
 ```powershell
-python utils\copy_to_pub_storage.py upload-local `
+python utils\copy_to_pub_storage.py upload `
 	--input "trapping clips\output\output_report.csv" `
 	--columns trapping_clips `
 	--local-dir "trapping clips\output" `
-	--dest-storage-url DEST_STORAGE_URL `
-	--target-container TARGET_CONTAINER
+	--account-name STORAGE_ACCOUNT_NAME `
+	--target-container TARGET_CONTAINER `
+	--dest-path PROJECT_NAME/trapping
 ```
 
 Copy the public CSV as `trapping_clips.csv` next to the rating clips.
@@ -349,9 +355,9 @@ This generates a `_row-1.html` file that can be opened in a browser for a quick 
 
 ### 10. Handoff
 
-**Upload reminder**: If gold and trapping clips were generated locally, remind the requester
-to run the azcopy commands (printed during step 4 and 5) before publishing the study. The
-publish batch CSV already contains the expected public URLs.
+**Upload status**: If the `upload` mode was used, gold and trapping clips are already
+uploaded and publicly accessible. If `upload-local` was used as a fallback (no `az` CLI),
+remind the requester to run the azcopy commands before publishing the study.
 
 **Handoff checklist:**
 
@@ -381,8 +387,8 @@ python utils\download_clips.py -i DATA_DIR\rating_clips.csv -o DATA_DIR\gold_sou
 # 3. Generate gold clips (use --method acr for both ACR and P.835)
 python create_gold_clips.py --input_dir DATA_DIR\gold_source --output_dir DATA_DIR\gold_output --method acr --no_anonymize
 
-# 4. Prepare gold upload + create gold_clips.csv with public URLs
-python utils\copy_to_pub_storage.py upload-local -i DATA_DIR\gold_output\gold_clips_report.csv -c gold_clips -l DATA_DIR\gold_output --dest-storage-url STORAGE_URL -t CONTAINER
+# 4. Upload gold clips + create gold_clips.csv with public URLs
+python utils\copy_to_pub_storage.py upload -i DATA_DIR\gold_output\gold_clips_report.csv -c gold_clips -l DATA_DIR\gold_output -a STORAGE_ACCOUNT -t CONTAINER -d PROJECT/gold
 Copy-Item DATA_DIR\gold_output\gold_clips_report_public.csv DATA_DIR\gold_clips.csv
 
 # 5. Download source clips for trapping (different set than gold)
@@ -396,8 +402,8 @@ if (Test-Path $trapOut) { Get-ChildItem $trapOut -File | Remove-Item -Force }
 Copy-Item "DATA_DIR\trapping_source\*.wav" $trapSrc -Force
 python create_trapping_stimuli.py --cfg configurations\TRAPPING_CFG
 
-# 7. Prepare trapping upload + create trapping_clips.csv
-python utils\copy_to_pub_storage.py upload-local -i "$trapOut\output_report.csv" -c trapping_clips -l $trapOut --dest-storage-url STORAGE_URL -t CONTAINER
+# 7. Upload trapping clips + create trapping_clips.csv
+python utils\copy_to_pub_storage.py upload -i "$trapOut\output_report.csv" -c trapping_clips -l $trapOut -a STORAGE_ACCOUNT -t CONTAINER -d PROJECT/trapping
 Copy-Item "$trapOut\output_report_public.csv" DATA_DIR\trapping_clips.csv
 
 # 8. Create project config (see section 6 template)
@@ -422,7 +428,7 @@ python C:\my\repos\P.808\src\master_script.py --project PROJECT --method METHOD 
 |--------|---------|
 | `src\utils\download_clips.py` | Download clips from URLs in a CSV to local directory |
 | `src\utils\select_training_clips.py` | Select N evenly-spaced training clips from rating clips |
-| `src\utils\copy_to_pub_storage.py` | Prepare upload commands and public-URL CSVs for Azure Blob Storage |
+| `src\utils\copy_to_pub_storage.py` | Upload clips to Azure Blob Storage (direct via `az login`) or prepare azcopy commands |
 | `src\utils\preview_html.py` | Generate local preview HTML from master script output |
 | `src\create_gold_clips.py` | Generate gold standard clips from clean source WAVs |
 | `src\create_trapping_stimuli.py` | Generate trapping stimuli by overlaying messages on source clips |
