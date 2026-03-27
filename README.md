@@ -90,6 +90,25 @@ If you use this tool in your research please cite it with the following referenc
   * [Using Prolific](docs/running_test_prolific.md)
 * [Analyzing Data](docs/results.md)
 
+## Using an AI Agent
+
+You can use an AI coding agent (e.g. GitHub Copilot, Claude) to create and run studies
+automatically. The agent will generate gold clips, trapping clips, training clips, upload
+them to Azure storage, and build the complete project — all from a single prompt.
+
+**Setup**: Make sure you have `az login` configured with write access to your Azure Blob
+Storage account.
+
+**Usage**: Open the repository in your IDE with an AI agent and ask it to create a study:
+
+> _"Run a P.835 test for the files in C:\path\to\my\rating_clips"_
+
+The agent reads the task-specific runbook at [`.github/create.instruction.md`](.github/create.instruction.md)
+and follows it step by step. See [`AGENTS.md`](AGENTS.md) for the full list of supported
+agent tasks.
+
+**Supported methods**: `acr`, `dcr`, `ccr`, `p835`, `p804`, `echo_impairment_test`, `pp835`.
+
 
 
 ## Troubleshooting
