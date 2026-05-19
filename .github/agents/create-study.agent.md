@@ -10,6 +10,21 @@ Use this runbook when asked to create a new subjective speech quality test with 
 **Trigger phrases**: "create a study", "run a [method] test", "set up a [method] study", "prepare a
 [method] test for these files".
 
+## Platform and shell adaptation
+
+The code examples below use **PowerShell on Windows** with Windows-style paths (`\`).
+If you are running on a different OS or shell (e.g. bash on macOS/Linux), adapt every
+command to the user's environment:
+
+- Replace PowerShell cmdlets (`Set-Location`, `Get-ChildItem`, `Copy-Item`, `Remove-Item`,
+  `Import-Csv`, `Export-Csv`, `Invoke-WebRequest`, `ForEach-Object`, `Add-Member`) with
+  their shell or Python equivalents.
+- Convert Windows paths (`C:\my\repos\P.808\src`) to the actual repository path on disk
+  using forward slashes where appropriate.
+- Use `python3` instead of `python` if required by the platform.
+- The Python scripts and `az` CLI commands are cross-platform — only the shell glue
+  around them needs adaptation.
+
 ## Best-practice variables
 
 These are best-practice defaults. Confirm or override them with the requester before first use.
