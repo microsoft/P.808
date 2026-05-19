@@ -9,14 +9,17 @@ That file contains the canonical coding standards, formatting rules, and documen
 for this project. All code contributions — whether from humans or AI agents — must conform to those
 guidelines.
 
-## Task-specific instructions
+## Custom agents
 
-When the user requests a specific task, read and follow the matching instruction file **before**
-starting work:
+This repository defines custom agents in `.github/agents/`. Use `/agent` in Copilot CLI
+to browse and select them, or reference them by name in a prompt.
+
+| Agent | File | Trigger phrases |
+|-------|------|-----------------|
+| `create-study` | [`.github/agents/create-study.agent.md`](.github/agents/create-study.agent.md) | "create a study", "run a [method] test", "set up a study", "prepare a test" |
+
+## Task-specific instructions (future)
 
 | Task type | Instruction file | Trigger phrases |
 |-----------|-----------------|-----------------|
-| Create a subjective test / study | [`.github/create.instruction.md`](.github/create.instruction.md) | "create a study", "run a [method] test", "set up a study", "prepare a test" |
 | Analyze test results | `.github/evaluate.instruction.md` *(tba)* | "analyze results", "parse results", "evaluate the study" |
-
-These instruction files are self-contained runbooks. Follow them step by step.

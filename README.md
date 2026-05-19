@@ -96,16 +96,16 @@ You can use an AI coding agent (e.g. GitHub Copilot, Claude) to create and run s
 automatically. The agent will generate gold clips, trapping clips, training clips, upload
 them to Azure storage, and build the complete project — all from a single prompt.
 
-**Setup**: Make sure you have `az login` configured with write access to your Azure Blob
+**Setup**: This experince is trilored to use Azure Storage, if you use any other cloud provider for serving your clips, adapt the code accordingly.Otherwise, make sure you have `az login` configured with write access to your Azure Blob
 Storage account.
 
 **Usage**: Open the repository in your IDE with an AI agent and ask it to create a study:
 
 > _"Run a P.835 test for the files in C:\path\to\my\rating_clips"_
 
-The agent reads the task-specific runbook at [`.github/create.instruction.md`](.github/create.instruction.md)
-and follows it step by step. See [`AGENTS.md`](AGENTS.md) for the full list of supported
-agent tasks.
+The agent uses the `create-study` custom agent defined in [`.github/agents/create-study.agent.md`](.github/agents/create-study.agent.md).
+Select it via `/agent` in Copilot CLI, or just describe your task — the model will auto-infer the
+right agent. See [`AGENTS.md`](AGENTS.md) for the full list of available agents.
 
 **Supported methods**: `acr`, `dcr`, `ccr`, `p835`, `p804`, `echo_impairment_test`, `pp835`.
 

@@ -79,6 +79,13 @@ Or use a `.gitattributes` file:
 - **Python and JavaScript source files**: use **spaces** (4 spaces per level).
 - **Markdown files**: use **tabs** (1 tab per level).
 
+## Custom Agents
 
+This repository provides custom agents in `.github/agents/`. Use `/agent` in Copilot CLI
+to browse and select them, or reference them by name in a prompt.
 
+| Agent | Purpose | Example prompts |
+|-------|---------|-----------------|
+| `create-study` | Create subjective speech quality tests (ACR, DCR, CCR, P.835, P.804) | "create a study", "run a P.804 test", "set up a P.835 study" |
 
+See [`AGENTS.md`](../AGENTS.md) for full details and trigger phrases.

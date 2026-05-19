@@ -1,3 +1,8 @@
+---
+name: create-study
+description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, and project building for crowdsourcing platforms.
+---
+
 # Create subjective test instructions
 
 Use this runbook when asked to create a new subjective speech quality test with the P.808 toolkit.
