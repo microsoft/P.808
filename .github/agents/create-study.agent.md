@@ -19,8 +19,9 @@ command to the user's environment:
 - Replace PowerShell cmdlets (`Set-Location`, `Get-ChildItem`, `Copy-Item`, `Remove-Item`,
   `Import-Csv`, `Export-Csv`, `Invoke-WebRequest`, `ForEach-Object`, `Add-Member`) with
   their shell or Python equivalents.
-- Convert Windows paths (`C:\my\repos\P.808\src`) to the actual repository path on disk
-  using forward slashes where appropriate.
+- Replace `REPO_ROOT` in all commands with the **actual absolute path** of this
+  repository on disk (i.e. the Git root directory).
+- Convert path separators as needed (`\` on Windows, `/` on macOS/Linux).
 - Use `python3` instead of `python` if required by the platform.
 - The Python scripts and `az` CLI commands are cross-platform — only the shell glue
   around them needs adaptation.
@@ -237,7 +238,7 @@ If one exists, offer to reuse it. If this is a re-run or "go yolo" request, use 
 If the requester did not provide `training_clips.csv`, generate one from rating clips:
 
 ```powershell
-Set-Location C:\my\repos\P.808\src
+Set-Location REPO_ROOT\src
 python utils\select_training_clips.py `
 	--input RATING_CLIPS_PATH\rating_clips.csv `
 	--output RATING_CLIPS_PATH\training_clips.csv `
@@ -366,8 +367,8 @@ Use a different seed or strategy than gold to avoid overlap with gold source cli
 Clear the toolkit's trapping source directory and copy source clips there:
 
 ```powershell
-$trapSrc = "C:\my\repos\P.808\src\trapping clips\source"
-$trapOut = "C:\my\repos\P.808\src\trapping clips\output"
+$trapSrc = "REPO_ROOT\src\trapping clips\source"
+$trapOut = "REPO_ROOT\src\trapping clips\output"
 Get-ChildItem $trapSrc -File | Remove-Item -Force
 if (Test-Path $trapOut) { Get-ChildItem $trapOut -File | Remove-Item -Force }
 Copy-Item "RATING_CLIPS_PATH\trapping_source\*.wav" $trapSrc -Force
@@ -385,7 +386,7 @@ Select the correct trapping config:
 Run the trapping clip generator:
 
 ```powershell
-Set-Location C:\my\repos\P.808\src
+Set-Location REPO_ROOT\src
 python create_trapping_stimuli.py `
 	--cfg configurations\TRAPPING_CONFIG
 ```
@@ -457,7 +458,7 @@ contact_email:USER_PROVIDED_EMAIL
 
 ```powershell
 Set-Location RATING_CLIPS_PATH
-python C:\my\repos\P.808\src\master_script.py `
+python REPO_ROOT\src\master_script.py `
 	--project PROJECT_NAME `
 	--method METHOD `
 	--cfg PROJECT_CONFIG.cfg `
@@ -543,7 +544,7 @@ This is the condensed version for ACR / P.835 / echo_impairment_test studies whe
 from only a `rating_clips.csv`. Replace placeholders in CAPS.
 
 ```powershell
-Set-Location C:\my\repos\P.808\src
+Set-Location REPO_ROOT\src
 
 # 1. Training clips
 python utils\select_training_clips.py -i DATA_DIR\rating_clips.csv -o DATA_DIR\training_clips.csv -n 5
@@ -563,8 +564,8 @@ Copy-Item DATA_DIR\gold_output\gold_clips_report_public.csv DATA_DIR\gold_clips.
 python utils\download_clips.py -i DATA_DIR\rating_clips.csv -o DATA_DIR\trapping_source -n TRAP_SRC_COUNT --strategy random --seed 99
 
 # 6. Generate trapping clips
-$trapSrc = "C:\my\repos\P.808\src\trapping clips\source"
-$trapOut = "C:\my\repos\P.808\src\trapping clips\output"
+$trapSrc = "REPO_ROOT\src\trapping clips\source"
+$trapOut = "REPO_ROOT\src\trapping clips\output"
 Get-ChildItem $trapSrc -File | Remove-Item -Force
 if (Test-Path $trapOut) { Get-ChildItem $trapOut -File | Remove-Item -Force }
 Copy-Item "DATA_DIR\trapping_source\*.wav" $trapSrc -Force
@@ -577,7 +578,7 @@ Copy-Item "$trapOut\output_report_public.csv" DATA_DIR\trapping_clips.csv
 # 8. Create project config (see section 6 template — bw_min: FB, ask for contact_email)
 # 9. Run master script (ask user about --check_urls and --create_local_test)
 Set-Location DATA_DIR
-python C:\my\repos\P.808\src\master_script.py --project PROJECT --method METHOD --cfg CONFIG.cfg --clips rating_clips.csv --training_clips training_clips.csv --gold_clips gold_clips.csv --trapping_clips trapping_clips.csv
+python REPO_ROOT\src\master_script.py --project PROJECT --method METHOD --cfg CONFIG.cfg --clips rating_clips.csv --training_clips training_clips.csv --gold_clips gold_clips.csv --trapping_clips trapping_clips.csv
 
 # 10. Clean up: remove tmp_gold.csv, gold_source\, trapping_source\, toolkit trapping dirs
 #     Ask user if they want to remove local gold_output\ and trapping output\ (already in Azure)
