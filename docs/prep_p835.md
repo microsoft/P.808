@@ -43,12 +43,12 @@ column named `gold_clips` and expected answer to each clip in a column named `go
     1. Configure the `create_trapping_stimuli.py` in your config file. See [configuration of create_trapping_stimuli script](conf-trapping.md)
      for more information. An example is provided in `configurations\trapping_p835.cfg`.
      
-    2. Delete all files from `trapping clips\source` directory
+    2. Delete all files from `trapping_clips_assets\source` directory
     ``` bash
-    cd "src\trapping clips\source"
+    cd "src\trapping_clips_assets\source"
     del *.* 
     ```  
-    3. Add some clips from your dataset to `trapping clips\source` directory. Select clips in a way that
+    3. Add some clips from your dataset to `trapping_clips_assets\source` directory. Select clips in a way that
 		1. Covers a fair distribution of speakers (best couple of clips per each speaker)
 		1. Covers the entire range of quality (some good, fair, and bad ones)
     
@@ -58,8 +58,8 @@ column named `gold_clips` and expected answer to each clip in a column named `go
     python create_trapping_stimuli.py ^
         --cfg your_config_file.cfg
     ```
-    5. Trapping clips are stored in `trapping clips\output` directory. List of clips and their correct answer can 
-    be found in `trapping clips\source\output_report.csv`. You can replace file names (appears in column named `trapping_clips`)
+    5. Trapping clips are stored in `trapping_clips_assets\output` directory. List of clips and their correct answer can 
+    be found in `trapping_clips_assets\output\output_report.csv`. You can replace file names (appears in column named `trapping_clips`)
     with the URLs pointing to those files to create the `trapping_clips.csv` file (see below).
         
 1. Upload your **trapping clips** in a cloud server and create `trapping_clips.csv` file which contains all URLs in 

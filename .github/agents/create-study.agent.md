@@ -78,8 +78,11 @@ Verify these once at the start so subsequent steps run without interactive promp
 1. **`az` CLI** is logged in: run `az account show` and confirm a valid subscription.
    If expired, prompt the user to run `az login` before continuing.
 2. **Python dependencies**: run `pip install -r requirements.txt --quiet` in `src\`.
-3. **PowerShell execution policy**: if scripts are blocked, advise the user to run
-   `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`.
+3. **PowerShell execution policy**: to avoid repeated permission prompts when running
+   shell commands, launch PowerShell with `powershell -ExecutionPolicy Bypass` or run
+   `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` at the start of the
+   session. Prefer running Python scripts directly (`python script.py`) over calling
+   `.ps1` wrapper scripts.
 
 Once prerequisites pass, proceed through the workflow without pausing for confirmation
 at each command. The agent should only pause to ask the user for the inputs listed
@@ -111,7 +114,11 @@ Do not guess these values if they are missing:
 3. **Project name**: for generated output folder and files.
 4. **Input resources**:
 	- `rating_clips.csv` — **required**.
-	- `training_clips.csv` — **required** (can be auto-generated from rating clips).
+	- `training_clips.csv` — **required** (can be auto-generated from rating clips, but
+	  manual selection is recommended — see section 3).
+	- `training_gold_clips.csv` — optional, **P.804 and pp835 only**. Contains training
+	  clips with per-dimension answers, variance, and feedback messages. If not provided
+	  the agent can generate one from gold clips (see section 3b).
 	- `gold_clips.csv` — optional (can be generated from source clips).
 	- `trapping_clips.csv` — optional (can be generated from source clips).
 5. **Source clips for gold/trapping generation**:
@@ -160,7 +167,9 @@ try {
   Upload gold and trapping clips to that same private container (using `az login`
   credentials), then ask the user which **public** container to copy **all** clips
   (rating + gold + trapping + training) to. Use `az storage blob copy` or azcopy to
-  copy from private to public.
+  copy from private to public. Use a **random opaque subdirectory name** for the
+  rating clips destination (e.g. `PROJECT_NAME/stim_x7k2m9`) — do not use predictable
+  names like `rating` or `clips`.
 
 **Step 2 — Ask the user (only if private):**
 
@@ -193,7 +202,8 @@ clips to gold slots. The `master_script.py` internally renames columns via
 | CSV file | Columns |
 |----------|---------|
 | `rating_clips.csv` | `rating_clips` |
-| `training_clips.csv` | `training_clips` |
+| `training_clips.csv` | `training_clips` (not needed if `training_gold_clips.csv` is used) |
+| `training_gold_clips.csv` | `training_clips`, `noise_ans`, `noise_var`, `noise_msg`, `disc_ans`, `disc_var`, `disc_msg`, `col_ans`, `col_var`, `col_msg`, `loud_ans`, `loud_var`, `loud_msg`, `reverb_ans`, `reverb_var`, `reverb_msg`, `sig_ans`, `sig_var`, `sig_msg`, `ovrl_ans`, `ovrl_var`, `ovrl_msg` |
 | `gold_clips.csv` | `gold_url`, `col_ans`, `disc_ans`, `loud_ans`, `noise_ans`, `reverb_ans`, `sig_ans`, `ovrl_ans`, `ver` |
 | `trapping_clips.csv` | `trapping_clips`, `trapping_ans` |
 
@@ -218,6 +228,7 @@ gold slot the clip belongs to. See section 4 for how to generate two sets.
 | CSV file | Columns |
 |----------|---------|
 | `gold_clips.csv` | `gold_url`, `gold_sig_ans`, `gold_bak_ans`, `gold_ovrl_ans` |
+| `training_gold_clips.csv` | `training_clips`, `sig_ans`, `sig_var`, `sig_msg`, `bak_ans`, `bak_var`, `bak_msg`, `ovrl_ans`, `ovrl_var`, `ovrl_msg` |
 
 See `src\test_inputs\` for example CSV files.
 
@@ -233,9 +244,17 @@ and install dependencies before entering the workflow.
 Look for a `.cfg` file next to the `rating_clips.csv` in the requester's data directory.
 If one exists, offer to reuse it. If this is a re-run or "go yolo" request, use it directly.
 
-### 3. Generate training clips (if not provided)
+### 3. Prepare training clips
 
-If the requester did not provide `training_clips.csv`, generate one from rating clips:
+Training clips anchor participants' perception and should represent the quality
+distribution within the dataset — from worst to best.
+
+**[ASK]** Ask the user: "Can you provide a `training_clips.csv` file with manually
+selected clips that represent the quality distribution in your dataset? For multi-scale
+tests (P.804, P.835), training clips should also show variations across all dimensions.
+If not, I can randomly select some samples, but manual selection is recommended."
+
+If the user provides a file, use it directly. Otherwise, auto-generate:
 
 ```powershell
 Set-Location REPO_ROOT\src
@@ -245,7 +264,55 @@ python utils\select_training_clips.py `
 	--count 5
 ```
 
-The script selects evenly spaced clips from the rating set to cover the quality range.
+Note: `select_training_clips.py` selects clips purely by list position without knowledge
+of actual quality. Manual selection is always preferred.
+
+#### 3b. Prepare training gold clips (P.804 and pp835 only)
+
+For P.804 and personalized P.835, you can provide `training_gold_clips.csv` which adds
+per-dimension answers, accepted variance, and feedback messages to training clips. This
+enables the HIT app to show participants feedback if their training answers deviate too
+far from the expected score.
+
+**[ASK]** Ask the user: "For P.804/pp835, do you have a `training_gold_clips.csv` with
+per-dimension answers and feedback messages? If not, I can generate one from the gold
+clips by selecting those with the highest deviation across dimensions (up to 5 clips)."
+
+**CSV format for P.804 `training_gold_clips.csv`:**
+
+| Column | Description |
+|--------|-------------|
+| `training_clips` | URL of the training clip |
+| `noise_ans` | Expected noise score (1–5) |
+| `noise_var` | Accepted deviation (e.g. 1); use 0 to skip feedback for this dimension |
+| `noise_msg` | Feedback message shown if the answer deviates |
+| `disc_ans`, `disc_var`, `disc_msg` | Same for discontinuity |
+| `col_ans`, `col_var`, `col_msg` | Same for coloration |
+| `loud_ans`, `loud_var`, `loud_msg` | Same for loudness |
+| `reverb_ans`, `reverb_var`, `reverb_msg` | Same for reverberation |
+| `sig_ans`, `sig_var`, `sig_msg` | Same for signal distortion |
+| `ovrl_ans`, `ovrl_var`, `ovrl_msg` | Same for overall quality |
+
+For pp835, use columns: `sig_ans/var/msg`, `bak_ans/var/msg`, `ovrl_ans/var/msg`.
+
+See `src\test_inputs\training_gold_clips_p804.csv` for an example.
+
+**Rules for the `_var` and `_msg` columns:**
+- `_var`: set to `1` for most dimensions (accept ±1 deviation). Set to `0` to skip
+  feedback for that dimension — any answer will be accepted.
+- `_msg`: a short feedback message explaining why the given answer is expected. Use
+  clear, instructive language.
+- If no answer is provided for a dimension (empty cell), any answer is accepted.
+- Typically 1 point of deviation is accepted.
+
+**Auto-generating from gold clips:**
+
+If the user does not provide training gold clips, generate them from the gold clips:
+1. Select up to 5 gold clips with the most distinctive quality characteristics
+   (prefer clips with extreme or opposite dimension values).
+2. Assign `_var = 1` for all dimensions that have an answer.
+3. Write brief feedback messages for each dimension describing the expected quality.
+4. Upload these clips to public storage (they may already be uploaded as gold clips).
 
 ### 4. Generate gold clips (if not provided)
 
@@ -367,8 +434,8 @@ Use a different seed or strategy than gold to avoid overlap with gold source cli
 Clear the toolkit's trapping source directory and copy source clips there:
 
 ```powershell
-$trapSrc = "REPO_ROOT\src\trapping clips\source"
-$trapOut = "REPO_ROOT\src\trapping clips\output"
+$trapSrc = "REPO_ROOT\src\trapping_clips_assets\source"
+$trapOut = "REPO_ROOT\src\trapping_clips_assets\output"
 Get-ChildItem $trapSrc -File | Remove-Item -Force
 if (Test-Path $trapOut) { Get-ChildItem $trapOut -File | Remove-Item -Force }
 Copy-Item "RATING_CLIPS_PATH\trapping_source\*.wav" $trapSrc -Force
@@ -391,22 +458,38 @@ python create_trapping_stimuli.py `
 	--cfg configurations\TRAPPING_CONFIG
 ```
 
-Output goes to `trapping clips\output\`. The report is at
-`trapping clips\output\output_report.csv` with columns `trapping_ans`, `trapping_clips`.
+Output goes to `trapping_clips_assets\output\`. The report is at
+`trapping_clips_assets\output\output_report.csv` with columns `trapping_ans`, `trapping_clips`.
 
 Prepare for upload — use a **random subdirectory name** (not `trapping`):
 
 ```powershell
 python utils\copy_to_pub_storage.py upload `
-	--input "trapping clips\output\output_report.csv" `
+	--input "trapping_clips_assets\output\output_report.csv" `
 	--columns trapping_clips `
-	--local-dir "trapping clips\output" `
+	--local-dir "trapping_clips_assets\output" `
 	--account-name STORAGE_ACCOUNT_NAME `
 	--target-container TARGET_CONTAINER `
 	--dest-path PROJECT_NAME/RANDOM_SUBDIR
 ```
 
 Copy the public CSV as `trapping_clips.csv` next to the rating clips.
+
+### 5b. Review generated clips
+
+**[ASK]** After generating gold, trapping, and training clips (and uploading them to
+storage), pause and ask the user:
+
+> "Gold, trapping, and training clips have been generated and uploaded. Before running
+> the master script, I recommend reviewing a few clips to verify quality:
+> - Gold clips: `STORAGE_ACCOUNT/CONTAINER/GOLD_SUBDIR/`
+> - Trapping clips: `STORAGE_ACCOUNT/CONTAINER/TRAP_SUBDIR/`
+> - Training clips: included in the rating clips
+>
+> Would you like to review them before proceeding, or should I continue?"
+
+Wait for the user's response. If they want to review, pause. If they want to continue,
+proceed to the next step.
 
 ### 6. Create the project config
 
@@ -451,10 +534,12 @@ contact_email:USER_PROVIDED_EMAIL
 
 ### 7. Run the master script
 
-**[ASK]** Before running, ask the user:
-1. **Check URLs** (recommended): validate that all clip URLs are accessible. This adds
-   time but catches broken links before publishing. Only needs to be done once.
-2. **Create local preview**: generate a preview HTML file for visual inspection.
+Always include `--check_urls` and `--create_local_test` flags. URL checking validates
+that all clip URLs are accessible and catches broken links before publishing. The local
+test generates a preview HTML file for visual inspection.
+
+`--check_urls` may be skipped **only** if this is a re-run and the URLs were already
+validated in a previous run (e.g. when re-running due to a config change).
 
 ```powershell
 Set-Location RATING_CLIPS_PATH
@@ -470,8 +555,24 @@ python REPO_ROOT\src\master_script.py `
 	--create_local_test
 ```
 
-Add `--check_urls` only if the user agreed. Add `--create_local_test` only if the user
-wants a preview. Both flags are optional.
+For **P.804** and **pp835**, also pass `--training_gold_clips` if a training gold clips
+CSV was provided or generated in step 3b:
+
+```powershell
+python REPO_ROOT\src\master_script.py `
+	--project PROJECT_NAME `
+	--method p804 `
+	--cfg PROJECT_CONFIG.cfg `
+	--clips rating_clips.csv `
+	--training_gold_clips training_gold_clips.csv `
+	--gold_clips gold_clips.csv `
+	--trapping_clips trapping_clips.csv `
+	--check_urls `
+	--create_local_test
+```
+
+Note: when `--training_gold_clips` is used, the `--training_clips` flag is **not**
+needed — training clips are embedded in the training gold CSV.
 
 **Notes:**
 
@@ -507,19 +608,17 @@ After the project is verified, clean up intermediate files generated during the 
 - `tmp_gold.csv` in the working directory (debug artifact from `master_script.py` for
   P.804 / personalized P.835 — written by `update_gold_clips_for_p804()`).
 - Downloaded source clips directories (`gold_source\`, `trapping_source\`).
-- The toolkit's trapping working directories (`src\trapping clips\source\*.wav`,
-  `src\trapping clips\output\*.wav`).
+- The toolkit's trapping working directories (`src\trapping_clips_assets\source\*.wav`,
+  `src\trapping_clips_assets\output\*`). Always clean these up — generated clips and
+  reports must not be left in the repository tree.
 
-**Keep but offer to review:**
-- `gold_output\` — the generated gold clip WAV files and report CSV. Tell the user:
-  > "The generated gold clips are in `RATING_CLIPS_PATH\gold_output\`. You may want to
-  > listen to a few to verify quality. These clips are also uploaded to Azure at
-  > `STORAGE_ACCOUNT/CONTAINER/RANDOM_SUBDIR/`. If everything looks good, you can delete
-  > the local copies."
-- `trapping clips\output\` — similarly, note that these are uploaded to Azure.
+**[ASK]** After cleanup, ask: "Would you like me to also remove the local `gold_output\`
+directory? The gold clips are already uploaded to Azure at
+`STORAGE_ACCOUNT/CONTAINER/RANDOM_SUBDIR/`."
 
-**[ASK]** After showing the summary, ask: "Would you like me to remove the local gold and
-trapping clip directories? (They are already uploaded to Azure.)"
+If the user agrees, remove `gold_output\`. Regardless of the user's choice, only refer
+to the **online location** of the clips in subsequent messages — do not mention local
+directories that have been deleted.
 
 ### 10. Handoff
 

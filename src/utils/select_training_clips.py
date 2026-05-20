@@ -10,6 +10,13 @@ Training clips anchor participants' perception and should cover the quality rang
 from worst to best. This script selects evenly spaced clips from the input CSV
 to maximize diversity.
 
+.. note::
+    This script selects clips purely by their position in the list, without any
+    knowledge of their actual quality. For best results it is recommended to select
+    training clips manually so they represent the quality distribution within the
+    dataset. In multi-scale tests (e.g. P.804, P.835) the training set should also
+    show variations across all dimensions.
+
 Usage:
     python utils/select_training_clips.py ^
         --input rating_clips.csv ^
@@ -30,6 +37,11 @@ def select_training_clips(input_csv, output_csv, count, input_column="rating_cli
 
     Reads URLs from the input column, selects a subset by evenly spacing through
     the list, and writes them to a new CSV with the output column name.
+
+    Note: selection is based solely on list position — the script has no knowledge
+    of actual clip quality. For best results, select training clips manually to
+    represent the quality distribution. In multi-scale tests (e.g. P.804, P.835),
+    ensure the training set shows variations across all dimensions.
 
     :param input_csv: Path to the rating clips CSV.
     :param output_csv: Path for the output training clips CSV.
@@ -55,7 +67,7 @@ def select_training_clips(input_csv, output_csv, count, input_column="rating_cli
         selected = [urls[i] for i in indices]
 
     out_df = pd.DataFrame({output_column: selected})
-    out_df.to_csv(output_csv, index=False, lineterminator='\r\n')
+    out_df.to_csv(output_csv, index=False)
 
     print(f"Selected {len(selected)} training clips from {total} rating clips")
     print(f"Output saved to: {output_csv}")
