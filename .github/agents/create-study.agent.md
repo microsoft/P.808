@@ -151,51 +151,65 @@ Source:  .../condition_A/clip1.wav  →  Dest: .../<random_subdir>/condition_A/c
 Source:  .../condition_B/clip1.wav  →  Dest: .../<random_subdir>/condition_B/clip1.wav
 ```
 
-#### Copy method: `azcopy` with SAS token (preferred)
+#### Copy method: `azcopy` with SAS tokens (preferred)
 
-For private-to-public transfers, use `azcopy` with a **user-delegation SAS token**.
-Do **not** rely on `azcopy login` — its token is separate from `az login` and expires
-after 90 days of inactivity (error `AADSTS700082`).
+For private-to-public transfers, use `azcopy` with **user-delegation SAS tokens on
+both source and destination URLs**. **Never use `azcopy login`** — its token cache is
+separate from `az login`, expires after 90 days of inactivity (`AADSTS700082`), and
+cannot be refreshed via `az login`. Always generate SAS tokens with `az` instead.
 
-**Generate a SAS token and copy:**
+**Generate SAS tokens for both containers and copy:**
 
 ```powershell
-$expiry = (Get-Date).AddHours(1).ToUniversalTime().ToString("yyyy-MM-ddTHH:mmZ")
-$sasToken = az storage container generate-sas `
+$expiry = (Get-Date).AddHours(2).ToUniversalTime().ToString("yyyy-MM-ddTHH:mmZ")
+
+$srcSas = az storage container generate-sas `
     --account-name SOURCE_ACCOUNT --name SOURCE_CONTAINER `
     --permissions rl --expiry $expiry `
     --auth-mode login --as-user -o tsv
 
+$destSas = az storage container generate-sas `
+    --account-name DEST_ACCOUNT --name DEST_CONTAINER `
+    --permissions rwl --expiry $expiry `
+    --auth-mode login --as-user -o tsv
+
 azcopy copy `
-    "https://SOURCE_ACCOUNT.blob.core.windows.net/SOURCE_CONTAINER/path?$sasToken" `
-    "LOCAL_DEST_PATH"
+    "https://SOURCE_ACCOUNT.blob.core.windows.net/SOURCE_CONTAINER/path?$srcSas" `
+    "https://DEST_ACCOUNT.blob.core.windows.net/DEST_CONTAINER/dest_path?$destSas" `
+    --recursive
 ```
 
-This uses your `az login` session — no `azcopy login` needed. Requires the **Storage
-Blob Delegator** role (included in **Storage Blob Data Contributor**).
+This uses your `az login` session to generate the tokens — no `azcopy login` needed.
+Requires the **Storage Blob Delegator** role (included in **Storage Blob Data
+Contributor**) on both storage accounts.
 
-**Common azcopy failures:**
+**Important**: `azcopy` with `--recursive` preserves the source directory tree. The
+copied paths will include intermediate directories from the source prefix. After
+copying, update the rating clips CSV to reflect the **actual** destination paths
+(verify with `az storage blob list`).
+
+**Common failures:**
 
 | Symptom | Fix |
 |---------|-----|
-| `AADSTS700082: refresh token expired` | Use SAS token approach above instead of `azcopy login` |
-| `AuthorizationPermissionMismatch` | Assign **Storage Blob Data Reader/Contributor** role |
-| `azcopy: command not found` | Install from https://aka.ms/azcopy or use `az storage blob copy start` fallback |
+| `AADSTS700082: refresh token expired` | You used `azcopy login` — switch to the SAS token approach above |
+| `AuthorizationPermissionMismatch` | Assign **Storage Blob Data Contributor** role on both accounts |
+| `azcopy: command not found` | Install from https://aka.ms/azcopy or use the `az` fallback below |
 
 **Fallback**: if `azcopy` is not installed, use `az storage blob copy start` with
-`--auth-mode login` in parallel:
+SAS-authenticated source URIs:
 
 ```powershell
 $clips | ForEach-Object -Parallel {
     $url = $_.rating_clips
+    $sasToken = $using:srcSas
     if ($url -match 'https?:/+([^.]+)\.blob\.core\.windows\.net/([^/]+)/(.+)/([^/]+)$') {
-        $srcAccount = $Matches[1]; $srcContainer = $Matches[2]
         $parentDir = ($Matches[3] -split '/')[-1]; $fileName = $Matches[4]
         az storage blob copy start `
             --account-name DEST_ACCOUNT --destination-container DEST_CONTAINER `
             --destination-blob "DEST_PREFIX/$parentDir/$fileName" `
-            --source-account-name $srcAccount --source-container $srcContainer `
-            --source-blob "$($Matches[3])/$fileName" --auth-mode login 2>&1 | Out-Null
+            --source-uri "$url`?$sasToken" `
+            --auth-mode login 2>&1 | Out-Null
     }
 } -ThrottleLimit 20
 ```
@@ -283,14 +297,24 @@ check_urls_in_files_exist("CLIP_LIST_PATH", ["COLUMN_NAME"])
 ```
 
 **For private storage**: `check_urls_in_files_exist` uses plain HTTP HEAD and will fail
-with HTTP 409. Options:
-1. **With SAS token**: temporarily append the SAS to every URL in the CSV, call the
-   checker, then strip it afterwards.
-2. **Without SAS token**: use `az storage blob exists --auth-mode login` in a loop.
+with HTTP 409. Generate a SAS token using `az`, append it to every URL temporarily, then
+validate:
 
-**[ASK]** If clips are on private storage: "Your clips are on private storage. Do you
-have a SAS token? It would let me validate and download clips faster. If not, I will use
-`az storage blob exists` (slower but works with your `az login` session)."
+```powershell
+$expiry = (Get-Date).AddHours(2).ToUniversalTime().ToString("yyyy-MM-ddTHH:mmZ")
+$sasToken = az storage container generate-sas `
+    --account-name SOURCE_ACCOUNT --name SOURCE_CONTAINER `
+    --permissions rl --expiry $expiry `
+    --auth-mode login --as-user -o tsv
+```
+
+Then temporarily append `?$sasToken` to every URL in the CSV, call
+`check_urls_in_files_exist`, and strip the token afterwards. Store the SAS token for
+reuse in later steps (downloading clips, azcopy transfers).
+
+**[ASK]** If clips are on private storage: "Your clips are on private storage. I can
+generate a SAS token using your `az login` session to validate and download clips.
+Should I go ahead?"
 
 ### 3. Check for existing project config
 
