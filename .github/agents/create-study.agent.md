@@ -12,19 +12,9 @@ Use this runbook when asked to create a new subjective speech quality test with 
 
 ## Platform and shell adaptation
 
-The code examples below use **PowerShell on Windows** with Windows-style paths (`\`).
-If you are running on a different OS or shell (e.g. bash on macOS/Linux), adapt every
-command to the user's environment:
-
-- Replace PowerShell cmdlets (`Set-Location`, `Get-ChildItem`, `Copy-Item`, `Remove-Item`,
-  `Import-Csv`, `Export-Csv`, `Invoke-WebRequest`, `ForEach-Object`, `Add-Member`) with
-  their shell or Python equivalents.
-- Replace `REPO_ROOT` in all commands with the **actual absolute path** of this
-  repository on disk (i.e. the Git root directory).
-- Convert path separators as needed (`\` on Windows, `/` on macOS/Linux).
-- Use `python3` instead of `python` if required by the platform.
-- The Python scripts and `az` CLI commands are cross-platform — only the shell glue
-  around them needs adaptation.
+Code examples use **PowerShell on Windows** (`\` paths). Adapt for other OS/shells:
+replace PowerShell cmdlets with equivalents, use `python3` if needed, convert paths.
+Replace `REPO_ROOT` with the actual absolute path of this repository.
 
 ## Best-practice variables
 
@@ -52,16 +42,9 @@ BEST_PRACTICE_BW_MIN               = FB
 
 ## Scope
 
-This instruction covers:
-
-1. Preparing inputs for all supported test methods.
-2. Generating gold clips and trapping clips when needed.
-3. Preparing upload commands for generated clips to public storage.
-4. Running `master_script.py` to build the project.
-5. Handing off the generated project for publishing on the chosen crowd platform.
-
-Platform note: Setting up the HIT in a HITAPP server and publishing on the crowdsourcing platform
-is done by the requester following the generated artifacts and platform docs.
+This instruction covers preparing inputs, generating gold/trapping clips, uploading to
+storage, running `master_script.py`, and handing off for publishing. Setting up the HIT
+in a HITAPP server and publishing is done by the requester.
 
 ## Mandatory pre-check
 
@@ -73,20 +56,14 @@ Before editing or running anything in this repository:
 
 ## Environment prerequisites
 
-Verify these once at the start so subsequent steps run without interactive prompts:
+Verify once at the start:
 
-1. **`az` CLI** is logged in: run `az account show` and confirm a valid subscription.
-   If expired, prompt the user to run `az login` before continuing.
-2. **Python dependencies**: run `pip install -r requirements.txt --quiet` in `src\`.
-3. **PowerShell execution policy**: to avoid repeated permission prompts when running
-   shell commands, launch PowerShell with `powershell -ExecutionPolicy Bypass` or run
-   `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` at the start of the
-   session. Prefer running Python scripts directly (`python script.py`) over calling
-   `.ps1` wrapper scripts.
+1. **`az` CLI** logged in: `az account show`. If expired, prompt `az login`.
+2. **Python deps**: `pip install -r requirements.txt --quiet` in `src\`.
+3. **PowerShell**: use `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
+   Prefer running Python scripts directly over `.ps1` wrappers.
 
-Once prerequisites pass, proceed through the workflow without pausing for confirmation
-at each command. The agent should only pause to ask the user for the inputs listed
-in the next section and the specific decision points marked **[ASK]** in the workflow.
+Once prerequisites pass, proceed without pausing except at **[ASK]** decision points.
 
 ## Supported test methods
 
@@ -114,11 +91,15 @@ Do not guess these values if they are missing:
 3. **Project name**: for generated output folder and files.
 4. **Input resources**:
 	- `rating_clips.csv` — **required**.
-	- `training_clips.csv` — **required** (can be auto-generated from rating clips, but
-	  manual selection is recommended — see section 3).
-	- `training_gold_clips.csv` — optional, **P.804 and pp835 only**. Contains training
-	  clips with per-dimension answers, variance, and feedback messages. If not provided
-	  the agent can generate one from gold clips (see section 3b).
+	- `training_clips.csv` — **required for most methods** (can be auto-generated from
+	  rating clips, but manual selection is recommended — see section 4).
+	  **Not needed for P.804 or pp835 when `training_gold_clips.csv` is provided or
+	  generated** — the two are mutually exclusive (see section 4).
+	- `training_gold_clips.csv` — **P.804 and pp835 only**. Contains training
+	  clips with per-dimension answers, variance, and feedback messages. **When available
+	  (provided or auto-generated), this takes priority over `training_clips.csv`** —
+	  do not ask for or generate plain training clips. If not provided the agent can
+	  generate one from gold clips (see section 4b).
 	- `gold_clips.csv` — optional (can be generated from source clips).
 	- `trapping_clips.csv` — optional (can be generated from source clips).
 5. **Source clips for gold/trapping generation**:
@@ -144,40 +125,80 @@ Do not guess these values if they are missing:
 
 ## Storage and public accessibility
 
-All clip URLs (rating, gold, trapping, training) must be publicly accessible because
-crowd workers access them without authentication.
+All clip URLs must be publicly accessible for crowd workers.
 
-**Step 1 — Check the rating clips container:**
-
-Pick one URL from `rating_clips.csv` and test with an unauthenticated HTTP HEAD request:
+**Check accessibility**: pick one URL from the clip list and test with HTTP HEAD:
 
 ```powershell
 $testUrl = "<first_url_from_rating_clips>"
 try {
-    $response = Invoke-WebRequest -Uri $testUrl -Method Head -UseBasicParsing -ErrorAction Stop
-    Write-Host "PUBLIC — HTTP $($response.StatusCode)"
-} catch {
-    Write-Host "NOT PUBLIC — $($_.Exception.Message)"
-}
+    $r = Invoke-WebRequest -Uri $testUrl -Method Head -UseBasicParsing -ErrorAction Stop
+    Write-Host "PUBLIC — HTTP $($r.StatusCode)"
+} catch { Write-Host "NOT PUBLIC — $($_.Exception.Message)" }
 ```
 
-- **If public (HTTP 200)**: the rating clips are already accessible. Upload gold and
-  trapping clips to the same account/container.
-- **If not public (HTTP 403/409)**: the rating clips are on a private container.
-  Upload gold and trapping clips to that same private container (using `az login`
-  credentials), then ask the user which **public** container to copy **all** clips
-  (rating + gold + trapping + training) to. Use `az storage blob copy` or azcopy to
-  copy from private to public. Use a **random opaque subdirectory name** for the
-  rating clips destination (e.g. `PROJECT_NAME/stim_x7k2m9`) — do not use predictable
-  names like `rating` or `clips`.
+- **If public (HTTP 200)**: upload gold/trapping clips to the same account/container.
+- **If not public (HTTP 403/409)**: ask the user which **public** container to copy all
+  clips to. Use a **random opaque subdirectory** (e.g. `PROJECT_NAME/stim_x7k2m9`).
 
-**Step 2 — Ask the user (only if private):**
+#### Preserving directory structure when copying
 
-> The rating clips are on a private container (`ACCOUNT/CONTAINER`). Crowd workers
-> will not be able to access them. Which public storage account and container should
-> I copy all clips to?
+Rating clips often share filenames across subdirectories (each representing a different
+condition). **Never copy to a flat directory** — preserve the parent directory name:
 
-After copying, update all CSV files to use the new public URLs.
+```text
+Source:  .../condition_A/clip1.wav  →  Dest: .../<random_subdir>/condition_A/clip1.wav
+Source:  .../condition_B/clip1.wav  →  Dest: .../<random_subdir>/condition_B/clip1.wav
+```
+
+#### Copy method: `azcopy` with SAS token (preferred)
+
+For private-to-public transfers, use `azcopy` with a **user-delegation SAS token**.
+Do **not** rely on `azcopy login` — its token is separate from `az login` and expires
+after 90 days of inactivity (error `AADSTS700082`).
+
+**Generate a SAS token and copy:**
+
+```powershell
+$expiry = (Get-Date).AddHours(1).ToUniversalTime().ToString("yyyy-MM-ddTHH:mmZ")
+$sasToken = az storage container generate-sas `
+    --account-name SOURCE_ACCOUNT --name SOURCE_CONTAINER `
+    --permissions rl --expiry $expiry `
+    --auth-mode login --as-user -o tsv
+
+azcopy copy `
+    "https://SOURCE_ACCOUNT.blob.core.windows.net/SOURCE_CONTAINER/path?$sasToken" `
+    "LOCAL_DEST_PATH"
+```
+
+This uses your `az login` session — no `azcopy login` needed. Requires the **Storage
+Blob Delegator** role (included in **Storage Blob Data Contributor**).
+
+**Common azcopy failures:**
+
+| Symptom | Fix |
+|---------|-----|
+| `AADSTS700082: refresh token expired` | Use SAS token approach above instead of `azcopy login` |
+| `AuthorizationPermissionMismatch` | Assign **Storage Blob Data Reader/Contributor** role |
+| `azcopy: command not found` | Install from https://aka.ms/azcopy or use `az storage blob copy start` fallback |
+
+**Fallback**: if `azcopy` is not installed, use `az storage blob copy start` with
+`--auth-mode login` in parallel:
+
+```powershell
+$clips | ForEach-Object -Parallel {
+    $url = $_.rating_clips
+    if ($url -match 'https?:/+([^.]+)\.blob\.core\.windows\.net/([^/]+)/(.+)/([^/]+)$') {
+        $srcAccount = $Matches[1]; $srcContainer = $Matches[2]
+        $parentDir = ($Matches[3] -split '/')[-1]; $fileName = $Matches[4]
+        az storage blob copy start `
+            --account-name DEST_ACCOUNT --destination-container DEST_CONTAINER `
+            --destination-blob "DEST_PREFIX/$parentDir/$fileName" `
+            --source-account-name $srcAccount --source-container $srcContainer `
+            --source-blob "$($Matches[3])/$fileName" --auth-mode login 2>&1 | Out-Null
+    }
+} -ThrottleLimit 20
+```
 
 ## CSV column names by method
 
@@ -213,7 +234,7 @@ The answer columns (`col_ans`, `disc_ans`, etc.) are output without the `gold_` 
 and should be kept as-is — the master script adds the prefix internally.
 
 The `ver` column is **required** and must contain an integer (1 or 2) indicating which
-gold slot the clip belongs to. See section 4 for how to generate two sets.
+gold slot the clip belongs to. See section 5 for how to generate two sets.
 
 ### Double-stimulus methods (DCR, CCR)
 
@@ -239,15 +260,61 @@ See `src\test_inputs\` for example CSV files.
 Environment setup is covered in "Environment prerequisites" above. Verify `az` login
 and install dependencies before entering the workflow.
 
-### 2. Check for existing project config
+### 2. Validate the input clip list
+
+Before proceeding, validate **every URL** to catch typos, broken links, or inaccessible
+files early.
+
+1. Parse the CSV and fix common URL formatting issues (e.g. `https:/host` → `https://host`).
+2. Validate URLs using one of the approaches below.
+3. If **any URLs are invalid**, **stop** and report the full list to the user.
+4. Check for **duplicate URLs** — report them and ask the user to clarify before continuing.
+
+#### Validation approaches
+
+**For public storage**: use `check_urls_in_files_exist` from `master_script.py` for fast
+multicore validation:
+
+```python
+import sys, os
+sys.path.insert(0, os.path.join("REPO_ROOT", "src"))
+from master_script import check_urls_in_files_exist
+check_urls_in_files_exist("CLIP_LIST_PATH", ["COLUMN_NAME"])
+```
+
+**For private storage**: `check_urls_in_files_exist` uses plain HTTP HEAD and will fail
+with HTTP 409. Options:
+1. **With SAS token**: temporarily append the SAS to every URL in the CSV, call the
+   checker, then strip it afterwards.
+2. **Without SAS token**: use `az storage blob exists --auth-mode login` in a loop.
+
+**[ASK]** If clips are on private storage: "Your clips are on private storage. Do you
+have a SAS token? It would let me validate and download clips faster. If not, I will use
+`az storage blob exists` (slower but works with your `az login` session)."
+
+### 3. Check for existing project config
 
 Look for a `.cfg` file next to the `rating_clips.csv` in the requester's data directory.
 If one exists, offer to reuse it. If this is a re-run or "go yolo" request, use it directly.
 
-### 3. Prepare training clips
+### 4. Prepare training clips
 
 Training clips anchor participants' perception and should represent the quality
 distribution within the dataset — from worst to best.
+
+**P.804 and pp835 — training gold clips take priority:**
+
+For P.804 and pp835, `training_gold_clips.csv` and `training_clips.csv` are **mutually
+exclusive** — the master script accepts one or the other, not both. Because training gold
+clips provide richer per-dimension feedback, they are **always preferred**:
+
+1. If the user provides `training_gold_clips.csv` → use it, **skip** plain training clips.
+2. If neither is provided → generate `training_gold_clips.csv` from gold clips (see
+   section 4b), **skip** plain training clips.
+3. Only generate or ask for `training_clips.csv` when the method is **not** P.804/pp835,
+   or when the user explicitly opts out of training gold clips.
+
+**For all other methods (ACR, DCR, CCR, P.835, echo impairment):**
 
 **[ASK]** Ask the user: "Can you provide a `training_clips.csv` file with manually
 selected clips that represent the quality distribution in your dataset? For multi-scale
@@ -267,7 +334,7 @@ python utils\select_training_clips.py `
 Note: `select_training_clips.py` selects clips purely by list position without knowledge
 of actual quality. Manual selection is always preferred.
 
-#### 3b. Prepare training gold clips (P.804 and pp835 only)
+#### 4b. Prepare training gold clips (P.804 and pp835 only)
 
 For P.804 and personalized P.835, you can provide `training_gold_clips.csv` which adds
 per-dimension answers, accepted variance, and feedback messages to training clips. This
@@ -297,13 +364,8 @@ For pp835, use columns: `sig_ans/var/msg`, `bak_ans/var/msg`, `ovrl_ans/var/msg`
 
 See `src\test_inputs\training_gold_clips_p804.csv` for an example.
 
-**Rules for the `_var` and `_msg` columns:**
-- `_var`: set to `1` for most dimensions (accept ±1 deviation). Set to `0` to skip
-  feedback for that dimension — any answer will be accepted.
-- `_msg`: a short feedback message explaining why the given answer is expected. Use
-  clear, instructive language.
-- If no answer is provided for a dimension (empty cell), any answer is accepted.
-- Typically 1 point of deviation is accepted.
+**Rules**: `_var = 1` accepts ±1 deviation; `_var = 0` skips feedback. `_msg` is a
+short feedback message. Empty `_ans` cells accept any answer.
 
 **Auto-generating from gold clips:**
 
@@ -314,7 +376,7 @@ If the user does not provide training gold clips, generate them from the gold cl
 3. Write brief feedback messages for each dimension describing the expected quality.
 4. Upload these clips to public storage (they may already be uploaded as gold clips).
 
-### 4. Generate gold clips (if not provided)
+### 5. Generate gold clips (if not provided)
 
 Gold clips require **high-quality, clean reference WAV files** — not arbitrary rating clips.
 
@@ -324,8 +386,9 @@ agent must confirm", item 5). Options:
 - The user identifies clean clips by a URL pattern (e.g. `*/clean/*`).
 - Download a subset and let the user review them to remove any with distortion.
 
-If downloading clips from Azure private storage, use `az storage blob download` with
-`--auth-mode login` instead of the HTTP-based `download_clips.py`.
+If downloading clips from Azure private storage, either:
+- Use `download_clips.py` with `--sas_token` to authenticate, or
+- Use `az storage blob download` with `--auth-mode login` for each clip individually.
 
 **How many source clips?** Use `BEST_PRACTICE_GOLD_SOURCE_COUNT` capped at
 `BEST_PRACTICE_MAX_GOLD_SOURCE_CLIPS`.
@@ -365,53 +428,28 @@ independent sets of source clips. Instead, generate one set and assign `ver` bas
 
 1. Run `create_gold_clips.py --method p804` once with all source clips.
 2. Rename `gold_clips` → `gold_url` in the output CSV.
-3. Add a `ver` column based on `ovrl_ans`: `ver=1` when `ovrl_ans=5`, `ver=2` when `ovrl_ans=1`.
+3. Add a `ver` column: `ver=1` when `ovrl_ans=5` (clean), `ver=2` when `ovrl_ans=1` (degraded).
+4. Export as `gold_clips.csv`.
 
-Example post-processing:
-
-```powershell
-$gold = Import-Csv "RATING_CLIPS_PATH\gold_output\gold_clips_report.csv"
-
-# Rename gold_clips -> gold_url, assign ver based on ovrl_ans
-$gold | ForEach-Object {
-    $_ | Add-Member -NotePropertyName gold_url -NotePropertyValue $_.gold_clips -Force
-    $ver = if ([int]$_.ovrl_ans -eq 5) { 1 } else { 2 }
-    $_ | Add-Member -NotePropertyName ver -NotePropertyValue $ver -Force
-    $_.PSObject.Properties.Remove('gold_clips')
-    $_
-}
-
-$gold | Export-Csv "RATING_CLIPS_PATH\gold_clips.csv" -NoTypeInformation
-```
-
-After generation, upload to public storage and create the gold_clips.csv:
+After generation, upload to public storage:
 
 ```powershell
 python utils\copy_to_pub_storage.py upload `
 	--input RATING_CLIPS_PATH\gold_output\gold_clips_report.csv `
-	--columns gold_clips `
-	--local-dir RATING_CLIPS_PATH\gold_output `
+	--columns gold_clips --local-dir RATING_CLIPS_PATH\gold_output `
 	--account-name STORAGE_ACCOUNT_NAME `
 	--target-container TARGET_CONTAINER `
 	--dest-path PROJECT_NAME/RANDOM_SUBDIR
 ```
 
-**Important**: do **not** use predictable directory names like `gold` or `trapping` for the
-upload `--dest-path`. Generate a short random or opaque subdirectory name (e.g.
-`PROJECT_NAME/stim_a3x9k2`) so crowd workers cannot guess the purpose of the clips
-from the URL.
+Use a **random subdirectory name** (not `gold` or `trapping`). This uploads via
+`az login` credentials and produces `gold_clips_report_public.csv` with public URLs.
+If `az` CLI is unavailable, fall back to `upload-local` mode.
 
-This directly uploads via `az login` credentials (no SAS tokens needed) and produces
-`gold_clips_report_public.csv` with public URLs.
+For P.804, apply column renaming (`gold_clips` → `gold_url`) and add `ver` **after**
+URLs have been updated to public paths.
 
-If `az` CLI is not available or login has expired, fall back to `upload-local` mode which
-generates an azcopy command for manual upload instead.
-
-Copy the public CSV as `gold_clips.csv` next to the rating clips. For P.804, remember to
-apply the column renaming (`gold_clips` → `gold_url`) and add the `ver` column **after**
-the URLs have been updated to public paths.
-
-### 5. Generate trapping clips (if not provided)
+### 6. Generate trapping clips (if not provided)
 
 Trapping clips can be generated from any rating clips — they do not need to be
 high-quality references (unlike gold clips). Download a sample of rating clips:
@@ -422,12 +460,12 @@ python utils\download_clips.py `
 	--column rating_clips `
 	--output_dir RATING_CLIPS_PATH\trapping_source `
 	--sample BEST_PRACTICE_TRAPPING_SOURCE_COUNT `
-	--strategy random `
-	--seed 99
+	--strategy random --seed 99 `
+	--sas_token "SAS_TOKEN_VALUE"
 ```
 
-If the rating clips are on private storage, use `az storage blob download` with
-`--auth-mode login` instead.
+Omit `--sas_token` for public storage. If no SAS token is available for private storage,
+fall back to `az storage blob download --auth-mode login` for each clip.
 
 Use a different seed or strategy than gold to avoid overlap with gold source clips.
 
@@ -475,28 +513,17 @@ python utils\copy_to_pub_storage.py upload `
 
 Copy the public CSV as `trapping_clips.csv` next to the rating clips.
 
-### 5b. Review generated clips
+### 6b. Review generated clips
 
-**[ASK]** After generating gold, trapping, and training clips (and uploading them to
-storage), pause and ask the user:
+**[ASK]** After generating and uploading gold, trapping, and training clips, ask:
+"Gold, trapping, and training clips are generated and uploaded. Would you like to
+review them before I run the master script, or should I continue?"
 
-> "Gold, trapping, and training clips have been generated and uploaded. Before running
-> the master script, I recommend reviewing a few clips to verify quality:
-> - Gold clips: `STORAGE_ACCOUNT/CONTAINER/GOLD_SUBDIR/`
-> - Trapping clips: `STORAGE_ACCOUNT/CONTAINER/TRAP_SUBDIR/`
-> - Training clips: included in the rating clips
->
-> Would you like to review them before proceeding, or should I continue?"
+### 7. Create the project config
 
-Wait for the user's response. If they want to review, pause. If they want to continue,
-proceed to the next step.
+Create a `.cfg` file next to the input CSVs with the project name.
 
-### 6. Create the project config
-
-Create a `.cfg` file next to the input CSVs. Save it with the project name so future
-runs can reuse it.
-
-Template (all values **unquoted**, no extra spaces around `:`):
+Template (values **unquoted**):
 
 ```ini
 [create_input]
@@ -517,22 +544,14 @@ quality_bonus: 0.15
 contact_email:USER_PROVIDED_EMAIL
 ```
 
-**Important config rules:**
+**Key rules:**
+- `number_of_gold_clips_per_session` = **2 for P.804**, 1 for others.
+- `bw_min` defaults to `FB`. Valid: `NB-WB`, `SWB`, `FB`.
+- `contact_email` = user-provided. Never hardcode.
+- `allowed_max_hit_in_project` = `BEST_PRACTICE_ALLOWED_MAX_HITS`.
+- `quantity_hits_more_than` ≈ `floor(total_sessions / 2)`, at least 2.
 
-- Do **not** quote values. `bw_min: FB` is correct. `bw_min: "FB"` will fail.
-- `number_of_gold_clips_per_session` = **2 for P.804**, 1 for all other methods.
-- `bw_min` defaults to `FB` unless the user explicitly requests a different value.
-  Valid options: `NB-WB`, `SWB`, `FB`.
-- `contact_email` = always use the email address provided by the user. Never hardcode
-  a default.
-- `allowed_max_hit_in_project` = the max number of HITs a single worker can complete.
-  Use the requester's value or `BEST_PRACTICE_ALLOWED_MAX_HITS`.
-- `quantity_hits_more_than` = threshold for quantity bonus. Should be approximately
-  `floor(total_sessions / 2)` but at least 2. `total_sessions` is printed by the master
-  script ("There are N clips and M sessions").
-  If unsure, set to 2 and adjust after seeing the session count.
-
-### 7. Run the master script
+### 8. Run the master script
 
 Always include `--check_urls` and `--create_local_test` flags. URL checking validates
 that all clip URLs are accessible and catches broken links before publishing. The local
@@ -556,7 +575,7 @@ python REPO_ROOT\src\master_script.py `
 ```
 
 For **P.804** and **pp835**, also pass `--training_gold_clips` if a training gold clips
-CSV was provided or generated in step 3b:
+CSV was provided or generated in step 4b:
 
 ```powershell
 python REPO_ROOT\src\master_script.py `
@@ -584,7 +603,7 @@ needed — training clips are embedded in the training gold CSV.
 - If `quantity_hits_more_than` triggers a warning, update the config file with the
   suggested value and re-run.
 
-### 8. Verify the generated project artifacts
+### 9. Verify the generated project artifacts
 
 The output project directory (`PROJECT_NAME\`) should contain:
 
@@ -593,6 +612,7 @@ The output project directory (`PROJECT_NAME\`) should contain:
 | `PROJECT_NAME_METHOD.html` | HIT app (HTML) for the crowd platform |
 | `PROJECT_NAME_publish_batch.csv` | Session data with clip URLs for publishing |
 | `PROJECT_NAME_METHOD_result_parser.cfg` | Config for `result_parser.py` when analyzing results |
+| `url_mapping.csv` | Mapping of original (private/local) URLs to final public URLs |
 
 Verify:
 
@@ -600,27 +620,30 @@ Verify:
 2. The publish batch CSV has the expected number of rows (sessions).
 3. The HTML file is non-empty.
 
-### 9. Clean up temporary files
+### 9b. Generate URL mapping CSV
 
-After the project is verified, clean up intermediate files generated during the workflow:
+If clips were copied from private to public storage, generate `url_mapping.csv` in the
+project output directory mapping every original URL to its public URL.
+
+Columns: `original_url`, `public_url`, `clip_type` (one of: `rating`, `gold`,
+`trapping`, `training`, `training_gold`).
+
+Include all clip types that were uploaded or copied. For clips already public (e.g.
+training gold clips), set `original_url = public_url`.
+
+Save as `PROJECT_NAME\url_mapping.csv`.
+
+### 10. Clean up temporary files
 
 **Always remove:**
-- `tmp_gold.csv` in the working directory (debug artifact from `master_script.py` for
-  P.804 / personalized P.835 — written by `update_gold_clips_for_p804()`).
+- `tmp_gold.csv` (debug artifact from `master_script.py`).
 - Downloaded source clips directories (`gold_source\`, `trapping_source\`).
-- The toolkit's trapping working directories (`src\trapping_clips_assets\source\*.wav`,
-  `src\trapping_clips_assets\output\*`). Always clean these up — generated clips and
-  reports must not be left in the repository tree.
+- Toolkit trapping directories (`src\trapping_clips_assets\source\*.wav`,
+  `src\trapping_clips_assets\output\*`).
 
-**[ASK]** After cleanup, ask: "Would you like me to also remove the local `gold_output\`
-directory? The gold clips are already uploaded to Azure at
-`STORAGE_ACCOUNT/CONTAINER/RANDOM_SUBDIR/`."
+**[ASK]** Ask whether to also remove local `gold_output\` (clips are already uploaded).
 
-If the user agrees, remove `gold_output\`. Regardless of the user's choice, only refer
-to the **online location** of the clips in subsequent messages — do not mention local
-directories that have been deleted.
-
-### 10. Handoff
+### 11. Handoff
 
 **Upload status**: If the `upload` mode was used, gold and trapping clips are already
 uploaded and publicly accessible. If `upload-local` was used as a fallback (no `az` CLI),

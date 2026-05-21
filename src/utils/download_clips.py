@@ -25,12 +25,16 @@ from urllib.parse import urlparse
 import pandas as pd
 
 
-def download_clips(input_csv, column, output_dir, sample=None, seed=42, strategy="evenly_spaced"):
+def download_clips(input_csv, column, output_dir, sample=None, seed=42, strategy="evenly_spaced",
+                   sas_token=None):
     """
     Download clips from URLs in a CSV column to a local directory.
 
     When sample is specified, a subset of clips is selected using the chosen
     strategy. Downloaded files keep their original filename from the URL path.
+
+    If the clips are on private Azure Blob Storage, provide a SAS token so the
+    script can authenticate without requiring ``az login`` or ``azcopy``.
 
     :param input_csv: Path to the CSV file containing clip URLs.
     :param column: Name of the column containing URLs.
@@ -38,6 +42,9 @@ def download_clips(input_csv, column, output_dir, sample=None, seed=42, strategy
     :param sample: Number of clips to download. None means download all.
     :param seed: Random seed for reproducible sampling.
     :param strategy: Sampling strategy - 'evenly_spaced' or 'random'.
+    :param sas_token: Optional Azure SAS token (without leading '?'). When
+        provided it is appended to each URL to authenticate against private
+        storage.
     :return: List of local file paths that were downloaded.
     """
     df = pd.read_csv(input_csv)
@@ -70,7 +77,8 @@ def download_clips(input_csv, column, output_dir, sample=None, seed=42, strategy
 
         print(f"  [{i + 1}/{len(urls)}] Downloading: {filename}")
         try:
-            urllib.request.urlretrieve(url, dest)
+            download_url = f"{url}?{sas_token}" if sas_token else url
+            urllib.request.urlretrieve(download_url, dest)
             downloaded.append(dest)
         except Exception as e:
             print(f"    Error downloading {url}: {e}")
@@ -117,6 +125,12 @@ if __name__ == "__main__":
         default=42,
         help="Random seed for reproducible sampling (default: 42)."
     )
+    parser.add_argument(
+        "--sas_token",
+        default=None,
+        help="Azure SAS token for private storage (without leading '?'). "
+             "Appended to each URL to authenticate downloads."
+    )
 
     args = parser.parse_args()
 
@@ -131,4 +145,5 @@ if __name__ == "__main__":
         sample=args.sample,
         seed=args.seed,
         strategy=args.strategy,
+        sas_token=args.sas_token,
     )
