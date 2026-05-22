@@ -1,8 +1,19 @@
 import azure.cognitiveservices.speech as speechsdk
+# install this package with: pip install azure-identity
+from azure.identity import DefaultAzureCredential
 
-# Replace with your own subscription key and region identifier from here: https://aka.ms/speech/sdkregion
-# speech_key, service_region = "YourSubscriptionKey", "YourServiceRegion"
-speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
+# Replace with your own region identifier from here: https://aka.ms/speech/sdkregion
+
+# Replace with your own region and resource ID
+service_region = "Replace with your own region"
+# Find resource_id in Azure Portal → Speech resource → Properties → Resource ID
+resource_id = "Replace with your own resource ID"
+
+credential = DefaultAzureCredential()
+token = credential.get_token("https://cognitiveservices.azure.com/.default")
+# subscription value is overridden by authorization_token below
+speech_config = speechsdk.SpeechConfig(subscription="unused", region=service_region)
+speech_config.authorization_token = "aad#" + resource_id + "#" + token.token
 
 def create_wav(ans ,output):
     # Creates an audio configuration that points to an audio file.
@@ -22,7 +33,7 @@ def create_wav(ans ,output):
 
     # Checks result.
     if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
-        print("Speech synthesized to [{}]]".format(audio_filename))
+        print("Speech synthesized to [{}]".format(audio_filename))
     elif result.reason == speechsdk.ResultReason.Canceled:
         cancellation_details = result.cancellation_details
         print("Speech synthesis canceled: {}".format(cancellation_details.reason))
