@@ -283,7 +283,7 @@ def approve_reject_assignments(client, assignment_path, approve):
 
 def get_assignment_review_policy(cfg):
     """
-    Create an Assigment Review Policy as explained by MTurke
+    Create an Assignment Review Policy as explained by MTurk
     :param cfg: configuration object
     :return:
     """

@@ -414,7 +414,7 @@
 			}
 
 			let gold_stat = getGoldQuestionStat();
-			console.log("gold_stat:"+ gold_stat['failed'] +"warining:" + gold_stat['warning_showed'] );
+			console.log("gold_stat:"+ gold_stat['failed'] +"warning:" + gold_stat['warning_showed'] );
 			let force_re_training = false;
 			if (gold_stat['failed']>= config['goldClip']['n_fail_block']) {
 				disableTheHIT(Hide_HIT_REASON.GOLD_FAILED);				
@@ -849,7 +849,7 @@
 	}
 
 	function checkGoldQCorrect(given_ans, accepted_var, correct_hash, url) {
-		// return true if correct_hash is null or its lenght after trim is 0
+		// return true if correct_hash is null or its length after trim is 0
 		if (!correct_hash || correct_hash.trim().length == 0)
 			return true;
 		
@@ -1254,7 +1254,7 @@ function preventTabsChangeBeforeRateRating(){
 
 
 	/**
-	 * Check is the givebn url belongs to a trapping questionin training section, If so returns its info, otherwise null-
+	 * Check is the givebn url belongs to a trapping question in training section, If so returns its info, otherwise null-
 	 * @param {*} element
 	 **/
 	function getGoldQuestionInTrainingInfo(url){
@@ -1486,7 +1486,7 @@ function preventTabsChangeBeforeRateRating(){
 			return;
 				
 		stat = getGoldQuestionStat();
-		console.log('current stat: faild '+stat['failed']+ ', sum: '+stat['sum']);
+		console.log('current stat: failed '+stat['failed']+ ', sum: '+stat['sum']);
 		is_correct = true;
 		// check the answers
 		if ( !checkGoldQCorrect(Number(given_ans), 1, ans, goldClipAns["url"])){			
@@ -1517,7 +1517,7 @@ function preventTabsChangeBeforeRateRating(){
 			}
 		}		
 		saveGoldQuestionStat(stat);
-		console.log('new stat: faild '+stat['failed']+ ', sum: '+stat['sum']);
+		console.log('new stat: failed '+stat['failed']+ ', sum: '+stat['sum']);
 	}
 
 	/*
@@ -1539,7 +1539,7 @@ function preventTabsChangeBeforeRateRating(){
 			return;
 				
 		stat = getGoldQuestionStat();
-		//console.log('current stat: faild '+stat['failed']+ ', sum: '+stat['sum']);
+		//console.log('current stat: failed '+stat['failed']+ ', sum: '+stat['sum']);
 		is_correct = true;
 		// check the answers
 		if ( !checkGoldQCorrect(Number(given_ans), 1, ans, goldClipAns["url"])){			
@@ -1571,7 +1571,7 @@ function preventTabsChangeBeforeRateRating(){
 			}
 		}		
 		saveGoldQuestionStat(stat);
-		//console.log('new stat: faild '+stat['failed']+ ', sum: '+stat['sum']);
+		//console.log('new stat: failed '+stat['failed']+ ', sum: '+stat['sum']);
 	}
 
 	/*
@@ -1874,7 +1874,7 @@ function preventTabsChangeBeforeRateRating(){
 					</div>
 					
 					<input type="range" min="1" max="5" step="1" value="0" class="slider_hide" id="T{0}-discontinuity-slider" name="t{0}_slide_disc" list="tickmarks" required>					
-					<label for="discontinous" class="pull-left">Continuous</label>
+					<label for="discontinuous" class="pull-left">Continuous</label>
 					<label for="" class="pull-right">Discontinuous</label>
 				</div></br></br></br>`;
 		
@@ -1895,7 +1895,7 @@ function preventTabsChangeBeforeRateRating(){
 							</tr>
 							</tbody>
 						</table>
-						<label for="discontinous" class="pull-left">Continuous</label>
+						<label for="discontinuous" class="pull-left">Continuous</label>
 						<label for="" class="pull-right">Discontinuous</label>
 					</div>
 					<div class="row">
@@ -2169,7 +2169,7 @@ function preventTabsChangeBeforeRateRating(){
 	}
 	/*
 		Generate the training section
-		lod, rev, col, dis
+                loud, rev, col, dis
 
 	*/
 	function generate_training_section() {
@@ -2630,7 +2630,7 @@ function set_onclick_listeners(){
 </script>
 
 
-<!--    gold question warining -->
+<!--    gold question warning -->
 <section class="container" id="gold_warning" hidden>
 	<div class="alert alert-danger" role="alert">
 		<h5><b>Warning</b></h5>
@@ -2645,7 +2645,7 @@ function set_onclick_listeners(){
 		<p> 
 
 			<div class="checkbox">
-				<label><input id="gold_warning_checkbox" type="checkbox" value="warining">I read this message carefully and understand it.</label>
+				<label><input id="gold_warning_checkbox" type="checkbox" value="warning">I read this message carefully and understand it.</label>
 			  </div>
 
 		</p>
@@ -3208,7 +3208,29 @@ function set_onclick_listeners(){
 		<div class="panel-collapse collapse in" id="details_instruction_in">
 			<div class="panel-body">
 				<p style="background-color:Tomato;"> <b>NOTE: This instruction is new. Please carefully read and follow the instruction.</b></p>
-				
+
+				{% if cfg.test_instructions_flavor == "conference" %}
+				<p>In this experiment, you will be rating audio quality of conversations where people in a conference room are talking
+					among themselves and with remote attendees (see the figure below).
+					Overlapping speech may occur — this is expected and does not necessarily indicate poor audio quality. In some cases,
+					certain voices may be degraded, missing, or partially lost due to issues such as poor microphone quality, low volume
+					or reverberation, making the audio difficult to understand.
+					Please focus on the clarity and intelligibility of the voices from the perspective of a remote listener. Your
+					ratings should reflect the quality of the audio signal and how well individual voices are captured.</p>
+				<!-- Conference Room Figure - Properly sized -->
+				<div class="row">
+					<div class="col-sm-3"></div>
+					<div class="col-sm-6">
+						<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/p804_multi_conference.jpg"
+							alt="Conference room scenario"
+							style="width: 100%; max-width: 400px; height: auto; display: block; margin: 15px auto; border: 1px solid #ddd; border-radius: 5px;">
+						<p align="center" style="font-size: 12px; color: #666; margin-top: 5px;"><i>Figure: Conference room setup with
+								multiple participants</i></p>
+					</div>
+					<div class="col-sm-3"></div>
+				</div>
+				{% endif %}
+
 				<p>In this experiment, you will be rating the speech quality of sound samples involving different speech impairments and background
 					noise. Each trial will include <b>1 audio sample</b>, which should be rated on <b>7 scales</b>. First, you must listen to the clip 
 					until the end, then start rating. In the meantime, the audio sample will be played in a loop until you finish rating all 7 scales (you can 
@@ -3356,8 +3378,8 @@ function set_onclick_listeners(){
 
 				<div class="alert alert-warning" role="alert">
 					<h4>Attention:</h4>
-					<p>You may hear an specific instruction in the speech sample starting by <b>"This is an interruption"</b> aksing you to select the scores
-						showsing the <b>best</b> or the <b>worst</b> quality. In that case follow the instruction to show your attention, <u>otherwise your submision will be rejected</u>.</p>
+					<p>You may hear an specific instruction in the speech sample starting by <b>"This is an interruption"</b> asking you to select the scores
+						showsing the <b>best</b> or the <b>worst</b> quality. In that case follow the instruction to show your attention, <u>otherwise your submission will be rejected</u>.</p>
 						<p>  Scores showing the <b>best</b> quality are: <b>Not noisy, Optimal loudness, Continuous, Uncolored, No reverb, Not distorted, and Excellent quality. </b></p>
 						<p>  Scores showing the <b>worst</b> quality are: <b>Noisy, Sub-optimal loudness, Discontinuous, Colored, High reverb, Very distorted, and Bad quality.</b></p>
 					<p>
@@ -3546,7 +3568,7 @@ function set_onclick_listeners(){
 <section class="container" id="gold_rejected" hidden>
 	<p>The QA system recognized that you provided a wrong answer to multiple clips that their answers are known to us. 
 		To avoid more of your submissions potentially get rejected, no more HITs from this job is available for you until we check them. 
-	For any upcomming job, please carefully read the instruction and follow it. <u>The instruction can change from one job to the other.</u>
+	For any upcoming job, please carefully read the instruction and follow it. <u>The instruction can change from one job to the other.</u>
 	</p>
 
 	<div class="alert alert-danger" role="alert">

@@ -1,9 +1,9 @@
 # Hearing Test
 
 This is an implementation of digit-triplet test [1].
-It estimated a SNR level that the user in current environmental setting can recognize three spoken digits in present of background noise.
-Subject should listent to several audio clips and each time type in which number is spoken. To estimnate the 
-It is an implementation of the Adaptive Staircase Psychoacoustics method (3AFC, 2 down- 1 up) as proposed by Levit [2].
+It estimates an SNR level that the user in the current environmental setting can recognize three spoken digits in the presence of background noise.
+Subject should listen to several audio clips and each time type in which number is spoken. To estimate the
+It is an implementation of the Adaptive Staircase Psychoacoustics method (3AFC, 2 down- 1 up) as proposed by Levitt [2].
 
 ## Setup
 
@@ -22,7 +22,7 @@ Result shows the SNR level that the subject can successfully recognize the three
 ## References
 
 [1]. Smits, Cas, Theo S. Kapteyn, and Tammo Houtgast. "Development and validation of an automatic speech-in-noise screening test by telephone." International journal of audiology 43.1 (2004): 15-28.
-[2]. Levit t , H. (1992).Adaptive procedures for hearing aid prescription and other audiologic applications. Journal of 
+[2]. Levitt, H. (1992). Adaptive procedures for hearing aid prescription and other audiologic applications. Journal of
 the American Academy of Audiology, 3, 119-131.
 
 

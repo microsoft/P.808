@@ -143,7 +143,7 @@ def check_audio_played(row, method):
     """
     check if all audios for questions played until the end
     :param row:
-    :param method: acr,dcr, ot ccr
+    :param method: acr, dcr, or ccr
     :return:
     """
     question_played = 0
@@ -688,7 +688,7 @@ def check_qualification_answer(row):
 
 def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played):
     """
-    check if pair comparision answered correctly
+    check if pair comparison answered correctly
     :param file_a:
     :param file_b:
     :param ans:
@@ -725,7 +725,7 @@ def data_cleaning(filename, method, wrong_vcodes):
     reader = csv.DictReader(csvfile)
     # lowercase the fieldnames
     reader.fieldnames = [field.strip().lower().replace('_slide','') for field in reader.fieldnames]
-    # ----------- pair comparision
+    # ----------- pair comparison
     # Input.CMP1_A	Input.CMP1_B	Input.CMP2_A	Input.CMP2_B	Input.CMP3_A	Input.CMP3_B	Input.CMP4_A	Input.CMP4_B
     # Answer.cmp1	Answer.cmp2	Answer.cmp3	Answer.cmp4
     # Answer.audio_n_play_CMP1_A	Answer.audio_n_play_CMP1_B	Answer.audio_n_play_CMP2_A	Answer.audio_n_play_CMP2_B
@@ -783,7 +783,7 @@ def data_cleaning(filename, method, wrong_vcodes):
             # step2. check math
             d['correct_math'] = 1 if check_math(row['input.math'], row['answer.math'],
                                                 row['answer.audio_n_play_math1']) else 0
-            # step3. check pair comparision
+            # step3. check pair comparison
             for i in range(1, 5):
                 if check_a_cmp(row[f'input.cmp{i}_a'], row[f'input.cmp{i}_b'], row[f'answer.cmp{i}'],
                                row[f'answer.audio_n_play_cmp{i}_a'],
@@ -806,7 +806,7 @@ def data_cleaning(filename, method, wrong_vcodes):
             if  method =="p804" and 'url_2' in rec:
                 gold_question_wrong = (1 if rec['wrong']>0 else 0)+ (2 if rec['wrong_2']>0 else 0)
                 d["gold_question_wrong"] = gold_question_wrong
-                # remove the commnet to only reject on first gold question
+                # remove the comment to only reject on first gold question
                 #if rec['wrong']==0:
                 #    d["correct_gold_question"] = 1
                 if 'url_2' in rec:
@@ -878,12 +878,12 @@ def data_cleaning(filename, method, wrong_vcodes):
 # new from p910 
 def evaluate_rater_performance(data, use_sessions, reject_on_failure=False):
     """
-    Evaluate the workers performance based on the following criteria in cofnig file:
+    Evaluate the workers performance based on the following criteria in config file:
         rater_min_acceptance_rate_current_test
         rater_min_accepted_hits_current_test
     :param data:
     :param use_sessions:
-    :param reject_on_failure: if True, check the criteria on [acceptance_criteria] otehrwise check it in the
+    :param reject_on_failure: if True, check the criteria on [acceptance_criteria] otherwise check it in the
     [accept_and_use] section of config file.
     :return:
     """
@@ -1165,8 +1165,8 @@ def calc_quantity_bonuses(answer_list, conf, path):
     eligible_all = list(grouped['worker_id'])
     new_eligible = list(set(eligible_all)-set(old_eligible))
 
-    # the bonus should be given to the tasks that are either automatically accepted or submited. The one with status
-    # accepted should have been already payed.
+    # the bonus should be given to the tasks that are either automatically accepted or submitted. The one with status
+    # accepted should have been already paid.
     filtered_answers = filter_answer_by_status_and_workers(df, eligible_all, new_eligible, conf)
     # could be also accept_and_use
     grouped = filtered_answers.groupby(['worker_id'], as_index=False)['accept'].sum()
@@ -1206,7 +1206,7 @@ def calc_inter_rater_reliability(answer_list, overall_mos, test_method, question
         aggregate_on = 'condition_name'
     else:
         aggregate_on = 'file_url'
-        # if it is per file, make sure to consider clips tha has at least 3 votes
+        # if it is per file, make sure to consider clips that have at least 3 votes
         tmp = tmp[tmp['n'] >= 3]    
     c_df = tmp[[aggregate_on, mos_name]].copy()
     c_df.rename(columns={mos_name: 'mos'}, inplace=True)
@@ -1430,7 +1430,7 @@ create_per_worker = True
 def transform(test_method, sessions, agrregate_on_condition, is_worker_specific):
     """
     Given the valid sessions from answer.csv, group votes per files, and per conditions.
-    Assumption: file name conatins the condition name/number, which can be extracted using "condition_patten" .
+    Assumption: file name contains the condition name/number, which can be extracted using "condition_pattern" .
     :param sessions:
     :return:
     """
@@ -1707,7 +1707,7 @@ def calc_correlation(cs, lab, spearman=False):
 
 def number_of_uniqe_workers(answers):
     """
-    return numbe rof unique workers
+    return number of unique workers
     :param answers:
     :return:
     """

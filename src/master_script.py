@@ -194,7 +194,7 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     rating_urls = []
     n_clips = int(cfg_g['number_of_clips_per_session'])
     n_traps = int(cfg_g['number_of_trapping_per_session'])
-    # 'dummy':'dummy' is added becuase of current bug in AMT for replacing variable names. See issue #6
+    # 'dummy':'dummy' is added because of current bug in AMT for replacing variable names. See issue #6
     for i in range(0, n_clips):
         rating_urls.append({"ref": f"${{Q{i}_R}}", "processed": f"${{Q{i}_P}}", 'dummy': 'dummy'})
 
@@ -434,6 +434,7 @@ async def create_hit_app_pp835_p804(
     config["allowed_max_hit_in_project"] = cfg["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg else  min(50, nHITs) 
     config["training_trap_urls"] = trap_url
     config["training_trap_ans"] = trap_ans
+    config["test_instructions_flavor"] = cfg.get("test_instructions_flavor") or "default"
     config["contact_email"] = (
         cfg["contact_email"] if "contact_email" in cfg else "ic3ai@outlook.com"
     )
@@ -503,13 +504,13 @@ async def create_hit_app_pp835_p804(
 
     print(template_path)
 
-    with open(template_path, "r") as file:
+    with open(template_path, "r", encoding="utf-8") as file:
         content = file.read()
         file.seek(0)
     t = Template(content)
     html = t.render(cfg=config)
 
-    with open(out_path, "w") as file:
+    with open(out_path, "w", encoding="utf-8") as file:
         file.write(html)
     print(f"  [{out_path}] is created")
 

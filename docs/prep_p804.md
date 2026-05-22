@@ -17,7 +17,7 @@ column named `rating_clips` (see [rating_clips.csv](../src/test_inputs/rating_cl
         
     **Note on Reference Conditions**
     * It is strongly recommended to include Reference Conditions in your study to cover the entire range of MOS on all 
-    dimensions. 
+    dimensions.
 
 1. Upload your **training clips** in a cloud server and create `training_gold_clips.csv` file which contains all URLs in a 
 column named `training_clips` (see [training_gold_clips.csv](../src/test_inputs/training_gold_clips_p804.csv) as an example).

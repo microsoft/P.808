@@ -67,9 +67,9 @@ def check_last_audio_test(ans):
     return ans in config['6_audio_test']
 
 
-def check_working_experities(ans):
+def check_working_expertise(ans):
     """
-    user should not have working experince in this area
+    user should not have working experience in this area
     """
     return ans in config['7_working_area']
 
@@ -138,7 +138,7 @@ def evaluate_asnwers(answe_path):
                 if not r: report['6_audio_test'] += 1
                 judge['6_'] = r
             if '7_working_area' in fields_to_consider:
-                r = check_working_experities(row['Answer.7_working_area'])
+                r = check_working_expertise(row['Answer.7_working_area'])
                 accept = accept and r
                 if not r: report['7_working_area'] += 1
                 judge['7_'] = r
