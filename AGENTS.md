@@ -17,9 +17,10 @@ to browse and select them, or reference them by name in a prompt.
 | Agent | File | Trigger phrases |
 |-------|------|-----------------|
 | `create-study` | [`.github/agents/create-study.agent.md`](.github/agents/create-study.agent.md) | "create a study", "run a [method] test", "set up a study", "prepare a test" |
+| `analyze-results` | [`.github/agents/analyze-results.agent.md`](.github/agents/analyze-results.agent.md) | "analyze results", "parse results", "evaluate the study", "process the answers" |
 
 ## Task-specific instructions (future)
 
 | Task type | Instruction file | Trigger phrases |
 |-----------|-----------------|-----------------|
-| Analyze test results | `.github/evaluate.instruction.md` *(tba)* | "analyze results", "parse results", "evaluate the study" |
+| *(reserved)* | — | — |

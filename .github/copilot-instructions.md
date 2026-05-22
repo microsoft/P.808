@@ -87,5 +87,6 @@ to browse and select them, or reference them by name in a prompt.
 | Agent | Purpose | Example prompts |
 |-------|---------|-----------------|
 | `create-study` | Create subjective speech quality tests (ACR, DCR, CCR, P.835, P.804) | "create a study", "run a P.804 test", "set up a P.835 study" |
+| `analyze-results` | Analyze crowdsourced test results — data cleaning, MOS aggregation | "analyze results", "parse results", "evaluate the study" |
 
 See [`AGENTS.md`](../AGENTS.md) for full details and trigger phrases.
