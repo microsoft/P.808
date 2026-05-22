@@ -65,13 +65,26 @@ Verify once at the start:
 
 Once prerequisites pass, proceed without pausing except at **[ASK]** decision points.
 
+## Reusing information from prior studies
+
+When creating a new study that reuses settings from a previous study or session
+knowledge (e.g. same storage account, contact email, platform, source clips,
+gold/trapping clips, training clips), **do not silently reuse them**. Instead:
+
+1. Collect all reused or assumed values into a single summary list.
+2. **[ASK]** Present the list and ask: "I plan to reuse the following from the
+   previous study. Are all of these correct?"
+   - If the user confirms all → proceed.
+   - If the user says they want to modify → ask about each item one by one,
+     then proceed with the updated values.
+
 ## Supported test methods
 
 | Method | `--method` flag | Gold clip generation | Trapping config | Template |
 |--------|-----------------|---------------------|-----------------|----------|
 | ACR | `acr` | `--method acr` | `trapping.cfg` or `trapping_p835.cfg` | `ACR_template.html` |
 | DCR | `dcr` | N/A (manual) | N/A (uses references) | `DCR_template.html` |
-| CCR | `ccr` | N/A (manual) | N/A (uses references) | `CCR_template.html` |
+| CCR | `ccr` | N/A (manual) | `trapping_ccr.cfg` | `CCR_template.html` |
 | P.835 | `p835` | `--method acr` (**not** `p835`) | `trapping.cfg` or `trapping_p835.cfg` | `P835_template.html` |
 | P.804 | `p804` | `--method p804` | `trapping_p804.cfg` | via `pp835_p804` path |
 | Echo impairment | `echo_impairment_test` | `--method acr` | `trapping.cfg` | `echo_impairment_test_template.html` |
@@ -511,6 +524,7 @@ Select the correct trapping config:
 | `p835` | `configurations\trapping.cfg` or `configurations\trapping_p835.cfg` |
 | `echo_impairment_test` | `configurations\trapping.cfg` |
 | `p804` | `configurations\trapping_p804.cfg` |
+| `ccr` | `configurations\trapping_ccr.cfg` |
 
 Run the trapping clip generator:
 

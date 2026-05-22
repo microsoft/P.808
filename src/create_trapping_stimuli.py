@@ -27,7 +27,11 @@ message_to_values={
     "2_short": 2,
     "3_short": 3,
     "4_short": 4,
-    "5_short": 5
+    "5_short": 5,
+    "-3_short": -3,
+    "-2_short": -2,
+    "-1_short": -1,
+    "0_short": 0
 }
 
 audio_extension = '.wav'
