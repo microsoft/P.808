@@ -176,6 +176,8 @@ def check_audio_played(row, method):
 def check_tps(row, method):
     """
     Check if the trapping clips questions are answered correctly
+    legecy issue: there are no trapping questions (in their meaning) in CCR ad DCR. Actually we only have GOld questions, 
+    but they names as TP and evaluated here. To be updated in future.
     :param row:
     :param method: acr, dcr, or ccr
     :return:
@@ -793,7 +795,7 @@ def data_cleaning(filename, method, wrong_vcodes):
 
         # step 4. check tps
         d['correct_tps'] = check_tps(row, method)
-        # step5. check gold_standard, just for acr
+        # step5. check gold_standard, // for CCR and DCR there gold questions are coded as TP and evaluted beforehand.
         if method in ["acr", "p835", "echo_impairment_test", p835_personalized, 'p804']:
             d["correct_gold_question"],d["gq_url"] ,d["gq_ans"], rec = check_gold_question(method, row)
             if rec is not None:
