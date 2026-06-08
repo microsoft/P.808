@@ -19,7 +19,7 @@ The following steps should be performed to prepare the test setup.
     pip install -r requirements.txt
     ```
     
-1. (optional) Upload the general resources (found in `src\P809Template\assets`) in a cloud server and change the 
+1. (optional) Upload the general resources (found in `src\P808Template\assets`) in a cloud server and change the 
 URLs associated to them as described in [General Resources](general_res.md)
 
 1.  Follow the rest of preparation process based on the test methodology you want to apply:
@@ -31,3 +31,8 @@ URLs associated to them as described in [General Resources](general_res.md)
     - Preparation for the P.831
     - Preparation for Personalized P.835
     - [Preparation for the P.804](prep_p804.md)
+
+## Utility Scripts
+
+- [Gold Standard Clips](gold_clips.md) — Generate gold clips for quality control.
+- [Upload Clips to Storage](upload_clips.md) — Upload local clips or copy from private to public Azure storage.

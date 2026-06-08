@@ -9,14 +9,14 @@
  ## `[trappings]`
  `input_directory = trapping clips`: path pointing to the `trapping clips` directory. It is relative to the current working directory. 
  The directory should contain following subdirectories:
- * `source`: it should contains fair distributions of clips from your dataset under study. First couple of seconds from
+ * `source`: it should contain a fair distribution of clips from your dataset under study. The first couple of seconds from
  each clip in this directory will be used to generate the trapping clips.
  * `messages`: message clips found in this directory will be appended to first couple of seconds from each clip in the 
  `source` directory to create the trapping clips.
  * `output`: generated trapping clips will be stored here.
  
  `message_file_prefix:ACR_`: specify prefix of audio clips available in `source` directory which should be used. 
- Use `ACR_` for the P.808 tests and `p835_score_` for the P.835 tests. The speech level of clips started by `adj_*` are
+ Use `adj_p835_score` for the P.808 ACR, DCR and P.835 tests, `p804_score_` for the P.804 tests and `adj_ccr_score_` for P.808 CCR test. The speech level of clips started by `adj_*` are
  adjusted to -26dBov.
   
  **One** of the following options should be used:

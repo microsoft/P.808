@@ -1,6 +1,6 @@
 # P.808 Toolkit
 The P.808 Toolkit is a software package that enables users to run subjective speech quality assessment test
-in Amazon Mechanical Turk (AMT) crowdsourcing platform, according to the ITU-T Recommendation P.808. 
+in crowdsourcing platforms like Amazon Mechanical Turk (AMT), Prolific, or conduct remote testing with a dedicated panel of workers, according to the ITU-T Recommendation P.808. 
 It includes following test methods:
 * Absolute Category Rating (ACR) -- Annex A, P.808
 * Degradation Category Ratings (DCR) -- Annex B, P.808
@@ -12,9 +12,9 @@ It also extends P.808 in the following ways:
 
 * Includes implementation of the ITU-T Rec. P.831 for the crowdsourcing approach is also provided based on the recommendations given in the ITU-T Rec. P.808.
 
-* **NEW** - Multi-dimensional Speech Quality Assessment - Following the ITU-T Rec. P.804 and extending it with reverberation, signal and overall quality.
+* Multi-dimensional Speech Quality Assessment - Following the ITU-T Rec. P.804 and extending it with reverberation, signal and overall quality.
 
-* **NEW** - Extending P.835 test to evaluate personalized noise suppression
+* Extending P.835 test to evaluate personalized noise suppression
 
 
 Relevant ITU-T Recommendations are :
@@ -85,12 +85,31 @@ If you use this tool in your research please cite it with the following referenc
 
 ## Getting Started
 * [Preparation](docs/preparation.md)
-* [Running the Test on Amazon Mechanical Turk](docs/running_test_mturk.md)
+* Running the Test on crowdsourcing platform
+  * [Using Amazon Mechanical Turk](docs/running_test_mturk.md)
+  * [Using Prolific](docs/running_test_prolific.md)
 * [Analyzing Data](docs/results.md)
 
+## Using an AI Agent
 
-## News
-++ An update with support for [multi-dimensional quality assessment](https://arxiv.org/pdf/2309.07385.pdf) is published. 
+You can use an AI coding agent (e.g. GitHub Copilot, Claude) to create and run studies
+automatically. The agent will generate gold clips, trapping clips, training clips, upload
+them to Azure storage, and build the complete project — all from a single prompt.
+
+**Setup**: This experince is trilored to use Azure Storage, if you use any other cloud provider for serving your clips, adapt the code accordingly.Otherwise, make sure you have `az login` configured with write access to your Azure Blob
+Storage account.
+
+**Usage**: Open the repository in your IDE with an AI agent and ask it to create a study:
+
+> _"Run a P.835 test for the files in C:\path\to\my\rating_clips"_
+
+The agent uses the `create-study` custom agent defined in [`.github/agents/create-study.agent.md`](.github/agents/create-study.agent.md).
+Select it via `/agent` in Copilot CLI, or just describe your task — the model will auto-infer the
+right agent. See [`AGENTS.md`](AGENTS.md) for the full list of available agents.
+
+**Supported methods**: `acr`, `dcr`, `ccr`, `p835`, `p804`, `echo_impairment_test`, `pp835`.
+
+
 
 ## Troubleshooting
 For bug reports and issues with this code, please see the 

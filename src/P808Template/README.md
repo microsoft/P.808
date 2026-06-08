@@ -1,7 +1,10 @@
 # HIT App Templates
-Templates for  ACR, DCR, and CCR methods to be used in Amazon Mechanical Turk platform. 
+Templates for ACR, DCR, and CCR methods to be used in Amazon Mechanical Turk platform. 
 The ACR implementation is based on the ITU-T P.808 Recommendation and implementation of DCR and CCR are based on 
 ITU-T P.800 Recommendation adapted to the crowdsourcing approach.
+
+Note: JQuery and Bootstrap are required for templates to work. We provide a public link for them, however if the link stop working, you can change them with other CDNs.
+
 
 ## Qualification
 The qualification can be used as a separate HIT or in the integrated mode i.e. a section in the main HIT.
@@ -36,7 +39,7 @@ You can specify how often this section show up. It is recommended to have it in 
 This section uses WebRTC to check if the user has a headset. 
 
 #### Training (every X hours)
-Here a small set of anchoring stimuli presented to worker in a similar GUI as the  "rating section". 
+Here a small set of anchoring stimuli presented to worker in a similar GUI as the "rating section". 
 Training section is generated dynamically based on list of URLs in the `config['trainingUrls']`.
 These will be added by master_script. Order of stimuli can be randomized, and retraining can be forced after X hours 
 (see the Usage section).
@@ -61,7 +64,7 @@ The implementation of Comparison Category Rating (CCR) listening test as specifi
 The template has same structure as ACR_Template. 
 
 ## P835_template
-The implementation of the ITU-T Rec. P.835 recommendation. An extension of it for only one time listening are given on 
+The implementation of the ITU-T Rec. P.835 recommendation. An extension for single-listening is given in 
 P835_template_one_audio.html.
 
 ## P831_ACR_template

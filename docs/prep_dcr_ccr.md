@@ -15,9 +15,9 @@ contains all URLs to speech clips in a column named `rating_clips` and URLs to t
 `references`. (see [rating_clips_ccr.csv](../src/test_inputs/rating_clips_ccr.csv) as an example).
 
     **Note about file names**:
-    * Later in the analyzes, clip's file name will be used as a unique key and appears in the results.    
-    * In case you have 'conditions' which are represented with more than one clip, you may consider to use the condition's 
-        name in the clip's file name e.g. xxx_c01_xxxx.wav. When you provide the corresponding pattern, the analyzes script 
+    * Later in the analysis, the clip's file name will be used as a unique key and appears in the results.    
+    * In case you have 'conditions' which are represented with more than one clip, you may consider using the condition's 
+        name in the clip's file name e.g. xxx_c01_xxxx.wav. When you provide the corresponding pattern, the analysis script 
         will create aggregated results over conditions as well.  
 
 
@@ -25,7 +25,7 @@ contains all URLs to speech clips in a column named `rating_clips` and URLs to t
 column named `training_clips` and URLs to corresponding reference clips in column `training_references` 
 (see [training_clips_ccr.csv](../src/test_inputs/training_clips_ccr.csv) as an example).
   
-    **Hint**: Training clips are used for anchoring participants perception, and should represent the entire dataset. 
+    **Hint**: Training clips are used for anchoring participants' perception, and should represent the entire dataset. 
     They should approximately cover the range from worst to best quality to be expected in the test. It may contain 
     about 5 clips. 
 
@@ -44,12 +44,16 @@ column named `training_clips` and URLs to corresponding reference clips in colum
             --clips rating_clips.csv ^
             --training_clips training_clips.csv 
         ```
+        Optionally:
+         - Add `--check_urls` to validate that all links in the CSV files are accessible before creating the project. 
+         - Add `--create_local_test` to generate a local preview HTML file for testing. See [preview_html](preview_html.md) for details.
+
         Note: file paths are expected to be relative to the current working directory.
     
-    1. Double check the outcome of the script. A folder should be created with YOUR_PROJECT_NAME in current working 
+    1. Double-check the outcome of the script. A folder should be created with YOUR_PROJECT_NAME in current working 
     directory which contains: 
     * `YOUR_PROJECT_NAME_ccr.html`: Customized HIT app to be used in Amazon Mechanical Turk (AMT).
     * `YOUR_PROJECT_NAME_publish_batch.csv`: List of dynamic content to be used during publishing batch in AMT.
     * `YOUR_PROJECT_NAME_ccr_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script
         
-Now, you are ready for [Running the Test on Amazon Mechanical Turk](running_test_mturk.md).
+Now, you are ready for running the test on [Prolific](running_test_prolific.md) or [Amazon Mechanical Turk](running_test_mturk.md).
