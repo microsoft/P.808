@@ -623,17 +623,22 @@ def digitsum(x):
     return total
 
 
-def check_math(input, output, audio_played):
+def check_math(input, output, audio_played, expected_ans=None):
     """
-    check if the math question is answered correctly
-    :param input:
-    :param output:
-    :param audio_played:
-    :return:
+    Check if the math question is answered correctly.
+
+    When *expected_ans* is provided (from the ``input.math_ans`` column in the
+    per-project CSV), it is used directly.  Otherwise falls back to the legacy
+    ``[math]`` config section that maps filenames to answers.
+
+    :param input: The math clip URL assigned to the HIT (``input.math``).
+    :param output: The participant's typed answer (``answer.math``).
+    :param audio_played: Number of times the math audio was played.
+    :param expected_ans: Expected correct answer from the input data, or None.
+    :return: True if the answer is correct.
     """
     if audio_played == 0:
         return False
-    keys = list(config["math"].keys())
     try:
         ans = int(float(output))
     except:
@@ -641,12 +646,23 @@ def check_math(input, output, audio_played):
     # it could be a case that participant typed in the 2 or 3 numbers that they heard rather their sum.
     if ans > 9:
         ans = digitsum(ans)
-    try:
-        for key in keys:
-            if key in input and int(config['math'][key]) == ans:
-                return True
-    except:
-        return False
+
+    # New path: use expected_ans from per-project CSV (math_ans column)
+    if expected_ans is not None:
+        try:
+            return int(float(expected_ans)) == ans
+        except:
+            pass
+
+    # Legacy path: use [math] section in the config file
+    if config.has_section("math"):
+        try:
+            keys = list(config["math"].keys())
+            for key in keys:
+                if key in input and int(config['math'][key]) == ans:
+                    return True
+        except:
+            return False
     return False
 
 def check_qualification_answer(row):
@@ -781,8 +797,17 @@ def data_cleaning(filename, method, wrong_vcodes):
             d['correct_math'] = None
         else:
             # step2. check math
+            expected_math_ans = row.get('input.math_ans', None)
+            if expected_math_ans is not None:
+                try:
+                    # NaN check for pandas
+                    if expected_math_ans != expected_math_ans:
+                        expected_math_ans = None
+                except:
+                    pass
             d['correct_math'] = 1 if check_math(row['input.math'], row['answer.math'],
-                                                row['answer.audio_n_play_math1']) else 0
+                                                row['answer.audio_n_play_math1'],
+                                                expected_math_ans) else 0
             # step3. check pair comparison
             for i in range(1, 5):
                 if check_a_cmp(row[f'input.cmp{i}_a'], row[f'input.cmp{i}_b'], row[f'answer.cmp{i}'],

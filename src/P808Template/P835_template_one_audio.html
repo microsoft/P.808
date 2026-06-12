@@ -844,13 +844,34 @@ function playedAudioQ(id){
 	}
 }
 
+async function verifyMathHash(userAnswer){
+	var url = document.getElementById("math1").getAttribute("data-src");
+	var mathHash = "${math_hash}";
+	if (!mathHash || mathHash === "$" + "{math_hash}") {
+		return true;
+	}
+	var payload = url + ":" + userAnswer.trim();
+	var data = new TextEncoder().encode(payload);
+	var buf = await crypto.subtle.digest("SHA-256", data);
+	var hex = Array.from(new Uint8Array(buf)).map(function(b) {
+		return b.toString(16).padStart(2, "0");
+	}).join("");
+	return hex === mathHash;
+}
+
 /*
 	Called when user answers to one question from setup
 	(i.e. q2. math question). Here the cookie will be added/updated
 */
 function userAnsweringToSetupQuestions(){
-	createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
-	$('input[name="math"]').off('change');
+	verifyMathHash($("#Math").val()).then(function(mathCorrect) {
+		if (!mathCorrect) {
+			alert("Please listen carefully and answer the math question correctly. Make sure both earbuds are working.");
+			return;
+		}
+		createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
+		$('input[name="math"]').off('change');
+	});
 }
 
 	function set_onclick_listeners(){

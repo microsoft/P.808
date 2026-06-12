@@ -273,6 +273,18 @@ def create_input_for_acr(cfg, df, output_path, method):
     # add math
     output_df['math'] = math_output
 
+    # add math_ans and math_hash if available (for client-side hash verification)
+    if 'math_ans' in df.columns:
+        math_ans_source = df['math_ans'].dropna()
+        math_ans_output = np.tile(math_ans_source.to_numpy(),
+                                  (n_sessions // math_ans_source.count()) + 1)[:n_sessions]
+        output_df['math_ans'] = math_ans_output
+    if 'math_hash' in df.columns:
+        math_hash_source = df['math_hash'].dropna()
+        math_hash_output = np.tile(math_hash_source.to_numpy(),
+                                   (n_sessions // math_hash_source.count()) + 1)[:n_sessions]
+        output_df['math_hash'] = math_hash_output
+
     # CMPs: 4 pairs are needed for 1 session
     nPairs = 4 * n_sessions
     pair_a = df['pair_a'].dropna()
@@ -458,6 +470,18 @@ def create_input_for_dcrccr(cfg, df, output_path):
     math_source = df['math'].dropna()
     math_output = np.tile(math_source.to_numpy(), (n_sessions // math_source.count()) + 1)[:n_sessions]
 
+    # add math_ans and math_hash if available (for client-side hash verification)
+    math_ans_output = None
+    math_hash_output = None
+    if 'math_ans' in df.columns:
+        math_ans_source = df['math_ans'].dropna()
+        math_ans_output = np.tile(math_ans_source.to_numpy(),
+                                  (n_sessions // math_ans_source.count()) + 1)[:n_sessions]
+    if 'math_hash' in df.columns:
+        math_hash_source = df['math_hash'].dropna()
+        math_hash_output = np.tile(math_hash_source.to_numpy(),
+                                   (n_sessions // math_hash_source.count()) + 1)[:n_sessions]
+
     # CMPs: 4 pairs are needed for 1 session
     nPairs = 4 * n_sessions
     pair_a = df['pair_a'].dropna()
@@ -482,6 +506,10 @@ def create_input_for_dcrccr(cfg, df, output_path):
                                     'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
     # add math
     output_df['math'] = math_output
+    if math_ans_output is not None:
+        output_df['math_ans'] = math_ans_output
+    if math_hash_output is not None:
+        output_df['math_hash'] = math_hash_output
     # rating_clips
     #   repeat some clips to have a full design
     n_questions = int(cfg['number_of_clips_per_session'])

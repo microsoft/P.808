@@ -3,6 +3,23 @@
 # Configure for `master_script.py`
  
 This describes the configuration for the `master_script.py`. A sample configuration file can be found in [`configurations\master.cfg`](.\src\configurations\master.cfg).
+
+## Command-line arguments
+
+* `--project`: Name of the project (required).
+* `--cfg`: Configuration file path (required). See sections below.
+* `--method`: Test method — `acr`, `dcr`, `ccr`, `p835`, `pp835`, `p804`, or `echo_impairment_test` (required).
+* `--clips`: CSV with rating clip URLs in column `rating_clips`.
+* `--gold_clips`: CSV with gold clip URLs and answers.
+* `--training_clips`: CSV with training clip URLs.
+* `--trapping_clips`: CSV with trapping clip URLs and answers.
+* `--training_gold_clips`: CSV with gold training question details (P.804).
+* `--general_assets`: Path to the general assets CSV. Defaults to `assets_master_script/general.csv`.
+  Use `assets_master_script/general_assets_internal.csv` for projects with internally generated
+  math clips (see `utils/generate_math_questions.py`).
+* `--check_urls`: Validate that all links in the CSV files are accessible.
+* `--create_local_test`: Generate a local preview HTML file after the project is created.
+* `--p831_fest`: Use the question set of P.831 for FEST.
  
 ## `[create_input]`
 

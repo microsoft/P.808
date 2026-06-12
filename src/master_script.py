@@ -803,7 +803,10 @@ def extend_general_cfg_bw(general, hitapp):
 
 async def main(cfg, test_method, args):
     # check assets
-    general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
+    if args.general_assets:
+        general_path = args.general_assets
+    else:
+        general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
     is_p831_fest = args.p831_fest
 
     assert os.path.exists(general_path), f"No csv file containing general infos in {general_path}"
@@ -1011,6 +1014,12 @@ if __name__ == '__main__':
                                                                     "Default is False")
     parser.add_argument("--create_local_test", action='store_true',
                         help="Generate a local preview HTML file after the project is created.")
+    parser.add_argument(
+        "--general_assets",
+        default=None,
+        help="Path to the general assets CSV (default: assets_master_script/general.csv). "
+             "Use assets_master_script/general_assets_internal.csv for internal assets."
+    )
     
     # check input arguments
     args = parser.parse_args()
