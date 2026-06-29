@@ -1012,6 +1012,9 @@ if __name__ == '__main__':
     # check links default to False
     parser.add_argument("--check_urls", action='store_true', help="Check if all links in the csv files are valid. "
                                                                     "Default is False")
+    parser.add_argument("--check_silence", action='store_true',
+                        help="Run a Voice Activity Detector (Silero VAD) over the rating clips and report clips "
+                             "with little or no speech. Optional, like --check_urls. Default is False.")
     parser.add_argument("--create_local_test", action='store_true',
                         help="Generate a local preview HTML file after the project is created.")
     parser.add_argument(
@@ -1088,6 +1091,21 @@ if __name__ == '__main__':
             check_urls_in_files_exist(args.trapping_clips, expected_columns_double_stimuli['trapping'])
         else:
             raise SystemExit(f"Error: No such a method supported for checking links: {test_method}")
+
+    if args.check_silence:
+        # optional VAD pre-screen of rating clips for silent / no-speech content.
+        # Rating clips passed to the master script must always be publicly accessible.
+        print("Running VAD silence pre-screen over the rating clips ...")
+        if not args.clips:
+            raise SystemExit("Error: --check_silence requires a rating clips csv (--clips).")
+        from utils.detect_silence_vad import prescreen_clips
+        rating_column = (
+            expected_columns_double_stimuli["clips"][0]
+            if test_method in ["dcr", "ccr"]
+            else expected_columns_single_stimuli["clips"][0]
+        )
+        prescreen_clips(args.clips, column=rating_column)
+
     asyncio.run(main(cfg, test_method, args))
 
     if args.create_local_test:

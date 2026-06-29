@@ -11,3 +11,5 @@ scaleapi
 requests
 matplotlib
 statsmodels
+torch
+silero-vad
