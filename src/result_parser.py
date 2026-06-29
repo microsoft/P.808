@@ -1460,6 +1460,9 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
     :return:
     """
     data_per_file = {}
+    # per-clip counters used to report the share of "silent / nothing to rate" cases
+    file_total_cases = {}
+    file_silent_cases = {}
     global max_found_per_file
     global file_to_condition_map
     file_to_condition_map ={}
@@ -1495,7 +1498,21 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
                 data_per_file[file_name] = []
             votes = data_per_file[file_name]
             try:
-                votes.append(int(float(session[f"answer.{question}{question_name_suffix}"])))
+                vote_value = int(float(session[f"answer.{question}{question_name_suffix}"]))
+            except Exception as err:
+                logger.info(err)
+                continue
+            # count every rating case for this clip (denominator for the silent share)
+            file_total_cases[file_name] = file_total_cases.get(file_name, 0) + 1
+            # a "silent" case: the rater marked the clip as silent with nothing to rate,
+            # which sets all P.804 scales to 1. It is identified by the per-trial
+            # is_silent flag (not the score value), and dropped before computing the MOS.
+            silent_flag = str(session.get(f"answer.is_silent_{question}", "")).strip().lower()
+            if silent_flag in ("1", "true", "on", "yes"):
+                file_silent_cases[file_name] = file_silent_cases.get(file_name, 0) + 1
+                continue
+            try:
+                votes.append(vote_value)
                 cond = conv_filename_to_condition(file_name)
                 tmp = {
                     "HITId": session["hitid"],
@@ -1506,7 +1523,7 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
                     #"requesterannotation": session["requesterannotation"],
                     "file": file_name,
                     "short_file_name": file_name.rsplit("/", 1)[-1],
-                    "vote": int(float(session[f"answer.{question}{question_name_suffix}"])),
+                    "vote": vote_value,
                     "question_type": mos_name,
                 }
 
@@ -1566,6 +1583,11 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
 
         tmp['file_url'] = key
         tmp['short_file_name'] = key.rsplit('/', 1)[-1]
+        # share of cases where the clip was marked silent (nothing to rate)
+        total_cases = file_total_cases.get(key, 0)
+        silent_cases = file_silent_cases.get(key, 0)
+        tmp['n_silent'] = silent_cases
+        tmp['is_silent_percentage'] = round(100 * silent_cases / total_cases, 2) if total_cases > 0 else 0
         for vote in votes:
             tmp[f'vote_{vote_counter}'] = vote
             vote_counter += 1
@@ -1573,7 +1595,11 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
 
         tmp['n'] = count-1
         # tmp[mos_name] = abs(statistics.mean(votes))
-        tmp[mos_name] = statistics.mean(votes)
+        if tmp['n'] > 0:
+            tmp[mos_name] = statistics.mean(votes)
+        else:
+            # all votes for this clip were silent/dropped
+            tmp[mos_name] = None
         if tmp['n'] > 1:
             tmp[f'std{question_name_suffix}'] = statistics.stdev(votes)
             tmp[f'95%CI{question_name_suffix}'] = (1.96 * tmp[f'std{question_name_suffix}']) / math.sqrt(tmp['n'])
@@ -1627,7 +1653,7 @@ def create_headers_for_per_file_report(test_method, condition_keys):
     mos_name = method_to_mos[f"{test_method}{question_name_suffix}"]
     if test_method in ["p835", "echo_impairment_test", p835_personalized, 'p804']:
         header = ['file_url', 'n', mos_name, f'std{question_name_suffix}', f'95%CI{question_name_suffix}',
-                  'short_file_name'] + condition_keys
+                  'short_file_name', 'n_silent', 'is_silent_percentage'] + condition_keys
     else:
         header = ['file_url', 'n', mos_name, 'std', '95%CI', 'short_file_name'] + condition_keys
     max_votes = max_found_per_file
@@ -2045,11 +2071,13 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
             for item in suffixes:
                 votes_per_file_path = (os.path.splitext(answer_path)[0]+ f"_votes_per_clip{item}.csv")
                 df = pd.read_csv(votes_per_file_path)
-                df = df[['file_url','n' ,f'MOS{item.upper()}', f'std{item}', f'95%CI{item}']]                
+                base_cols = ['file_url','n' ,f'MOS{item.upper()}', f'std{item}', f'95%CI{item}']
                 if merged is None:
-                    merged = df.copy()                    
+                    # the silent share is per-clip (identical across scales); keep it once
+                    extra_cols = [c for c in ['n_silent', 'is_silent_percentage'] if c in df.columns]
+                    merged = df[base_cols + extra_cols].copy()
                 else:
-                    df = df.drop(['n'], axis=1)
+                    df = df[base_cols].drop(['n'], axis=1)
                     merged =  pd.merge(merged, df, on='file_url')   
                 if use_condition_level:
                     votes_per_cond_path = (os.path.splitext(answer_path)[0]+ f"_votes_per_cond{item}.csv")

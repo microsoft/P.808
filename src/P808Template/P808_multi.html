@@ -1845,6 +1845,7 @@ function preventTabsChangeBeforeRateRating(){
 			<div class="col-sm-6">
 				<p style="margin-top:10px;">Listen to the following audio sample </p>
 				<p align="center"> <span class="baudio loop" id="t{0}_audio" data-onfinished="playedAudioTraining" data-src="{1}" >&nbsp;</span></p>
+				<div class="silent-box ratingFieldset" style="margin:10px 0;text-align:center;"><input type="hidden" id="is_silent_t{0}" name="is_silent_t{0}" value="0"><label><input type="checkbox" id="silent_t{0}" name="silent_t{0}"> The clip is silent &mdash; no voice to rate.</label></div>
 			</br></br>
 				<datalist id="tickmarks"><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option><option value="5"></option></datalist>`;
 	
@@ -2242,6 +2243,8 @@ function preventTabsChangeBeforeRateRating(){
 				//$('input[name=' + tmp_name + ']').click({ trial_num: i, num: j, isTraining: true, id:tmp_name }, onRating);
 				$('input[name=' + tmp_name + ']').click({trial_num: i, isTraining: true, id:tmp_name }, onRating);
 			}
+			// "silent / nothing to rate" escape hatch for the training trial
+			$('input[name=silent_t' + (i + 1) + ']').change({ trial_num: i, isTraining: true }, onSilent);
 			//elementsTraining[i] = el;
 			// initialize the GUI
 			//hideAllElementsOnlyNumT(i, 0);
@@ -2299,6 +2302,8 @@ function preventTabsChangeBeforeRateRating(){
 				//set the listeners to change to next question when vote is given
 				$('input[name=' + tmp_name + ']').click({trial_num: i, isTraining: false , id:tmp_name}, onRating);
 			}
+			// "silent / nothing to rate" escape hatch: zeroes all 7 scales for this trial
+			$('input[name=silent_q' + (i + 1) + ']').change({ trial_num: i }, onSilent);
 			//elements[i] = el;
 			// initialize the GUI
 			//hideAllElementsOnlyNumR(i, 0);
@@ -2580,6 +2585,55 @@ function preventTabsChangeBeforeRateRating(){
 	function check_submit_button() {
 		if (unansweredQuestions.size == 0) {
 			$("#submitButton").prop('disabled', false);
+		}
+	}
+
+	/*
+		Handle the per-trial "audio is silent / nothing to rate" checkbox.
+		When checked, all 7 scales for that trial are set to 0, marked as
+		answered, and disabled; when unchecked, the scales are restored.
+	*/
+	function onSilent(event) {
+		var n = event.data.trial_num + 1;
+		var isTraining = event.data.isTraining === true;
+		var p = isTraining ? 't' : 'q';
+		var unanswered = isTraining ? unansweredQuestionsTraining : unansweredQuestions;
+		var checked = $('#silent_' + p + n).is(':checked');
+		var dims = ['noise', 'disc', 'col', 'loud', 'reverb', 'sig', 'ovrl'];
+		if (checked) {
+			var finished = $('input[name=audio_n_finish_' + p + n + '_audio]').val();
+			if (finished == 0) {
+				alert('Please listen to the audio sample once before marking it as silent.');
+				$('#silent_' + p + n).prop('checked', false);
+				return;
+			}
+			// record the silent state in a hidden field that is always submitted,
+			// then set every scale to 1 using the real radios and lock the others.
+			$('#is_silent_' + p + n).val('1');
+			for (var k = 0; k < dims.length; k++) {
+				var nm = p + n + '_' + dims[k];
+				var group = $('input[name=' + nm + ']');
+				var one = group.filter('[value="1"]');
+				group.prop('checked', false);
+				one.prop('checked', true).prop('disabled', false);
+				group.not(one).prop('disabled', true);
+				unanswered.delete(nm);
+			}
+			if (isTraining) {
+				if (unansweredQuestionsTraining.size == 0)
+					trainingIsFinished();
+			} else {
+				check_submit_button();
+			}
+		} else {
+			$('#is_silent_' + p + n).val('0');
+			for (var k = 0; k < dims.length; k++) {
+				var nm = p + n + '_' + dims[k];
+				$('input[name=' + nm + ']').prop('disabled', false).prop('checked', false);
+				unanswered.add(nm);
+			}
+			if (!isTraining)
+				$('#submitButton').prop('disabled', true);
 		}
 	}
 
@@ -3404,6 +3458,10 @@ function set_onclick_listeners(){
 				<!-- Overall -->
 				<p> <b>7. Overall Quality:</b></p>
 				<p style="margin-bottom: 20px;">This refers to how well the sample you heard is suitable for purpose of everday speech communicaions considering all impairments.</p>
+
+				<!-- Silent clip note -->
+				<p> <b>Silent clips:</b></p>
+				<p style="margin-bottom: 20px;">A few clips may be completely silent and contain <b>no voice at all</b>. For such a clip, tick the checkbox <b>"The clip is silent &mdash; no voice to rate"</b> shown under the audio player instead of rating the seven scales. <u>Only use it when you hear no speech whatsoever</u>; using it on a clip that does contain speech is a misuse and <u>will lead to rejection</u>.</p>
 
 				<div class="alert alert-warning" role="alert">
 					<h4>Attention:</h4>
