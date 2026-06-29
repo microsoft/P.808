@@ -33,6 +33,16 @@ _P804_ALL_5 = {
     'noise_ans': 5, 'reverb_ans': 5, 'sig_ans': 5, 'ovrl_ans': 5,
 }
 
+# Target active-speech levels (dBov) for the loudness degradation. The "too loud"
+# case is scaled so the active speech sits at about -10 dBov, the "too quiet"
+# case at about -45 dBov.
+LOUDNESS_TOO_LOUD_DBOV = -10.0
+LOUDNESS_TOO_QUIET_DBOV = -45.0
+
+# Every gold source clip is normalized to this active speech level (dBov) before
+# any degradation (or none, for the clean/score-5 case) is applied.
+GOLD_SOURCE_TARGET_DBOV = -26.0
+
 GOLD_TYPES = {
     'clean': {
         'suffix': 'clean',
@@ -229,23 +239,78 @@ def apply_coloration(signal, sr):
     return colored
 
 
-def apply_loudness(signal, gain_db=None):
+def active_speech_level_dbov(signal, sr, frame_ms=20.0, threshold_db=25.0):
     """
-    Apply extreme loudness change by randomly making the signal too loud or too quiet.
+    Estimate the active speech level of a signal in dBov.
+
+    The level is measured over the active speech part only: the signal is split
+    into short frames and frames whose RMS is within ``threshold_db`` of the
+    loudest frame are treated as active (speech) frames. ``0 dBov`` corresponds
+    to a full-scale sine wave (RMS = 1/sqrt(2)).
+
+    :param signal: Audio signal as a numpy array in the range [-1, 1].
+    :param sr: Sample rate in Hz.
+    :param frame_ms: Frame length in milliseconds.
+    :param threshold_db: Frames within this many dB below the loudest frame count as active.
+    :return: Active speech level in dBov.
+    """
+    eps = 1e-12
+    full_scale_sine_rms = 1.0 / np.sqrt(2.0)
+    frame_len = max(1, int(sr * frame_ms / 1000.0))
+    n_frames = len(signal) // frame_len
+    if n_frames == 0:
+        active_rms = np.sqrt(np.mean(signal ** 2) + eps)
+        return 20.0 * np.log10(active_rms / full_scale_sine_rms + eps)
+    frames = signal[:n_frames * frame_len].reshape(n_frames, frame_len)
+    frame_rms = np.sqrt(np.mean(frames ** 2, axis=1) + eps)
+    peak_rms = frame_rms.max()
+    threshold = peak_rms / (10.0 ** (threshold_db / 20.0))
+    active = frame_rms >= threshold
+    if not np.any(active):
+        active = np.ones(n_frames, dtype=bool)
+    active_rms = np.sqrt(np.mean(frames[active] ** 2) + eps)
+    return 20.0 * np.log10(active_rms / full_scale_sine_rms + eps)
+
+
+def normalize_active_speech_level(signal, sr, target_dbov):
+    """
+    Scale a signal so its active speech level matches a target level in dBov.
 
     :param signal: Audio signal as a numpy array.
-    :param gain_db: Gain in dB. If None, randomly picks +25 or -25 dB.
+    :param sr: Sample rate in Hz.
+    :param target_dbov: Target active speech level in dBov.
+    :return: Level-normalized signal, hard-clipped to [-1, 1].
+    """
+    current_dbov = active_speech_level_dbov(signal, sr)
+    gain_db = target_dbov - current_dbov
+    factor = 10.0 ** (gain_db / 20.0)
+    return np.clip(signal * factor, -1.0, 1.0)
+
+
+def apply_loudness(signal, sr, target_dbov=None):
+    """
+    Apply an extreme loudness change by scaling the active speech level to a target.
+
+    The clip is randomly made too loud or too quiet by scaling so that the active
+    speech part reaches ``LOUDNESS_TOO_LOUD_DBOV`` or ``LOUDNESS_TOO_QUIET_DBOV``.
+    For the too-loud case peaks may exceed full scale, so the result is hard-clipped
+    to [-1, 1] (this preserves the loud level instead of rescaling it back down).
+
+    :param signal: Audio signal as a numpy array.
+    :param sr: Sample rate in Hz.
+    :param target_dbov: Target active speech level in dBov. If None, randomly picks
+        the too-loud or too-quiet target.
     :return: Loudness-adjusted signal as a numpy array.
     """
-    if gain_db is None:
-        gain_db = np.random.choice([25, -25])
+    if target_dbov is None:
+        target_dbov = np.random.choice([LOUDNESS_TOO_LOUD_DBOV, LOUDNESS_TOO_QUIET_DBOV])
+    current_dbov = active_speech_level_dbov(signal, sr)
+    gain_db = target_dbov - current_dbov
     factor = 10.0 ** (gain_db / 20.0)
     adjusted = signal * factor
-    # Prevent hard clipping for loud signals
-    peak = np.max(np.abs(adjusted))
-    if peak > 1.0:
-        adjusted = adjusted / peak * 0.99
-    return adjusted
+    # Preserve the target level (especially for the too-loud case) by hard-clipping
+    # rather than rescaling the peak back down.
+    return np.clip(adjusted, -1.0, 1.0)
 
 
 def _apply_random_post_processing(signal, sr, gold_type):
@@ -356,11 +421,11 @@ def process_clip(signal, sr, gold_type, snr_db=-5.0, clip_threshold=0.005):
         result = apply_signal_distortion(signal, clip_threshold)
         result = add_background_noise(result, sr, snr_db)
     elif gold_type == 'loudness':
-        result = apply_loudness(signal)
+        result = apply_loudness(signal, sr)
     elif gold_type == 'loudness_distortion':
-        result = apply_loudness(apply_signal_distortion(signal, clip_threshold))
+        result = apply_loudness(apply_signal_distortion(signal, clip_threshold), sr)
     elif gold_type == 'loudness_noise':
-        result = apply_loudness(add_background_noise(signal, sr, snr_db))
+        result = apply_loudness(add_background_noise(signal, sr, snr_db), sr)
     else:
         raise ValueError(f"Unknown gold type: {gold_type}")
 
@@ -403,6 +468,8 @@ def create_gold_clips(input_dir, output_dir, method, snr_db=-5.0, clip_threshold
     Generate gold clips from clean source audio files.
 
     For each source file, degraded versions are created based on the method.
+    Each source clip is first normalized to a fixed active speech level
+    (``GOLD_SOURCE_TARGET_DBOV``) before any degradation is applied.
     A CSV report mapping filenames to expected answers is written to output_dir.
     For P804, only dimensions with answer 1 are written; others are left empty.
 
@@ -441,6 +508,9 @@ def create_gold_clips(input_dir, output_dir, method, snr_db=-5.0, clip_threshold
     for src_path in source_files:
         src_name = splitext(basename(src_path))[0]
         signal, sr = lr.load(src_path, sr=None)
+        # Normalize every source clip to a fixed active speech level before degrading,
+        # so degradations (or none, for the clean/score-5 case) start from -26 dBov.
+        signal = normalize_active_speech_level(signal, sr, GOLD_SOURCE_TARGET_DBOV)
         print(f"  Processing: {basename(src_path)} ({len(signal)} samples, {sr} Hz)")
 
         for gold_type, type_info in applicable_types.items():
