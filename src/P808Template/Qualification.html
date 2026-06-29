@@ -451,39 +451,91 @@ $(function() {
 			<div class="row" style="margin: 30px;">
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n1" title="" data-src="https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s0.wav" >&nbsp;</span>
+						<span class="baudio" id="n1" title="" data-src="{{cfg.num1_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num1" required="" class="nospace">
 				</div>
 
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n2" title="" data-src="https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s1.wav" >&nbsp;</span>
+						<span class="baudio" id="n2" title="" data-src="{{cfg.num2_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num2" required="" class="nospace">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row"style="text-align:center;">
-						<span class="baudio" id="n3" title="" data-src="https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s2.wav" >&nbsp;</span>
+						<span class="baudio" id="n3" title="" data-src="{{cfg.num3_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num3" required="" class="nospace">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row"style="text-align:center;">
-						<span class="baudio" id="n4" title="" data-src="https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s3.wav" >&nbsp;</span>
+						<span class="baudio" id="n4" title="" data-src="{{cfg.num4_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num4" required="" class="nospace">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n5" title="" data-src="https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s4.wav" >&nbsp;</span>
+						<span class="baudio" id="n5" title="" data-src="{{cfg.num5_url}}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num5" required="" class="nospace">
 				</div>
 			</div>
 			
 		</fieldset>
-		
+
+		<fieldset><label>11.&nbsp;For this task, your hardware should be able to produce different audio details, and you should be able to hear them. Listen to the following samples. Each sample has two parts separated by a "beep". For each sample, please select whether the quality of both parts is the same or different.</label>
+
+			<div class="row" style="margin: 30px;">
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="comb_bw1" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g1_cmb.wav" >&nbsp;</span>
+					</div>
+					<div class="row" style="margin-left:20px" >
+						<div class="radio"><label><input type="radio" name="comb_bw1" value="sq" required="">Same quality</label></div>
+						<div class="radio"><label><input type="radio" name="comb_bw1" value="dq">Different quality</label></div>
+					</div>
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="comb_bw2" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g2_cmb.wav">&nbsp;</span>
+					</div>
+					<div class="row" style="margin-left:20px" >
+						<div class="radio"><label><input type="radio" name="comb_bw2" value="sq" required="">Same quality</label></div>
+						<div class="radio"><label><input type="radio" name="comb_bw2" value="dq">Different quality</label></div>
+					</div>
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="comb_bw3" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g3_cmb.wav">&nbsp;</span>
+					</div>
+					<div class="row" style="margin-left:20px" >
+						<div class="radio"><label><input type="radio" name="comb_bw3" value="sq" required="">Same quality</label></div>
+						<div class="radio"><label><input type="radio" name="comb_bw3" value="dq">Different quality</label></div>
+					</div>
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="comb_bw4" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g4_cmb.wav">&nbsp;</span>
+					</div>
+					<div class="row" style="margin-left:20px" >
+						<div class="radio"><label><input type="radio" name="comb_bw4" value="sq" required="">Same quality</label></div>
+						<div class="radio"><label><input type="radio" name="comb_bw4" value="dq">Different quality</label></div>
+					</div>
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="comb_bw5" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g5_cmb.wav">&nbsp;</span>
+					</div>
+					<div class="row" style="margin-left:20px" >
+						<div class="radio"><label><input type="radio" name="comb_bw5" value="sq" required="">Same quality</label></div>
+						<div class="radio"><label><input type="radio" name="comb_bw5" value="dq">Different quality</label></div>
+					</div>
+				</div>
+			</div>
+
+		</fieldset>
+
 
 		<h5> Thank you for your participation. The qualifications will be assigned to a selected group of participants within the next 3 days.</h5>
 		

@@ -286,6 +286,7 @@
 		cookieName: "{{cfg.cookie_name}}",
 		qualificationCookieName: "{{cfg.qual_cookie_name}}",
 		qualificationValidFor: 43200,
+		showQualification: {{cfg.show_qualification}},
 		forceRetrainingInHours: 3,
 		showSetupEveryMinutes: 120,
 		debug: "true",
@@ -397,6 +398,11 @@
 			cookie_debug_status = "";
 			// given cookie availability disable the qualification
 			qual_passed = readCookie(config['qualificationCookieName']);
+			// when the qualification section is disabled (e.g. it is run as a
+			// separate Prolific study), treat it as already passed and skip it.
+			if (config['showQualification'] === false) {
+				qual_passed = "true";
+			}
 			//-------------			
 			is_test = false;
 			//------------

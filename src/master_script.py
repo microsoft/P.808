@@ -438,6 +438,13 @@ async def create_hit_app_pp835_p804(
     config["contact_email"] = (
         cfg["contact_email"] if "contact_email" in cfg else "ic3ai@outlook.com"
     )
+    # whether the in-HIT qualification section is shown. Default: shown.
+    config["show_qualification"] = (
+        "false"
+        if str(cfg.get("show_qualification", "true")).strip().lower()
+        in ("false", "0", "no", "off")
+        else "true"
+    )
 
     config["hit_base_payment"] = cfg["hit_base_payment"]
     config["quantity_hits_more_than"] = cfg["quantity_hits_more_than"]
@@ -707,6 +714,37 @@ def prepare_basic_cfg(df):
     config["cmp_max_n_feedback"] = 4
     config["cmp_pass_threshold"] = 2
     return config
+
+
+def create_qualification_only(args):
+    """
+    Generate the standalone qualification page (Qualification.html) for a project.
+
+    Renders the qualification template with the general assets (the hearing-test
+    number clips) so it can be published as a separate qualification study, e.g. a
+    Prolific screener. Skips the rating/clip/session generation entirely.
+
+    :param args: Parsed command-line arguments (uses project and general_assets).
+    :return: Path to the generated qualification HTML file.
+    """
+    general_path = args.general_assets or os.path.join(
+        os.path.dirname(__file__), "assets_master_script/general.csv"
+    )
+    assert os.path.exists(general_path), f"No general assets csv in {general_path}"
+    df_general = pd.read_csv(general_path)
+    config = prepare_basic_cfg(df_general)
+
+    template_path = os.path.join(os.path.dirname(__file__), "P808Template/Qualification.html")
+    with open(template_path, "r", encoding="utf-8") as file:
+        content = file.read()
+    html = Template(content).render(cfg=config)
+
+    os.makedirs(args.project, exist_ok=True)
+    out_path = os.path.join(args.project, f"{args.project}_qualification.html")
+    with open(out_path, "w", encoding="utf-8") as file:
+        file.write(html)
+    print(f"  [{out_path}] is created")
+    return out_path
 
 
 def get_path(test_method, is_p831_fest):
@@ -1023,6 +1061,11 @@ if __name__ == '__main__':
         help="Path to the general assets CSV (default: assets_master_script/general.csv). "
              "Use assets_master_script/general_assets_internal.csv for internal assets."
     )
+    parser.add_argument(
+        "--qualification_only", action='store_true',
+        help="Only generate the standalone qualification page (Qualification.html) for this "
+             "project, e.g. to publish a separate qualification screener. Skips clip/session generation."
+    )
     
     # check input arguments
     args = parser.parse_args()
@@ -1036,6 +1079,11 @@ if __name__ == '__main__':
     p831_methods = ["acr", "dcr", "echo_impairment_test"]
     if args.p831_fest:
         assert test_method in p831_methods, f"This method is not supported with p831, please choose one of {p831_methods}"
+
+    if args.qualification_only:
+        # generate only the standalone qualification page and stop
+        create_qualification_only(args)
+        raise SystemExit(0)
 
     assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
     if args.training_clips:
