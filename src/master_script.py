@@ -720,30 +720,100 @@ def create_qualification_only(args):
     """
     Generate the standalone qualification page (Qualification.html) for a project.
 
-    Renders the qualification template with the general assets (the hearing-test
-    number clips) so it can be published as a separate qualification study, e.g. a
-    Prolific screener. Skips the rating/clip/session generation entirely.
+    Writes the qualification HTML (the hearing-test number clips are ${q_numN}
+    placeholders, filled per row by the HIT app server) plus an answers CSV with
+    one row per qualification instance (args.n_samples rows). Each row holds the
+    question audio URLs (q_*) and correct answers (ans_*) for server-side
+    validation; no answers are embedded in the HTML. Optionally generates a local
+    preview from the first row when args.create_local_test is set.
 
-    :param args: Parsed command-line arguments (uses project and general_assets).
+    :param args: Parsed command-line arguments (project, general_assets, n_samples,
+        create_local_test).
     :return: Path to the generated qualification HTML file.
     """
+    # Static bandwidth/quality-discrimination clips and their correct answers.
+    # These must match the comb_bw* clips in P808Template/Qualification.html.
+    bw_base = "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test"
+    bandwidth_tests = [
+        ("comb_bw1", f"{bw_base}/d_g1_cmb.wav", "dq"),
+        ("comb_bw2", f"{bw_base}/d_g2_cmb.wav", "dq"),
+        ("comb_bw3", f"{bw_base}/d_g3_cmb.wav", "dq"),
+        ("comb_bw4", f"{bw_base}/d_g4_cmb.wav", "sq"),
+        ("comb_bw5", f"{bw_base}/d_g5_cmb.wav", "sq"),
+    ]
+    # Non-audio criteria questions 3-8 and their expected answer(s) ("|"-separated
+    # when several are acceptable). Questions 5 and 6 are recency screeners with no
+    # fixed correct answer.
+    criteria = {
+        "ans_3_mother_tongue": "english|en",
+        "ans_4_ld": "in-ear|over-ear",
+        "ans_5_last_subjective": "",
+        "ans_6_audio_test": "",
+        "ans_7_working_area": "N",
+        "ans_8_hearing": "normal",
+    }
+
+    n_samples = max(1, int(getattr(args, "n_samples", 1) or 1))
     general_path = args.general_assets or os.path.join(
         os.path.dirname(__file__), "assets_master_script/general.csv"
     )
     assert os.path.exists(general_path), f"No general assets csv in {general_path}"
     df_general = pd.read_csv(general_path)
-    config = prepare_basic_cfg(df_general)
 
+    # write the qualification HTML (placeholders are filled by the HIT app server)
     template_path = os.path.join(os.path.dirname(__file__), "P808Template/Qualification.html")
     with open(template_path, "r", encoding="utf-8") as file:
-        content = file.read()
-    html = Template(content).render(cfg=config)
+        html = file.read()
 
     os.makedirs(args.project, exist_ok=True)
     out_path = os.path.join(args.project, f"{args.project}_qualification.html")
     with open(out_path, "w", encoding="utf-8") as file:
         file.write(html)
     print(f"  [{out_path}] is created")
+
+    # answers CSV: one row per instance, q_* (audio URL) and ans_* (correct answer)
+    columns = []
+    for i in range(1, 6):
+        columns += [f"q_num{i}", f"ans_num{i}"]
+    for name, _url, _ans in bandwidth_tests:
+        columns += [f"q_{name}", f"ans_{name}"]
+    columns += list(criteria.keys())
+
+    rows = []
+    for _ in range(n_samples):
+        # a fresh random sampling of the hearing-test number clips per instance
+        sample_cfg = prepare_basic_cfg(df_general)
+        row = {}
+        for i in range(1, 6):
+            encoded = sample_cfg.get(f"num{i}_ans")
+            row[f"q_num{i}"] = sample_cfg.get(f"num{i}_url", "")
+            row[f"ans_num{i}"] = base64.b64decode(encoded).decode("ascii") if encoded else ""
+        for name, url, answer in bandwidth_tests:
+            row[f"q_{name}"] = url
+            row[f"ans_{name}"] = answer
+        row.update(criteria)
+        rows.append(row)
+
+    answers_df = pd.DataFrame(rows, columns=columns)
+    answers_path = os.path.join(args.project, f"{args.project}_qualification_answers.csv")
+    answers_df.to_csv(answers_path, index=False)
+    print(f"  [{answers_path}] ({n_samples} instance(s)) is created")
+
+    # optional local preview built from the first instance
+    if getattr(args, "create_local_test", False):
+        from utils.preview_html import (
+            replace_placeholders,
+            replace_with_public_urls,
+            _disable_fetch_for_local,
+        )
+        preview_html = _disable_fetch_for_local(
+            replace_placeholders(replace_with_public_urls(html), answers_df.iloc[0])
+        )
+        preview_path = os.path.join(args.project, f"{args.project}_qualification_row-1.html")
+        with open(preview_path, "w", encoding="utf-8") as file:
+            file.write(preview_html)
+        print(f"  [{preview_path}] is created")
+
     return out_path
 
 
@@ -1029,8 +1099,8 @@ if __name__ == '__main__':
     print("Welcome to the Master script for P808 Toolkit.")
     parser = argparse.ArgumentParser(description='Master script to prepare the P.808 subjective test')
     parser.add_argument("--project", help="Name of the project", required=True)
-    parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=True)
-    parser.add_argument("--method", required=True,
+    parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=False)
+    parser.add_argument("--method", required=False,
                         help=f"one of the test methods: 'acr', 'dcr', 'ccr', 'p835','{p835_personalized}', p804, or 'echo_impairment_test'")
     parser.add_argument("--p831_fest", action='store_true', help="Use the question set of P.831 for FEST")
     parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
@@ -1066,10 +1136,22 @@ if __name__ == '__main__':
         help="Only generate the standalone qualification page (Qualification.html) for this "
              "project, e.g. to publish a separate qualification screener. Skips clip/session generation."
     )
+    parser.add_argument(
+        "--n_samples", type=int, default=1,
+        help="Number of qualification instances (rows) to generate in the answers CSV "
+             "when using --qualification_only. Default: 1."
+    )
     
     # check input arguments
     args = parser.parse_args()
 
+    if args.qualification_only:
+        # only generate the standalone qualification page; this mode needs just
+        # --project (and optionally --general_assets), not --method or --cfg.
+        create_qualification_only(args)
+        raise SystemExit(0)
+
+    assert args.method, "--method is required (except with --qualification_only)"
     methods = ["acr", "dcr", "ccr", "p835", "echo_impairment_test", p835_personalized, 'p804']
     test_method = args.method.lower()
     assert (
@@ -1080,11 +1162,7 @@ if __name__ == '__main__':
     if args.p831_fest:
         assert test_method in p831_methods, f"This method is not supported with p831, please choose one of {p831_methods}"
 
-    if args.qualification_only:
-        # generate only the standalone qualification page and stop
-        create_qualification_only(args)
-        raise SystemExit(0)
-
+    assert args.cfg, "--cfg is required (except with --qualification_only)"
     assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
     if args.training_clips:
         assert os.path.exists(
