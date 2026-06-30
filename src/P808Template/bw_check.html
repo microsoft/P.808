@@ -149,13 +149,13 @@
 		training_gold_clips: {{ cfg.training_gold_clips }},
 		knownQuestionInTrainingUrl: "{{cfg.training_trap_urls}}",
 		knownQuestionInTrainingAns: "{{cfg.training_trap_ans}}",
-		knownQuestionUrl: "${TP}",
-		knownQuestionAns: "${TP_ANS}",
+		knownQuestionUrl: "",
+		knownQuestionAns: "",
 		goldClip: {
-			url: "${gold_url}", 
-			sig_ans:"${gold_sig_ans}", 
-			bak_ans:"${gold_bak_ans}", 
-			ovrl_ans: "${gold_ovrl_ans}",
+			url: "",
+			sig_ans:"",
+			bak_ans:"",
+			ovrl_ans: "",
 			n_fail_show_warning: 3,
 			n_fail_block: 5
 		},
@@ -217,13 +217,13 @@
 			"ovrl":{"ans": "aHR0cHM6Ly9wODM1LXJlZi1sYW5nLnMzLmFtYXpvbmF3cy5jb20vdHBzL2kwMV9mMV8xX3Nob3J0Lndhdl81", msg:"ovrl_is_wrong", var:1}}
 		],
 
-		knownQuestionUrl: "https://s3-us-west-1.amazonaws.com/itutest.qu.tuberlin.de/401/D401_c01_ef02_s002.wav",
-		knownQuestionAns: "TP_ANS",
+		knownQuestionUrl: "",
+		knownQuestionAns: "",
 		// default variance is 1 if a scale is not relevant, remove it from list
 		goldClip: {
-			"url":'https://mlvideoprem.blob.core.windows.net/mlcodec-gan-prem/tmp/1sec.wav',
-			'sig_ans':'aHR0cHM6Ly9tbHZpZGVvcHJlbS5ibG9iLmNvcmUud2luZG93cy5uZXQvbWxjb2RlYy1nYW4tcHJlbS90bXAvMXNlYy53YXZfMg==',			
-			'ovrl_ans':'aHR0cHM6Ly9tbHZpZGVvcHJlbS5ibG9iLmNvcmUud2luZG93cy5uZXQvbWxjb2RlYy1nYW4tcHJlbS90bXAvMXNlYy53YXZfMg==',
+			"url":"",
+			'sig_ans':"",
+			'ovrl_ans':"",
 			'n_fail_show_warning': 2,
 			'n_fail_block': 6
 		},
@@ -307,20 +307,8 @@
 				cookie_debug_status = cookie_debug_status + "ACR_LISTENER Exist*";
 			}
 
-			let gold_stat = getGoldQuestionStat();
-			console.log("gold_stat:"+ gold_stat['failed'] +"warning:" + gold_stat['warning_showed'] );
+			// Front-end gold QC disabled: never block or warn based on gold failures.
 			let force_re_training = false;
-			if (gold_stat['failed']>= config['goldClip']['n_fail_block']) {
-				disableTheHIT(Hide_HIT_REASON.GOLD_FAILED);				
-			}else if (gold_stat['failed']>= config['goldClip']['n_fail_show_warning'] && gold_stat['warning_showed'] == 0) {
-				console.log("show warning");
-				// show warning
-				$("#gold_warning").show();
-				// force training
-				force_re_training = true;
-				gold_stat['warning_showed'] = 1;
-				saveGoldQuestionStat(gold_stat);
-			}
 			// given cookie availability disable the training			
 			//if (readCookie(config['cookieName'] + "_training") && !force_re_training) {
 				$('.trainingFieldset').prop("disabled", true);

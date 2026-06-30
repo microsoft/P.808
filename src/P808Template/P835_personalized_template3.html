@@ -133,10 +133,10 @@
 		questionUrls: {{cfg.rating_urls}},
 		trainingUrls: {{cfg.training_urls}},
 		goldClip: {
-			url: "${gold_url_2}", 
-			sig_ans:"${gold_sig_ans_2}", 
-			bak_ans:"${gold_bak_ans_2}", 
-			ovrl_ans: "${gold_ovrl_ans_2}",
+			url: "",
+			sig_ans:"",
+			bak_ans:"",
+			ovrl_ans: "",
 			n_fail_show_warning: 3,
 			n_fail_block: 5
 		}
@@ -155,13 +155,13 @@
 		training_gold_clips: {{ cfg.training_gold_clips }},
 		knownQuestionInTrainingUrl: "{{cfg.training_trap_urls}}",
 		knownQuestionInTrainingAns: "{{cfg.training_trap_ans}}",
-		knownQuestionUrl: "${TP}",
-		knownQuestionAns: "${TP_ANS}",
+		knownQuestionUrl: "",
+		knownQuestionAns: "",
 		goldClip: {
-			url: "${gold_url}", 
-			sig_ans:"${gold_sig_ans}", 
-			bak_ans:"${gold_bak_ans}", 
-			ovrl_ans: "${gold_ovrl_ans}",
+			url: "",
+			sig_ans:"",
+			bak_ans:"",
+			ovrl_ans: "",
 			n_fail_show_warning: 3,
 			n_fail_block: 5
 		},
@@ -248,21 +248,8 @@
 				cookie_debug_status = cookie_debug_status + "ACR_LISTENER Exist*";
 			}
 
-			let gold_stat = getGoldQuestionStat();
-			console.log("gold_stat:"+ gold_stat['failed'] +"warning:" + gold_stat['warning_showed'] );
-			cookie_debug_status = cookie_debug_status + "gold_stat"+ gold_stat['failed'] +",warning:" + gold_stat['warning_showed'] + "*";
+			// Front-end gold QC disabled: never block or warn based on gold failures.
 			let force_re_training = false;
-			if (gold_stat['failed']>= config['goldClip']['n_fail_block']) {
-				disableTheHIT(Hide_HIT_REASON.GOLD_FAILED);				
-			}else if (gold_stat['failed']>= config['goldClip']['n_fail_show_warning'] && gold_stat['warning_showed'] == 0) {
-				console.log("show warning");
-				// show warning
-				$("#gold_warning").show();
-				// force training
-				force_re_training = true;
-				gold_stat['warning_showed'] = 1;
-				saveGoldQuestionStat(gold_stat);
-			}
 			// given cookie availability disable the training			
 			if (readCookie(config['cookieName'] + "_training") && !force_re_training) {
 				$('.trainingFieldset').prop("disabled", true);
