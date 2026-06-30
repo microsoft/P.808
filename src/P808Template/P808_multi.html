@@ -263,23 +263,6 @@
 	 - randomizeRatingQuestions: boolean whether the questions in the rating section should be randomized on loading time.
 	 - allowedMaxHITsInProject: How many HITs each worker is allowed to answer in this project
 	 - allowedMaxContinuesSessionDurationInMinutes: how log is the maximum continue session. A break of 10min will be forced
-	
-		questionUrls: {{cfg.rating_urls}},
-		trainingUrls: {{cfg.training_urls}},
-		goldClip: {
-			url: "${gold_url_2}", 
-			sig_ans:"${gold_sig_ans_2}", 
-			noise_ans:"${gold_noise_ans_2}", 
-			disc_ans:"${gold_disc_ans_2}", 
-			col_ans:"${gold_col_ans_2}", 
-			loud_ans:"${gold_loud_ans_2}", 
-			reverb_ans:"${gold_reverb_ans_2}", 
-			ovrl_ans: "${gold_ovrl_ans_2}",
-			n_fail_show_warning: 3,
-			n_fail_block: 6
-		}
-		
-
 	*/
 	
 	var config = {
@@ -295,29 +278,36 @@
 		training_gold_clips: {{ cfg.training_gold_clips }},
 		knownQuestionInTrainingUrl: "{{cfg.training_trap_urls}}",
 		knownQuestionInTrainingAns: "{{cfg.training_trap_ans}}",
-		knownQuestionUrl: "${TP}",
-		knownQuestionAns: "${TP_ANS}",
+		// Front-end gold/trapping quality control is DISABLED: the correct answers
+		// are intentionally NOT embedded in the page. (They could be trivially
+		// recovered client-side - gold answers were base64, trapping answers plain
+		// text - so a front-end check cannot be made tamper-proof for a 1-5 answer
+		// space.) Gold/trapping validation is performed server-side in
+		// result_parser.py. Training feedback (config.training_gold_clips and
+		// knownQuestionInTraining*) is unaffected and still works.
+		knownQuestionUrl: "",
+		knownQuestionAns: "",
 		goldClip: {
-			url: "${gold_url}", 
-			sig_ans:"${gold_sig_ans}", 
-			noise_ans:"${gold_noise_ans}", 
-			disc_ans:"${gold_disc_ans}", 
-			col_ans:"${gold_col_ans}", 
-			loud_ans:"${gold_loud_ans}", 
-			reverb_ans:"${gold_reverb_ans}", 
-			ovrl_ans: "${gold_ovrl_ans}",
+			url: "",
+			sig_ans:"",
+			noise_ans:"",
+			disc_ans:"",
+			col_ans:"",
+			loud_ans:"",
+			reverb_ans:"",
+			ovrl_ans: "",
 			n_fail_show_warning: 4,
 			n_fail_block: 6
 		},
 		goldClip2: {
-			url: "${gold_url_2}", 
-			sig_ans:"${gold_sig_ans_2}", 
-			noise_ans:"${gold_noise_ans_2}", 
-			disc_ans:"${gold_disc_ans_2}", 
-			col_ans:"${gold_col_ans_2}", 
-			loud_ans:"${gold_loud_ans_2}", 
-			reverb_ans:"${gold_reverb_ans_2}", 
-			ovrl_ans: "${gold_ovrl_ans_2}",
+			url: "",
+			sig_ans:"",
+			noise_ans:"",
+			disc_ans:"",
+			col_ans:"",
+			loud_ans:"",
+			reverb_ans:"",
+			ovrl_ans: "",
 			dummy:"dummy"
 		},
 		randomizeTrainingQuestions: "true",
@@ -420,20 +410,10 @@
 				cookie_debug_status = cookie_debug_status + "ACR_LISTENER Exist*";
 			}
 
-			let gold_stat = getGoldQuestionStat();
-			console.log("gold_stat:"+ gold_stat['failed'] +"warning:" + gold_stat['warning_showed'] );
+			// Front-end gold QC disabled: never block or warn based on gold
+			// "failures" (validation is server-side). Keep force_re_training so the
+			// later training/cookie logic still works.
 			let force_re_training = false;
-			if (gold_stat['failed']>= config['goldClip']['n_fail_block']) {
-				disableTheHIT(Hide_HIT_REASON.GOLD_FAILED);				
-			}else if (gold_stat['failed']>= config['goldClip']['n_fail_show_warning'] && gold_stat['warning_showed'] == 0) {
-				console.log("show warning");
-				// show warning
-				$("#gold_warning").show();
-				// force training
-				force_re_training = true;
-				//gold_stat['warning_showed'] = 1;
-				//saveGoldQuestionStat(gold_stat);
-			}
 
 			// detailed instruction
 			if (is_test || readCookie(config['cookieName'] + "_instra")) {				
