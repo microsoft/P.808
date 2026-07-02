@@ -76,12 +76,14 @@ python utils/create_bandwidth_check_clips.py ^
 | `--gap_sec` | No | 0.2 | Silence gap on each side of the beep, in seconds. |
 | `--seed` | No | — | Integer seed for reproducible noise. |
 | `--limit` | No | — | Cap on the number of references processed. |
+| `--no_anonymize` | No | False | Use descriptive `<stem>_q{n}.wav` names instead of random UUIDs (useful for listening review). |
 
 ### Output
 
 The script writes, to `--output_dir`:
 
-- Five WAV clips per reference, named with random UUIDs (source sample rate and subtype preserved).
+- Five WAV clips per reference, named with random UUIDs (source sample rate and subtype
+  preserved). Pass `--no_anonymize` for descriptive `<stem>_q{n}.wav` names when reviewing.
 - `bandwidth_check_clips.csv`, one row per reference, with columns `ref_clip`, `q1`…`q5`
   (clip file name, or full URL when `--base_url` is given) and `ans_q1`…`ans_q5`
   (the correct answer `dq`/`sq` for each case).
@@ -112,7 +114,7 @@ their correct answers. To use freshly generated clips:
 ## Reproducibility
 
 - **Model:** Claude Opus 4.8 (model ID `claude-opus-4.8`)
-- **Generated:** 2026-07-01 16:03 (UTC+02:00)
+- **Generated:** 2026-07-01, updated 2026-07-02 (UTC+02:00)
 - **Generation parameters:** managed by the GitHub Copilot CLI and not exposed to the
   assistant (no explicit temperature or max-token values were set by the author).
 - **Context:** Authored alongside `src/utils/create_bandwidth_check_clips.py`, based on the

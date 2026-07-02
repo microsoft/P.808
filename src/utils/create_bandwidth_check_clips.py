@@ -274,7 +274,8 @@ def load_mono(path):
 
 
 def generate_for_reference(ref_path, output_dir, noise_gain_db=DEFAULT_NOISE_GAIN_DB,
-                           beep_freq=440.0, beep_sec=1.0, gap_sec=0.2, seed=None):
+                           beep_freq=440.0, beep_sec=1.0, gap_sec=0.2, seed=None,
+                           anonymize=True):
     """
     Build the five bandwidth-check clips for a single reference file.
 
@@ -286,7 +287,9 @@ def generate_for_reference(ref_path, output_dir, noise_gain_db=DEFAULT_NOISE_GAI
     detection cannot flag them while humans still hear "same".
 
     Output file names are anonymized random UUIDs so the hosted clip names do not
-    reveal the source reference; the manifest CSV keeps the mapping.
+    reveal the source reference; the manifest CSV keeps the mapping. Set
+    ``anonymize`` to False to use descriptive ``<stem>_q{n}.wav`` names for
+    listening review.
 
     :param ref_path: Path to the clean reference WAV file.
     :param output_dir: Directory where the five output clips are written.
@@ -296,9 +299,10 @@ def generate_for_reference(ref_path, output_dir, noise_gain_db=DEFAULT_NOISE_GAI
     :param beep_sec: Beep tone duration in seconds (default: 1.0).
     :param gap_sec: Silence gap on each side of the beep, in seconds (default: 0.2).
     :param seed: Optional integer seed for reproducible noise.
-    :return: List of the five output clip file names (anonymized basenames),
-        ordered q1..q5, or ``None`` if the reference sample rate is too low for
-        the noise bands.
+    :param anonymize: When True (default) use random UUID file names; when False
+        use descriptive ``<stem>_q{n}.wav`` names.
+    :return: List of the five output clip file names (basenames), ordered q1..q5,
+        or ``None`` if the reference sample rate is too low for the noise bands.
     """
     ref, fs, subtype = load_mono(ref_path)
     nyq = 0.5 * fs
@@ -314,6 +318,7 @@ def generate_for_reference(ref_path, output_dir, noise_gain_db=DEFAULT_NOISE_GAI
     beep = make_beep(fs, freq_hz=beep_freq, duration_sec=beep_sec)
     gap = np.zeros(int(gap_sec * fs))
 
+    stem = os.path.splitext(os.path.basename(ref_path))[0]
     filenames = []
 
     for i in range(5):
@@ -330,7 +335,7 @@ def generate_for_reference(ref_path, output_dir, noise_gain_db=DEFAULT_NOISE_GAI
             part_b = add_inaudible_dither(ref, rng)
 
         clip = assemble_pair(part_a, part_b, beep, gap)
-        out_name = f"{uuid.uuid4().hex}.wav"
+        out_name = f"{uuid.uuid4().hex}.wav" if anonymize else f"{stem}_q{i + 1}.wav"
         sf.write(os.path.join(output_dir, out_name), clip, fs, subtype=subtype)
         filenames.append(out_name)
 
@@ -340,7 +345,7 @@ def generate_for_reference(ref_path, output_dir, noise_gain_db=DEFAULT_NOISE_GAI
 def generate_bandwidth_check_clips(input_dir, output_dir, base_url=None,
                                    noise_gain_db=DEFAULT_NOISE_GAIN_DB,
                                    beep_freq=440.0, beep_sec=1.0, gap_sec=0.2,
-                                   seed=None, limit=None):
+                                   seed=None, limit=None, anonymize=True):
     """
     Generate bandwidth-check clips for every reference WAV in a directory.
 
@@ -361,6 +366,8 @@ def generate_bandwidth_check_clips(input_dir, output_dir, base_url=None,
     :param gap_sec: Silence gap on each side of the beep, in seconds (default: 0.2).
     :param seed: Optional integer seed for reproducible noise.
     :param limit: Optional cap on the number of references processed.
+    :param anonymize: When True (default) use random UUID clip names; when False
+        use descriptive ``<stem>_q{n}.wav`` names for listening review.
     :return: Path to the generated manifest CSV.
     """
     os.makedirs(output_dir, exist_ok=True)
@@ -379,6 +386,7 @@ def generate_bandwidth_check_clips(input_dir, output_dir, base_url=None,
         filenames = generate_for_reference(
             ref_path, output_dir, noise_gain_db=noise_gain_db,
             beep_freq=beep_freq, beep_sec=beep_sec, gap_sec=gap_sec, seed=ref_seed,
+            anonymize=anonymize,
         )
         if filenames is None:
             continue
@@ -455,6 +463,11 @@ if __name__ == "__main__":
         "--limit", type=int, default=None,
         help="Optional cap on the number of references processed."
     )
+    parser.add_argument(
+        "--no_anonymize", action="store_true",
+        help="Use descriptive <stem>_q{n}.wav names instead of random UUIDs "
+             "(useful for listening review)."
+    )
 
     args = parser.parse_args()
 
@@ -468,4 +481,5 @@ if __name__ == "__main__":
         gap_sec=args.gap_sec,
         seed=args.seed,
         limit=args.limit,
+        anonymize=not args.no_anonymize,
     )
