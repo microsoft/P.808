@@ -107,6 +107,8 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path, gener
     default_keys = 'condition_num'
     config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
     config['condition_keys'] = cfg['create_input'].get("condition_keys", default_keys)
+    # target crowdsourcing platform (mturk or prolific); Prolific skips bonus reports
+    config['platform'] = cfg['create_input'].get("platform", "prolific")
 
     # BW check
     config['bw_min'] = general_cfg['bw_min']
@@ -148,6 +150,8 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     default_keys = 'condition_num'
     config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
     config['condition_keys'] = cfg['create_input'].get("condition_keys", default_keys)
+    # target crowdsourcing platform (mturk or prolific); Prolific skips bonus reports
+    config['platform'] = cfg['create_input'].get("platform", "prolific")
 
     # BW check
     config['bw_min'] = general_cfg['bw_min']

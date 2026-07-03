@@ -1907,7 +1907,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     
     return merged_ans_path, not_in_hitapp
 
-def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_req, quality_bonus):
+def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_req, quality_bonus, platform="mturk"):
     """
     main method for calculating the results
     :param config:
@@ -1915,6 +1915,8 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
     :param answer_path:
     :param list_of_req:
     :param quality_bonus:
+    :param platform: target crowdsourcing platform ("mturk" or "prolific"). Bonus
+        reports are MTurk-specific and are skipped for "prolific".
     :return:
     """
     global question_name_suffix
@@ -2106,27 +2108,31 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
                 merged_cond['M'] = ((merged_cond['MOS_SIG']-1) / 4 + (merged_cond['MOS_OVRL']-1) /4 ) / 2
                 merged_cond.to_csv(os.path.splitext(answer_path)[0]+ f"_votes_per_cond_all-scales.csv", index=False)
 
-        bonus_file = os.path.splitext(answer_path)[0] + '_quantity_bonus_report.csv'
-        quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
+        if platform == "prolific":
+            logger.info("Platform is Prolific; skipping bonus report generation "
+                        "(bonuses are handled on Prolific, not via this report).")
+        else:
+            bonus_file = os.path.splitext(answer_path)[0] + '_quantity_bonus_report.csv'
+            quantity_bonus_df = calc_quantity_bonuses(full_data, list_of_req, bonus_file)
 
-        if quality_bonus:
-            quality_bonus_path = os.path.splitext(answer_path)[0] + '_quality_bonus_report.csv'
-            if 'all' not in list_of_req:
-                quantity_bonus_df = calc_quantity_bonuses(full_data, ['all'], None)
-            if use_condition_level:
-                votes_to_use = vote_per_condition
-            else:
-                votes_to_use = votes_per_file
-            calc_quality_bonuses(
-                quantity_bonus_df,
-                accepted_sessions,
-                votes_to_use,
-                config,
-                quality_bonus_path,
-                n_workers,
-                test_method,
-                use_condition_level,
-            )
+            if quality_bonus:
+                quality_bonus_path = os.path.splitext(answer_path)[0] + '_quality_bonus_report.csv'
+                if 'all' not in list_of_req:
+                    quantity_bonus_df = calc_quantity_bonuses(full_data, ['all'], None)
+                if use_condition_level:
+                    votes_to_use = vote_per_condition
+                else:
+                    votes_to_use = votes_per_file
+                calc_quality_bonuses(
+                    quantity_bonus_df,
+                    accepted_sessions,
+                    votes_to_use,
+                    config,
+                    quality_bonus_path,
+                    n_workers,
+                    test_method,
+                    use_condition_level,
+                )
     all_votes_per_file_path = (
                 os.path.splitext(answer_path)[0]
                 + f"_all_votes_per_clip.csv"
@@ -2188,6 +2194,14 @@ if __name__ == "__main__":
         warnings.warn("If you are using HIT App server, Note: the WorkerId, HITIds, ect. are internal "
                       "HIT APP server ids. Therefore bonus reports cannot be used." )
 
+    # Target crowdsourcing platform. An explicit [general] platform in the config wins;
+    # otherwise it is inferred (Prolific when a Prolific export is provided, MTurk otherwise).
+    # Bonus reports are MTurk-specific, so they are not generated for Prolific.
+    if config.has_option("general", "platform"):
+        platform = config["general"]["platform"].strip().lower()
+    else:
+        platform = "prolific" if prolific_ans_path is not None else "mturk"
+
     assert os.path.exists(answer_path), f"No input file found in [{answer_path}]"
     list_of_possible_status = ['all', 'submitted']
 
@@ -2207,4 +2221,4 @@ if __name__ == "__main__":
     logger.addHandler(file_handler)
     logger.info(f"Start analyzing the results of {test_method} test")
     # start
-    analyze_results(config, test_method,  answer_path,prolific_ans_path, list_of_req, args.quality_bonus)
+    analyze_results(config, test_method,  answer_path, prolific_ans_path, list_of_req, args.quality_bonus, platform)

@@ -581,6 +581,7 @@ number_of_clips_per_session:10
 number_of_trapping_per_session:1
 number_of_gold_clips_per_session:GOLD_PER_SESSION
 clip_packing_strategy: random
+platform: PLATFORM
 
 [hit_app_html]
 allowed_max_hit_in_project:COMPUTED_VALUE
@@ -600,6 +601,10 @@ contact_email:USER_PROVIDED_EMAIL
 - `contact_email` = user-provided. Never hardcode.
 - `allowed_max_hit_in_project` = `BEST_PRACTICE_ALLOWED_MAX_HITS`.
 - `quantity_hits_more_than` ≈ `floor(total_sessions / 2)`, at least 2.
+- `platform` = the crowd platform (`prolific` or `mturk`), from the requester's answer
+  (defaults to `prolific`). It is written into the generated `*_result_parser.cfg` so the
+  result parser knows the platform; for `prolific` no bonus report is generated (bonuses are
+  handled on Prolific).
 
 ### 8. Run the master script
 

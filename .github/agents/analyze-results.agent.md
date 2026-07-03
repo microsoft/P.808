@@ -212,7 +212,7 @@ After analysis, direct the user to the key output files:
 | `Batch_XXX_all_votes_per_clip.csv` | All individual votes per clip (key: `all_votes` in name) |
 | `Batch_XXX_data_cleaning_report.csv` | Detailed per-submission data cleaning report |
 | `detailed_gold_question_performance.csv` | Per-gold-clip acceptance/rejection statistics |
-| `Batch_XXX_quantity_bonus_report.csv` | Quantity bonus calculations |
+| `Batch_XXX_quantity_bonus_report.csv` | Quantity bonus calculations (MTurk only; not generated when the platform is Prolific) |
 
 **Scale suffixes by method:**
 
