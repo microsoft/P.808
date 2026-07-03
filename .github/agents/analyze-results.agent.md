@@ -169,6 +169,17 @@ Calculate: `rejection_percentage = XXXX / YYYY * 100`
 **⚠️ If rejection rate > 35%**: flag as alarming. Ask the user to investigate
 the rejection reasons in the data cleaning report.
 
+**Rejection reason breakdown**: because a submission can fail several checks at
+once, a flat per-reason count over-counts. Use the parser's "Rejection breakdown"
+log and the two files it writes to report the marginal count per reason, how many
+were rejected by a single reason ("only-this-reason", e.g. removed *only* because
+of performance), and the most common reason combinations:
+- `Batch_XXX_rejection_reason_matrix.csv` — reason co-occurrence matrix (diagonal /
+  `total` = submissions failing that reason; `only_this_reason` = failed that reason
+  alone; off-diagonal = failed both).
+- `Batch_XXX_rejection_reason_combinations.csv` — each distinct reason combination
+  with its count and percentage.
+
 #### 4b. Gold question performance
 
 Read `detailed_gold_question_performance.csv` from the working directory.
@@ -211,6 +222,8 @@ After analysis, direct the user to the key output files:
 | `Batch_XXX_votes_per_worker_[SCALE].csv` | Per-worker rating statistics |
 | `Batch_XXX_all_votes_per_clip.csv` | All individual votes per clip (key: `all_votes` in name) |
 | `Batch_XXX_data_cleaning_report.csv` | Detailed per-submission data cleaning report |
+| `Batch_XXX_rejection_reason_matrix.csv` | Reason co-occurrence matrix (total, only-this-reason, and pairwise counts) |
+| `Batch_XXX_rejection_reason_combinations.csv` | Count/percentage of each distinct reason combination |
 | `detailed_gold_question_performance.csv` | Per-gold-clip acceptance/rejection statistics |
 | `Batch_XXX_quantity_bonus_report.csv` | Quantity bonus calculations (MTurk only; not generated when the platform is Prolific) |
 

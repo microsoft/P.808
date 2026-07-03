@@ -728,6 +728,83 @@ def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played):
     return answer_is_correct
 
 # p835
+def report_rejection_breakdown(data, wrong_vcodes, answer_path):
+    """
+    Build and save a detailed breakdown of why submissions were rejected.
+
+    A submission can fail several checks at once, so a flat per-reason count
+    over-counts rejections. This assigns each rejected submission a single set of
+    reasons and reports: the marginal count per reason, how many were rejected by
+    that reason alone ("only"), the overall total, and the most common reason
+    combinations. A reason co-occurrence matrix and a combinations table are also
+    written as CSVs next to the answers file.
+
+    Reason semantics: content checks (``gold``, ``tps``, ``math``,
+    ``all_audio_played``) come from the per-submission acceptance checks;
+    ``performance`` and ``max_hits`` are attributed only when the submission would
+    otherwise have been accepted; ``wrong_verification_code`` submissions are
+    tracked separately.
+
+    :param data: List of per-submission dicts (worker_list) after all rejection steps.
+    :param wrong_vcodes: Dataframe of wrong-verification-code submissions, or None.
+    :param answer_path: Path used to derive the output CSV file names.
+    :return: None.
+    """
+    combos = []
+    for d in data:
+        if d.get('accept', 1) == 1:
+            continue
+        reasons = set(d.get('accept_failures', []) or [])
+        if d.get('rejected_by_performance'):
+            reasons.add('performance')
+        if d.get('rejected_by_max_hits'):
+            reasons.add('max_hits')
+        if not reasons:
+            reasons.add('other')
+        combos.append(tuple(sorted(reasons)))
+    # wrong-verification-code submissions are tracked outside worker_list
+    if wrong_vcodes is not None and len(wrong_vcodes) > 0:
+        combos.extend([('wrong_verification_code',)] * len(wrong_vcodes))
+
+    total_rejected = len(combos)
+    if total_rejected == 0:
+        logger.info('Rejection breakdown: no rejected submissions.')
+        return
+
+    marginal = collections.Counter(r for combo in combos for r in combo)
+    only = collections.Counter(combo[0] for combo in combos if len(combo) == 1)
+    combo_counter = collections.Counter(combos)
+
+    logger.info(f'Rejection breakdown ({total_rejected} rejected submissions):')
+    logger.info('   per reason (a submission may fail several):')
+    for reason, n in marginal.most_common():
+        logger.info(f'      {reason:24s} total={n:5d} ({100 * n / total_rejected:5.1f}%)   '
+                    f'only-this-reason={only.get(reason, 0)}')
+    logger.info('   most common reason combinations:')
+    for combo, n in combo_counter.most_common(10):
+        logger.info(f'      {" + ".join(combo):45s} {n:5d} ({100 * n / total_rejected:5.1f}%)')
+
+    # combinations table
+    combo_rows = [{'reasons': ' + '.join(combo), 'n_reasons': len(combo), 'count': n,
+                   'percent': round(100 * n / total_rejected, 2)}
+                  for combo, n in combo_counter.most_common()]
+    save_csv(pd.DataFrame(combo_rows),
+             os.path.splitext(answer_path)[0] + '_rejection_reason_combinations.csv', index=False)
+
+    # reason co-occurrence matrix (diagonal = total with that reason)
+    reasons_sorted = sorted(marginal.keys())
+    matrix = pd.DataFrame(0, index=reasons_sorted, columns=reasons_sorted)
+    for combo in combos:
+        for i in combo:
+            for j in combo:
+                matrix.loc[i, j] += 1
+    matrix.insert(0, 'only_this_reason', [only.get(r, 0) for r in reasons_sorted])
+    matrix.insert(0, 'total', [marginal[r] for r in reasons_sorted])
+    matrix.index.name = 'reason'
+    matrix.to_csv(os.path.splitext(answer_path)[0] + '_rejection_reason_matrix.csv')
+    logger.info(f'   Rejection matrix saved in: {os.path.splitext(answer_path)[0]}_rejection_reason_matrix.csv')
+
+
 def data_cleaning(filename, method, wrong_vcodes):
    """
    Data screening process
@@ -846,6 +923,8 @@ def data_cleaning(filename, method, wrong_vcodes):
         else:
             d['accept'] = 0
             d['Approve'] = ''
+        # record the content checks this submission failed (for the rejection breakdown)
+        d['accept_failures'] = failures_accept
         not_accepted_reasons.extend(failures_accept)
         should_be_used, failures = check_if_session_should_be_used(d)
         d['failures'] = failures
@@ -888,6 +967,7 @@ def data_cleaning(filename, method, wrong_vcodes):
     write_dict_as_csv(worker_list, report_file)
     save_approved_ones(worker_list, approved_file)
     save_rejected_ones(worker_list, rejected_file, wrong_vcodes, not_accepted_reasons, num_rej_perform)
+    report_rejection_breakdown(worker_list, wrong_vcodes, filename)
     save_approve_rejected_ones_for_gui(worker_list, accept_reject_gui_file, wrong_vcodes)
     save_hits_to_be_extended(worker_list, extending_hits_file)
     if len(block_list) > 0:
@@ -956,6 +1036,9 @@ def evaluate_rater_performance(data, use_sessions, reject_on_failure=False):
             d['rater_performance_pass'] = 0
             num_not_used_submissions += 1
             if reject_on_failure:
+                # attribute to performance only if it would otherwise have been accepted
+                if d['accept'] == 1:
+                    d['rejected_by_performance'] = 1
                 d['accept'] = 0
                 d['Approve'] = ""
                 tmp = grouped_rej[grouped_rej['worker_id'].str.contains(d['worker_id'])]
@@ -998,6 +1081,9 @@ def evaluate_maximum_hits(data):
     for d in data:
         if d['worker_id'] in cheater_workers_work_count:
             if cheater_workers_work_count[d['worker_id']] >= int(config['acceptance_criteria']['allowedMaxHITsInProject']):
+                # attribute to max_hits only if it would otherwise have been accepted
+                if d['accept'] == 1:
+                    d['rejected_by_max_hits'] = 1
                 d['accept'] = 0
                 d['Reject'] += f"More than allowed limit of {config['acceptance_criteria']['allowedMaxHITsInProject']}"
                 d['accept_and_use'] = 0
@@ -1372,10 +1458,12 @@ def write_dict_as_csv(dic_to_write, file_name, *args, **kwargs):
     with open(file_name, 'w', newline='') as output_file:
         if headers is None:
             if len(dic_to_write) > 0:
-                headers = list(dic_to_write[0].keys())
+                # union of keys across all rows so per-submission extra keys
+                # (e.g. rejected_by_performance) don't raise and are all captured
+                headers = list(dict.fromkeys(k for row in dic_to_write for k in row.keys()))
             else:
                 headers = []
-        writer = csv.DictWriter(output_file, fieldnames=headers)
+        writer = csv.DictWriter(output_file, fieldnames=headers, restval='', extrasaction='ignore')
         writer.writeheader()
         for d in dic_to_write:
             writer.writerow(d)
