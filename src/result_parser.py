@@ -2225,7 +2225,9 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     console_handler = logging.StreamHandler()
     file_log_path = os.path.splitext(answer_path)[0] + f'_logs.txt'
-    file_handler = logging.FileHandler(file_log_path)
+    # open in write mode so each run starts a fresh log (consistent with the other
+    # per-run outputs, which are overwritten); avoids stale lines from earlier runs.
+    file_handler = logging.FileHandler(file_log_path, mode='w')
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
     logger.info(f"Start analyzing the results of {test_method} test")
