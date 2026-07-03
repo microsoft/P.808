@@ -1005,11 +1005,12 @@ def evaluate_rater_performance(data, use_sessions, reject_on_failure=False):
 
     grouped = df.groupby(['worker_id', 'accept_and_use']).size().unstack(fill_value=0).reset_index()    
     grouped = grouped.rename(columns={0: 'not_used_count', 1: 'used_count'})
-    # check if not_used_count is in grouped
-    if 'not_used_count' in grouped.columns:
-        grouped['acceptance_rate'] = (grouped['used_count'] * 100)/(grouped['used_count'] + grouped['not_used_count'])
-    else:
-        grouped['acceptance_rate'] = 100
+    # ensure both counts exist even when the whole batch is all-used or all-not-used,
+    # otherwise the acceptance_rate computation below raises a KeyError
+    for col in ['not_used_count', 'used_count']:
+        if col not in grouped.columns:
+            grouped[col] = 0
+    grouped['acceptance_rate'] = (grouped['used_count'] * 100) / (grouped['used_count'] + grouped['not_used_count'])
     #grouped.to_csv('tmp.csv')
 
     if 'rater_min_acceptance_rate_current_test' in config[section]:
@@ -1041,7 +1042,7 @@ def evaluate_rater_performance(data, use_sessions, reject_on_failure=False):
                     d['rejected_by_performance'] = 1
                 d['accept'] = 0
                 d['Approve'] = ""
-                tmp = grouped_rej[grouped_rej['worker_id'].str.contains(d['worker_id'])]
+                tmp = grouped_rej[grouped_rej['worker_id'] == d['worker_id']]
                 if len(d['Reject'])>0:
                     d['Reject'] = d['Reject'] + f" Failed in performance criteria- only {tmp['acceptance_rate'].iloc[0]:.2f}% of submissions passed data cleansing."
                 else:
