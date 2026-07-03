@@ -1677,8 +1677,12 @@ def calc_payment_stat(df):
 
     # return 0 if Reward not if column
     if 'Reward' not in df.columns:
-        if args.rewards is not None:
-            df['Reward'] = "$"+args.rewards
+        # Prolific does not include the reward in its export; use the per-session
+        # payment provided on the command line (--payment_per_session, or the
+        # deprecated --rewards alias) when available.
+        payment_per_session = getattr(args, 'payment_per_session', None) or args.rewards
+        if payment_per_session is not None:
+            df['Reward'] = "$" + str(payment_per_session)
         else:
             df['Reward'] = '$0.00' # from Prolific we doing get the rewards in the csv file
     word_duration_col = "work_duration_sec" if 'WorkTimeInSeconds' not in df.columns else 'WorkTimeInSeconds'
@@ -1712,6 +1716,13 @@ def calc_stats(input_file):
     """
 
     df = pd.read_csv(input_file, low_memory=False)
+    # Some studies (e.g. run on Prolific) do not collect in-form demographics or
+    # every setup section, so these answer columns may be absent from the batch.
+    # Treat missing columns as all-NaN so the payment breakdown degrades
+    # gracefully instead of raising a KeyError.
+    for col in ['Answer.2_birth_year', 'Answer.Math', 'Answer.t1_ovrl', 'Answer.t1']:
+        if col not in df.columns:
+            df[col] = np.nan
     df_full = df.copy()
     overall_time, overall_pay = calc_payment_stat(df)
 
@@ -2146,7 +2157,11 @@ if __name__ == "__main__":
 
     parser.add_argument('--quality_bonus', help="Quality bonus will be calculated. Just use it with your final download"
                                                 " of answers and when the project is completed", action="store_true")
-    parser.add_argument('--rewards', help="If using Prolific the amount of rewards are not included in CSV file, specifiz it here like 2.10"
+    parser.add_argument('--rewards', help="Deprecated alias of --payment_per_session. If using Prolific the amount of rewards are not included in CSV file, specifiz it here like 2.10"
+                                                , required=False, default=None)
+    parser.add_argument('--payment_per_session', help="Payment (reward) paid to a participant per session/HIT, e.g. 2.10. "
+                                                "Prolific does not include the reward in its export, so provide it here to "
+                                                "compute payment-per-hour statistics. Optional; takes precedence over --rewards."
                                                 , required=False, default=None)
     #parser.add_argument('--adc' , help="name of Advance Data Cleaning script. If set, the answers will be filtered by that as well",  default=None)
     

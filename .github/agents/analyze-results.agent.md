@@ -45,6 +45,12 @@ Do not guess these values if they are missing:
    (AMT) or HIT App server. Contains worker responses.
 4. **Prolific demographic CSV** (optional): `prolific_demographic_export_*.csv`
    — only needed if the study was run on Prolific via HIT App server.
+5. **Payment per session** (Prolific only): the reward paid to a participant per
+   session/HIT (e.g. `2.10`). Prolific does not include the reward in its export,
+   so the parser cannot compute payment-per-hour statistics without it. Ask the
+   user for this value whenever the study was run on Prolific; pass it to the
+   parser as `--payment_per_session`. Not needed for AMT (the reward is already a
+   column in the AMT batch).
 
 ## Execution workflow
 
@@ -54,6 +60,8 @@ Do not guess these values if they are missing:
 - The path to the project directory (where the `*_result_parser.cfg` is).
 - The test method used.
 - Whether they used Prolific or AMT.
+- **If Prolific**: the payment per session (reward per HIT, e.g. `2.10`) — this is
+  not in the Prolific export and is required for payment-per-hour statistics.
 
 Then instruct: "Please download the answers file (`Batch_XXX.csv`) and, if using
 Prolific, the demographic export (`prolific_demographic_export_*.csv`) and place
@@ -94,13 +102,17 @@ python REPO_ROOT\src\result_parser.py `
 
 **With Prolific demographic data:**
 
+Also pass `--payment_per_session` (the reward per HIT, e.g. `2.10`) so payment-per-hour
+statistics are computed — Prolific does not include the reward in its export.
+
 ```powershell
 Set-Location PROJECT_DIR
 python REPO_ROOT\src\result_parser.py `
 	--cfg RESULT_PARSER_CFG `
 	--method METHOD `
 	--answers Batch_XXX.csv `
-	--prolific_answers prolific_demographic_export_XXX.csv
+	--prolific_answers prolific_demographic_export_XXX.csv `
+	--payment_per_session 2.10
 ```
 
 **Notes:**
@@ -115,8 +127,8 @@ Always write a `rerun_result_parser.bat` in the results directory so the request
 re-run the analysis later (e.g. after a config change or with an updated answers export)
 without re-deriving the command. It must reproduce the exact `result_parser.py` invocation
 from step 3, using `%BASE%` (the folder the `.bat` lives in) for the input files and the
-absolute repo path for the script. Include the `--prolific_answers` line only if Prolific
-was used.
+absolute repo path for the script. Include the `--prolific_answers` and
+`--payment_per_session` lines only if Prolific was used.
 
 ```bat
 @echo off
@@ -134,7 +146,8 @@ python "%REPO%\src\result_parser.py" ^
 	--cfg "%BASE%RESULT_PARSER_CFG" ^
 	--method METHOD ^
 	--answers "%BASE%Batch_XXX.csv" ^
-	--prolific_answers "%BASE%prolific_demographic_export_XXX.csv"
+	--prolific_answers "%BASE%prolific_demographic_export_XXX.csv" ^
+	--payment_per_session 2.10
 
 endlocal
 ```
