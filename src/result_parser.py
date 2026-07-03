@@ -1008,6 +1008,27 @@ def evaluate_maximum_hits(data):
     return result
 
 
+def save_csv(df, path, **kwargs):
+    """
+    Save a dataframe to CSV only when it has at least one row.
+
+    Empty result files (for example, no incomplete submissions or no rejections) are
+    not created. Any file left at the same path by a previous run is removed so the
+    output folder reflects the current run.
+
+    :param df: Dataframe to write.
+    :param path: Destination CSV path.
+    :param kwargs: Extra keyword arguments forwarded to ``DataFrame.to_csv``.
+    :return: True if the file was written, False if skipped because it was empty.
+    """
+    if df is not None and len(df) > 0:
+        df.to_csv(path, **kwargs)
+        return True
+    if os.path.exists(path):
+        os.remove(path)
+    return False
+
+
 def save_approve_rejected_ones_for_gui(data, path, wrong_vcodes):
     """
     save approved/rejected in a csv-file to be used in GUI
@@ -1031,7 +1052,7 @@ def save_approve_rejected_ones_for_gui(data, path, wrong_vcodes):
     small_df['n_duplicate'] = small_df.groupby('assignmentId')['assignmentId'].transform('size')
     small_df['n_duplicate'] = small_df['n_duplicate'].apply(lambda x: x - 1)
             
-    small_df.to_csv(path, index=False)
+    save_csv(small_df, path, index=False)
 
 
 def save_approved_ones(data, path):
@@ -1051,7 +1072,7 @@ def save_approved_ones(data, path):
         logger.info(f'    overall {c_accepted} answers are accepted, from them {df.shape[0]} were in submitted status')
     small_df = df[['assignment']].copy()
     small_df.rename(columns={'assignment': 'assignmentId'}, inplace=True)
-    small_df.to_csv(path, index=False)
+    save_csv(small_df, path, index=False)
 
 
 def save_block_list(block_list, path, wrong_v_code_freq):
@@ -1071,7 +1092,7 @@ def save_block_list(block_list, path, wrong_v_code_freq):
         df2['BlockReason'] = "Wrong verification code"
         # concat the two dataframes
         df = pd.concat([df, df2], ignore_index=True)
-    df.to_csv(path, index=False)
+    save_csv(df, path, index=False)
 
 
 def check_wrong_vcode_should_block(wrong_vcodes):
@@ -1123,7 +1144,7 @@ def save_rejected_ones(data, path, wrong_vcodes, not_accepted_reasons, num_rej_p
         wrong_vcodes_assignments.rename(columns={'AssignmentId': 'assignmentId'}, inplace=True)
         small_df = pd.concat([small_df, wrong_vcodes_assignments], ignore_index=True)
 
-    small_df.to_csv(path, index=False)
+    save_csv(small_df, path, index=False)
 
 
 def save_hits_to_be_extended(data, path):
@@ -1138,7 +1159,7 @@ def save_hits_to_be_extended(data, path):
     small_df = df[['HITId']].copy()
     grouped = small_df.groupby(['HITId']).size().reset_index(name='counts')
     grouped.rename(columns={'counts': 'n_extended_assignments'}, inplace=True)
-    grouped.to_csv(path, index=False)
+    save_csv(grouped, path, index=False)
 
 
 def filter_answer_by_status_and_workers(answer_df, all_time_worker_id_in, new_woker_id_in, status_in):
@@ -1209,8 +1230,8 @@ def calc_quantity_bonuses(answer_list, conf, path):
     merged = merged.round({'bonusAmount': 2})
 
     if path is not None:
-        merged.to_csv(path, index=False)
-        logger.info(f'   Quantity bonuses report is saved in: {path}')
+        if save_csv(merged, path, index=False):
+            logger.info(f'   Quantity bonuses report is saved in: {path}')
     return merged
 
 
@@ -1336,8 +1357,8 @@ def calc_quality_bonuses(
         smaller_df['reason'] = f'Well done! You belong to top {conf["bonus"]["quality_top_percentage"]}%.'
     else:
         smaller_df = pd.DataFrame(columns=['workerId',	'r', 'accept', 'assignmentId', 	'bonusAmount', 'reason'])
-    smaller_df.head(max_workers).to_csv(path, index=False)
-    logger.info(f'   Quality bonuses report is saved in: {path}')
+    if save_csv(smaller_df.head(max_workers), path, index=False):
+        logger.info(f'   Quality bonuses report is saved in: {path}')
 
 
 def write_dict_as_csv(dic_to_write, file_name, *args, **kwargs):
@@ -1827,7 +1848,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     # These rows are the ones that are not submitted by the workers
     hitapp_ans_incomplete = hitapp_ans[hitapp_ans['Answer.browser_info'].isna()]
     hitapp_ans = hitapp_ans[~hitapp_ans['Answer.browser_info'].isna()]
-    hitapp_ans_incomplete.to_csv(os.path.splitext(hitapp_ans_path)[0] + '_incomplete_submissions.csv', index=False)
+    save_csv(hitapp_ans_incomplete, os.path.splitext(hitapp_ans_path)[0] + '_incomplete_submissions.csv', index=False)
     unique_assignments = hitapp_ans_incomplete['hitapp_assignmentid'].unique()
     # print the size
     logger.info(f"** {len(unique_assignments)} submissions are not completed by the workers.")
@@ -1902,7 +1923,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
 
     # filter hitapp_ans and only keep the ones that are not in merged using the id column
     hitapp_ans_not_found_in_amt = hitapp_ans[~hitapp_ans['h_id'].isin(merged['h_id'])]
-    hitapp_ans_not_found_in_amt.to_csv(os.path.splitext(hitapp_ans_path)[0] + '_not_found_in_prolific.csv', index=False)
+    save_csv(hitapp_ans_not_found_in_amt, os.path.splitext(hitapp_ans_path)[0] + '_not_found_in_prolific.csv', index=False)
     # print the size
     logger.info(f"** {len(hitapp_ans_not_found_in_amt)} submissions in HITAPP data are not found in the Prolific data.")
 
