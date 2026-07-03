@@ -1817,7 +1817,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     
     
     hitapp_ans["hitapp_workerid"] = hitapp_ans["WorkerId"]
-    hitapp_ans["hitapp_assignmentid"] = hitapp_ans["AssignmentId"].str.lower()
+    hitapp_ans["hitapp_assignmentid"] = hitapp_ans["AssignmentId"].str.strip().str.lower()
     hitapp_ans["hitapp_hitid"] = hitapp_ans["HITId"]
     hitapp_ans["hitapp_hittypeid"] = hitapp_ans["HITTypeId"]
     hitapp_ans["HITTypeId"] = hitapp_ans["Answer.studyId"]
@@ -1840,8 +1840,17 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
                                'Total approvals':'prolific_total_approvals',
                                'URL':'study_url'},  inplace=True)
     
-    # marke prolific_ans to remove when study_url is nan and lenght of Answer.v_code is not 32 
-    prolific_ans['to_remove'] = prolific_ans['study_url'].isna() & (prolific_ans['Answer.v_code'].str.strip().str.len() != 32)
+    # mark prolific_ans to remove when study_url is nan and lenght of Answer.v_code is not 32
+    # (abandoned/returned submissions). Keep any row whose submission id matches a completed
+    # HIT App assignment: that proves the participant actually did the task, e.g. a Prolific
+    # "TIMED-OUT" submission where the worker still submitted their ratings to the HIT App server.
+    completed_hitapp_ids = set(hitapp_ans['hitapp_assignmentid'].dropna())
+    submission_id_norm = prolific_ans['prolific_submission_id'].str.strip().str.lower()
+    prolific_ans['to_remove'] = (
+        prolific_ans['study_url'].isna()
+        & (prolific_ans['Answer.v_code'].str.strip().str.len() != 32)
+        & (~submission_id_norm.isin(completed_hitapp_ids))
+    )
     # drop the rows
     prolific_ans.drop(prolific_ans[prolific_ans['to_remove']].index, inplace=True)
     # remove the to_remove column
