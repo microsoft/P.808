@@ -1,6 +1,6 @@
 ---
 name: create-study
-description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, and project building for crowdsourcing platforms.
+description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, project building for crowdsourcing platforms, and writes a re-runnable regenerate_study.bat that re-runs master_script.py.
 ---
 
 # Create subjective test instructions
@@ -653,6 +653,45 @@ needed — training clips are embedded in the training gold CSV.
 - If `quantity_hits_more_than` triggers a warning, update the config file with the
   suggested value and re-run.
 
+### 8b. Write a re-run batch file (regenerate_study.bat)
+
+Always write a `regenerate_study.bat` next to the input CSVs so the requester can rebuild
+the study later (e.g. after a config tweak) without re-deriving the command. It must
+reproduce the exact `master_script.py` invocation from step 8, using `%BASE%` (the folder
+the `.bat` lives in) for all input paths and the absolute repo path for the script.
+
+Include only the flags that were actually used: `--training_gold_clips` (P.804/pp835) or
+`--training_clips` (other methods), and `--general_assets` if an internal assets CSV was
+passed. Omit `--check_urls` (URLs were already validated on first run); keep
+`--create_local_test` so a preview is regenerated.
+
+```bat
+@echo off
+REM Regenerate the METHOD study PROJECT_NAME from existing input CSVs.
+REM Clips (rating, gold, trapping) are already uploaded to public storage; this
+REM only rebuilds the HIT app, publish batch, result-parser cfg, and preview.
+
+setlocal
+set "BASE=%~dp0"
+set "REPO=REPO_ROOT"
+set "PROJECT=PROJECT_NAME"
+
+cd /d "%BASE%"
+
+python "%REPO%\src\master_script.py" ^
+	--project %PROJECT% ^
+	--method METHOD ^
+	--cfg "%BASE%PROJECT_CONFIG.cfg" ^
+	--clips "%BASE%rating_clips.csv" ^
+	--gold_clips "%BASE%gold_clips.csv" ^
+	--trapping_clips "%BASE%trapping_clips.csv" ^
+	--create_local_test
+
+endlocal
+```
+
+Save as `regenerate_study.bat` next to the input CSVs and confirm it runs.
+
 ### 9. Verify the generated project artifacts
 
 The output project directory (`PROJECT_NAME\`) should contain:
@@ -703,10 +742,11 @@ remind the requester to run the azcopy commands before publishing the study.
 
 1. The project directory with all three artifacts.
 2. The config file used (saved next to input CSVs for future re-runs).
-3. The azcopy commands for uploading generated clips (if applicable).
-4. The method and scale used.
-5. Any warnings or deviations from the documented flow.
-6. Instructions for the requester to publish on their chosen platform:
+3. The `regenerate_study.bat` (next to the input CSVs) for one-command re-runs.
+4. The azcopy commands for uploading generated clips (if applicable).
+5. The method and scale used.
+6. Any warnings or deviations from the documented flow.
+7. Instructions for the requester to publish on their chosen platform:
 	- **Prolific**: follow the team's Prolific workflow or `docs\running_test_prolific.md`.
 	- **AMT**: follow `docs\running_test_mturk.md`.
 

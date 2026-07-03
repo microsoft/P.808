@@ -1,6 +1,6 @@
 ---
 name: analyze-results
-description: Analyzes crowdsourced subjective test results — runs result_parser.py for data cleaning, quality checks, and per-clip/per-worker MOS aggregation.
+description: Analyzes crowdsourced subjective test results — runs result_parser.py for data cleaning, quality checks, and per-clip/per-worker MOS aggregation, and writes a re-runnable rerun_result_parser.bat that re-runs result_parser.py.
 ---
 
 # Analyze subjective test results
@@ -108,6 +108,38 @@ python REPO_ROOT\src\result_parser.py `
   issues.
 - The working directory should be the project directory so output files are
   written there.
+
+### 3b. Write a re-run batch file (rerun_result_parser.bat)
+
+Always write a `rerun_result_parser.bat` in the results directory so the requester can
+re-run the analysis later (e.g. after a config change or with an updated answers export)
+without re-deriving the command. It must reproduce the exact `result_parser.py` invocation
+from step 3, using `%BASE%` (the folder the `.bat` lives in) for the input files and the
+absolute repo path for the script. Include the `--prolific_answers` line only if Prolific
+was used.
+
+```bat
+@echo off
+REM Re-run the result parser for PROJECT (METHOD).
+REM Rebuilds the data-cleaning report and per-clip / per-worker MOS outputs from the
+REM batch answers CSV using the existing result-parser config.
+
+setlocal
+set "BASE=%~dp0"
+set "REPO=REPO_ROOT"
+
+cd /d "%BASE%"
+
+python "%REPO%\src\result_parser.py" ^
+	--cfg "%BASE%RESULT_PARSER_CFG" ^
+	--method METHOD ^
+	--answers "%BASE%Batch_XXX.csv" ^
+	--prolific_answers "%BASE%prolific_demographic_export_XXX.csv"
+
+endlocal
+```
+
+Save as `rerun_result_parser.bat` in the results directory.
 
 ### 4. Analyze the output and summarize
 
