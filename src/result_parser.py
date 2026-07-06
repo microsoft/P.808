@@ -1003,9 +1003,14 @@ def evaluate_rater_performance(data, use_sessions, reject_on_failure=False):
 
     # rater_min_accepted_hits_current_test
 
-    grouped = df.groupby(['worker_id', 'accept_and_use']).size().unstack(fill_value=0).reset_index()    
+    # The reject pass decides payment, so it must gate on the content-QC flag
+    # ('accept' = "passed data cleansing"); the use pass decides aggregation, so it
+    # gates on 'accept_and_use'. used_count/not_used_count are the pass/fail counts
+    # of whichever flag applies, and acceptance_rate is the pass rate.
+    flag_col = 'accept' if reject_on_failure else 'accept_and_use'
+    grouped = df.groupby(['worker_id', flag_col]).size().unstack(fill_value=0).reset_index()
     grouped = grouped.rename(columns={0: 'not_used_count', 1: 'used_count'})
-    # ensure both counts exist even when the whole batch is all-used or all-not-used,
+    # ensure both counts exist even when the whole batch is all-pass or all-fail,
     # otherwise the acceptance_rate computation below raises a KeyError
     for col in ['not_used_count', 'used_count']:
         if col not in grouped.columns:
