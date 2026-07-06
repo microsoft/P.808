@@ -2390,8 +2390,14 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
 
             merged.to_csv(os.path.splitext(answer_path)[0]+ f"_votes_per_clip_all-scales.csv", index=False)
             if use_condition_level:
-                merged_cond.sort_index(inplace = True, axis = 1)
                 merged_cond['M'] = ((merged_cond['MOS_SIG']-1) / 4 + (merged_cond['MOS_OVRL']-1) /4 ) / 2
+                # group columns per scale (MOS, std, 95%CI together) rather than alphabetically
+                ordered = ['condition_name', 'n', 'M']
+                for item in suffixes:
+                    ordered += [f'MOS{item.upper()}', f'std{item}', f'95%CI{item}']
+                ordered = [c for c in ordered if c in merged_cond.columns] + \
+                    [c for c in merged_cond.columns if c not in ordered]
+                merged_cond = merged_cond[ordered]
                 merged_cond.to_csv(os.path.splitext(answer_path)[0]+ f"_votes_per_cond_all-scales.csv", index=False)
 
         if platform == "prolific":
