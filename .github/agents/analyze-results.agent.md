@@ -182,7 +182,7 @@ of performance), and the most common reason combinations:
 
 #### 4b. Gold question performance
 
-Read `detailed_gold_question_performance.csv` from the working directory.
+Read `Batch_XXX_detailed_gold_question_performance.csv` (next to the answers file).
 
 The report has **one row per gold question** (so a P.804 submission with two gold
 clips contributes two rows). Key columns:
@@ -199,7 +199,7 @@ To assess gold clips, **group by `gold_url`**:
 user to check that clip and verify the expected answer is correct. It may
 indicate a bad gold clip rather than bad workers.
 
-For P.804, `gold_summary.csv` gives this directly: one row per gold clip with
+For P.804, `Batch_XXX_gold_summary.csv` gives this directly: one row per gold clip with
 `url`, `n_submission`, `max_wrong_pct` (worst scale wrong rate for that clip), and
 per scale `<scale>_expected` (correct answer, blank if not targeted),
 `<scale>_mean` (mean rating participants gave), and `<scale>_wrong_pct`. Sort by
@@ -234,8 +234,8 @@ After analysis, direct the user to the key output files:
 | `Batch_XXX_data_cleaning_report.csv` | Detailed per-submission data cleaning report |
 | `Batch_XXX_rejection_reason_matrix.csv` | Reason co-occurrence matrix (total, only-this-reason, and pairwise counts) |
 | `Batch_XXX_rejection_reason_combinations.csv` | Count/percentage of each distinct reason combination |
-| `detailed_gold_question_performance.csv` | One row per gold question per submission (single `gold_url` per row) |
-| `gold_summary.csv` | Per-gold-clip summary (P.804): `url`, `n_submission`, `max_wrong_pct`, and per scale `<scale>_expected` + `<scale>_mean` + `<scale>_wrong_pct` |
+| `Batch_XXX_detailed_gold_question_performance.csv` | One row per gold question per submission (single `gold_url` per row) |
+| `Batch_XXX_gold_summary.csv` | Per-gold-clip summary (P.804): `url`, `n_submission`, `max_wrong_pct`, and per scale `<scale>_expected` + `<scale>_mean` + `<scale>_wrong_pct` |
 | `Batch_XXX_quantity_bonus_report.csv` | Quantity bonus calculations (MTurk only; not generated when the platform is Prolific) |
 
 **Scale suffixes by method:**

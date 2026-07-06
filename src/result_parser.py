@@ -1027,10 +1027,12 @@ def data_cleaning(filename, method, wrong_vcodes):
             d['accept_and_use'] = 0
 
         worker_list.append(d)
+    # write these next to the answers file (same base as every other output)
+    gold_detail_path = os.path.splitext(filename)[0] + '_detailed_gold_question_performance.csv'
     tmp_df = pd.DataFrame(gold_rows if method == "p804" else rec_list)
-    tmp_df.to_csv('detailed_gold_question_performance.csv', index=False)
+    tmp_df.to_csv(gold_detail_path, index=False)
     if method == "p804" and gold_rows:
-        write_gold_summary(gold_rows, 'gold_summary.csv')
+        write_gold_summary(gold_rows, os.path.splitext(filename)[0] + '_gold_summary.csv')
     #
     logger.info(f"Number of submissions: {len(worker_list)}")
     report_file = os.path.splitext(filename)[0] + '_data_cleaning_report.csv'
