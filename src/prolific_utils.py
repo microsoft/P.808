@@ -14,6 +14,7 @@ import requests
 import datetime
 import glob
 import logging
+import time
 
 base_url = "https://api.prolific.com/api/v1"
 
@@ -65,32 +66,246 @@ def accept_reject_submission(worker_id, assignment_id, reason):
         logger.info(f"Response: {response.text}")
 
 
-def bulk_approve_submission(assignment_ids):
+def _norm_status(value):
+    """
+    Normalize a Prolific submission status string for comparison.
 
-    url = f"{base_url}/submissions/bulk-approve/"
+    :param value: Raw status value (may be None).
+    :return: Upper-cased status with underscores turned into spaces, or "" if empty.
+    """
+    if value is None:
+        return ""
+    return str(value).strip().upper().replace("_", " ")
 
+
+def get_study_id_for_submission(assignment_id):
+    """
+    Look up the parent study id for a single submission.
+
+    :param assignment_id: A Prolific submission id.
+    :return: The study id string, or None if it could not be determined.
+    """
+    url = f"{base_url}/submissions/{assignment_id}/"
     headers = {
         'Authorization': f'Token {api_token}',
-        'Content-Type': 'application/json', 
+        'Content-Type': 'application/json',
         'Accept': 'application/json',
-        
+    }
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+    except requests.exceptions.RequestException as e:
+        logger.info(f"Submission {assignment_id} - study lookup error: {e}")
+        return None
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("study_id") or data.get("study")
+    logger.info(f"Could not look up study for submission {assignment_id} "
+                f"(status {response.status_code}).")
+    return None
+
+
+def fetch_submission_status_map(study_id, page_size=100, max_pages=500):
+    """
+    Fetch the current status of every submission in a study.
+
+    Uses page-based pagination (the ``page``/``page_size`` query parameters) with a
+    stable ``ordering`` and tallies the ``status`` field client-side. Several quirks of
+    the endpoint are worked around:
+
+      - the server-side ``status`` filter is silently ignored, so filtering is done here;
+      - the ``_links.next`` link loops forever, so it is not followed;
+      - without a stable ``ordering`` the same submission can appear on several pages
+        while others are skipped, so ``ordering=started_at`` is always sent;
+      - a page can occasionally come back short mid-stream, so pagination continues
+        until the API returns 404/empty rather than stopping on a short page.
+
+    The result is cross-checked against the ``meta.count`` reported by the API and the
+    fetch is retried once if it comes back short.
+
+    :param study_id: The Prolific study id.
+    :param page_size: Number of submissions requested per page (the server caps it at 100).
+    :param max_pages: Safety cap on the number of pages fetched.
+    :return: A dict mapping submission id -> normalized status string.
+    """
+    if not study_id:
+        return {}
+    url = f"{base_url}/submissions/"
+    headers = {
+        'Authorization': f'Token {api_token}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
     }
 
-    payload = {
-       "submission_ids": assignment_ids
-        
+    def _one_pass():
+        status_map = {}
+        expected = None
+        page = 1
+        while page <= max_pages:
+            params = {"study": study_id, "page_size": page_size, "page": page,
+                      "ordering": "started_at"}
+            try:
+                response = requests.get(url, headers=headers, params=params, timeout=60)
+            except requests.exceptions.RequestException as e:
+                logger.info(f"Study {study_id} submission list error on page {page}: {e}")
+                break
+            # a 404 signals we have paged past the last page; stop quietly
+            if response.status_code == 404:
+                break
+            if response.status_code != 200:
+                logger.info(f"Study {study_id} submission list error on page {page} "
+                            f"(status {response.status_code}): {response.text}")
+                break
+            body = response.json()
+            if expected is None:
+                expected = (body.get("meta") or {}).get("count")
+            results = body.get("results", [])
+            if not results:
+                break
+            for s in results:
+                status_map[s.get("id")] = _norm_status(s.get("status"))
+            page += 1
+        return status_map, expected
+
+    status_map, expected = _one_pass()
+    # retry once if the API told us how many to expect and we came up short
+    if expected is not None and len(status_map) < expected:
+        logger.info(f"Study {study_id}: fetched {len(status_map)}/{expected} submissions; "
+                    f"retrying the status fetch once.")
+        retry_map, _ = _one_pass()
+        status_map.update(retry_map)
+    return status_map
+
+
+def _bulk_approve_request(assignment_ids, max_batch_size=500, pause_between_batches=2.0):
+    """
+    Send bulk-approve requests to Prolific in sequential batches.
+
+    Prolific processes bulk approvals asynchronously (a 200 response means the batch
+    was accepted, not that it has completed) and recommends at most 1000 ids per
+    request sent sequentially to avoid wallet contention. Callers must verify
+    completion afterwards; see ``bulk_approve_submission``.
+
+    :param assignment_ids: List of Prolific submission ids to approve.
+    :param max_batch_size: Maximum number of ids per request.
+    :param pause_between_batches: Seconds to wait between batches.
+    :return: None
+    """
+    url = f"{base_url}/submissions/bulk-approve/"
+    headers = {
+        'Authorization': f'Token {api_token}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
     }
-    
-    try:
-        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=30)
-    except requests.exceptions.RequestException as e:
-        logger.info(f"Submission {assignment_ids}  - An error occurred: {e}")
-        return
-    if response.status_code == 200:
-        logger.info(f"{len(assignment_ids)} Submission approved successfully.")
+    total_batches = (len(assignment_ids) + max_batch_size - 1) // max_batch_size
+    for batch_index, start_idx in enumerate(range(0, len(assignment_ids), max_batch_size), start=1):
+        batch_ids = assignment_ids[start_idx:start_idx + max_batch_size]
+        payload = {"submission_ids": batch_ids}
+        try:
+            response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.info(f"Bulk-approve batch {batch_index}/{total_batches} ({len(batch_ids)} ids) - "
+                        f"an error occurred: {e}")
+            continue
+        if response.status_code == 200:
+            logger.info(f"Bulk-approve batch {batch_index}/{total_batches}: {len(batch_ids)} "
+                        f"submission(s) accepted (processing asynchronously).")
+        else:
+            logger.info(f"Bulk-approve batch {batch_index}/{total_batches} error: "
+                        f"{response.status_code} - {response.text}")
+        if pause_between_batches and batch_index < total_batches:
+            time.sleep(pause_between_batches)
+
+
+def bulk_approve_submission(assignment_ids, study_id=None, max_retries=6, poll_wait=12.0):
+    """
+    Approve submissions in Prolific, verifying completion and retrying stragglers.
+
+    Prolific's bulk-approve endpoint is asynchronous: a 200 response only means the
+    batch was accepted, and the whole batch is rejected if any id is not currently
+    AWAITING REVIEW. A single pass therefore often leaves many submissions unapproved,
+    which is why re-running the review approves "a few more" each time but never all.
+    This function instead:
+
+      1. reads the live study status and keeps only ids still AWAITING REVIEW
+         (skipping ids Prolific has already approved/returned since the export, which
+         would otherwise cause a whole-batch rejection),
+      2. sends the pending ids via bulk-approve,
+      3. waits, re-reads the live status, and retries the still-pending ids with a
+         growing back-off, and
+      4. finally approves any remaining stragglers one-by-one via the synchronous
+         transition endpoint.
+
+    :param assignment_ids: List of Prolific submission ids to approve.
+    :param study_id: The study the submissions belong to; looked up from the first
+        submission if not provided.
+    :param max_retries: Maximum number of bulk-approve + verify passes.
+    :param poll_wait: Base seconds to wait for asynchronous processing before verifying;
+        the wait grows on each retry.
+    :return: List of submission ids that could not be approved.
+    """
+    if not assignment_ids:
+        logger.info("No submissions provided for bulk approval.")
+        return []
+
+    # normalize and de-duplicate while preserving order
+    target = list(dict.fromkeys(str(a).strip() for a in assignment_ids if str(a).strip()))
+
+    if study_id is None:
+        study_id = get_study_id_for_submission(target[0])
+    if study_id is None:
+        logger.warning("Could not determine study id for bulk approval; falling back to "
+                       "per-submission verification (slower).")
+
+    def _still_awaiting(ids):
+        """
+        Return the subset of ids whose current Prolific status is AWAITING REVIEW.
+
+        :param ids: List of submission ids to check.
+        :return: The subset of ids still awaiting review.
+        """
+        if not ids:
+            return []
+        status_map = fetch_submission_status_map(study_id) if study_id else {}
+        if status_map:
+            return [aid for aid in ids if status_map.get(aid) == "AWAITING REVIEW"]
+        # no study-wide map available: verify each id individually
+        return [aid for aid in ids
+                if _norm_status(get_submission_status(aid)) == "AWAITING REVIEW"]
+
+    # Only ids currently AWAITING REVIEW can be bulk-approved; filtering up-front avoids a
+    # whole-batch rejection caused by ids Prolific has already resolved since the export.
+    pending = _still_awaiting(target)
+    n_already = len(target) - len(pending)
+    if n_already:
+        logger.info(f"{n_already}/{len(target)} targeted submission(s) already resolved "
+                    f"(not awaiting review); {len(pending)} to approve.")
+    to_approve = len(pending)
+
+    for attempt in range(1, max_retries + 1):
+        if not pending:
+            break
+        _bulk_approve_request(pending)
+        # bulk approval is asynchronous; give it time to settle, with a growing back-off
+        time.sleep(min(poll_wait * attempt, 60.0))
+        pending = _still_awaiting(pending)
+        logger.info(f"Bulk-approve pass {attempt}/{max_retries}: "
+                    f"{to_approve - len(pending)}/{to_approve} approved, "
+                    f"{len(pending)} still awaiting review.")
+
+    # synchronous fallback for anything still awaiting review after the retries
+    failures = []
+    if pending:
+        logger.info(f"Approving {len(pending)} remaining submission(s) individually "
+                    f"via the synchronous endpoint.")
+        for aid in pending:
+            if not approve_submission(aid):
+                failures.append(aid)
+
+    if failures:
+        logger.warning(f"{len(failures)} submission(s) could not be approved: {failures}")
     else:
-        logger.info(f"Error: {response.status_code}")
-        logger.info(f"Response: {response.text}")
+        logger.info(f"Bulk approval complete: {to_approve} submission(s) approved.")
+    return failures
 
 
 def ask_return(assignment_id, reason):
@@ -238,8 +453,9 @@ def send_reviews_for_study(csv_data_path, detailed_data_cleaning_report=None, bl
             manual_payment_rows.append({"WorkerId": wid, "assignmentId": aid,
                                         "status": st, "reason": "used but not in an approvable state"})
 
+    approve_failures = []
     if submission_to_approve:
-        bulk_approve_submission(submission_to_approve)
+        approve_failures = bulk_approve_submission(submission_to_approve)
 
     n_actioned = 0
     n_skipped = 0
@@ -273,11 +489,19 @@ def send_reviews_for_study(csv_data_path, detailed_data_cleaning_report=None, bl
         logger.info(f"{len(manual_payment_rows)} used submission(s) could not be auto-paid "
                     f"(returned/timed-out); listed for manual payment in {manual_path}")
 
-    logger.info(f"Review complete: {len(submission_to_approve)} bulk-approved, "
+    logger.info(f"Review complete: {len(submission_to_approve) - len(approve_failures)} approved, "
+                f"{len(approve_failures)} could not be approved, "
                 f"{n_already_approved} already approved, "
                 f"{len(manual_payment_rows)} need manual payment, "
                 f"{n_actioned} {'rejected' if args.force_reject else 'asked to return'}, "
                 f"{n_skipped} reject/return-skipped (not awaiting review).")
+    if approve_failures:
+        stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        out_dir = os.path.dirname(csv_data_path)
+        fail_path = os.path.join(out_dir, f"prolific_approve_failed_{stamp}.csv")
+        pd.DataFrame({"assignmentId": approve_failures}).to_csv(fail_path, index=False)
+        logger.warning(f"{len(approve_failures)} submission(s) could not be approved; "
+                       f"listed in {fail_path}")
 
      # assign participants with rdp to the group to be excluded from the future studies
     if detailed_data_cleaning_report and rdp_group_id is not None:
