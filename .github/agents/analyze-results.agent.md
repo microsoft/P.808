@@ -199,6 +199,11 @@ To assess gold clips, **group by `gold_url`**:
 user to check that clip and verify the expected answer is correct. It may
 indicate a bad gold clip rather than bad workers.
 
+For P.804, `gold_summary.csv` gives this directly: one row per gold clip with
+`url`, `n_submission`, and `<scale>_wrong_pct` (the percentage of submissions that
+got each scale wrong). Scan the `*_wrong_pct` columns for clips with a high wrong
+rate on any scale.
+
 #### 4c. Summary to present
 
 Provide the user with a structured summary:
@@ -228,6 +233,7 @@ After analysis, direct the user to the key output files:
 | `Batch_XXX_rejection_reason_matrix.csv` | Reason co-occurrence matrix (total, only-this-reason, and pairwise counts) |
 | `Batch_XXX_rejection_reason_combinations.csv` | Count/percentage of each distinct reason combination |
 | `detailed_gold_question_performance.csv` | One row per gold question per submission (single `gold_url` per row) |
+| `gold_summary.csv` | Per-gold-clip summary (P.804): `url`, `n_submission`, and per-scale wrong percentage |
 | `Batch_XXX_quantity_bonus_report.csv` | Quantity bonus calculations (MTurk only; not generated when the platform is Prolific) |
 
 **Scale suffixes by method:**

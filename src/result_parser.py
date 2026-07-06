@@ -764,6 +764,35 @@ def explode_p804_gold_rec(rec):
     return rows
 
 
+def write_gold_summary(gold_rows, path):
+    """
+    Write a per-gold-clip summary of how often each P.804 scale was answered wrong.
+
+    Aggregates the exploded gold rows by gold clip and reports, per clip, how many
+    submissions were checked against it and the percentage of those submissions
+    that got each scale wrong.
+
+    :param gold_rows: List of per-gold-question row dicts (from explode_p804_gold_rec).
+    :param path: Destination CSV path.
+    :return: None.
+    """
+    items = ['noise', 'col', 'loud', 'disc', 'reverb', 'sig', 'ovrl']
+    gdf = pd.DataFrame(gold_rows)
+    if 'gold_url' not in gdf.columns or len(gdf) == 0:
+        return
+    summary = []
+    for url, grp in gdf.groupby('gold_url'):
+        n = len(grp)
+        row = {'url': url, 'n_submission': n}
+        for item in items:
+            wcol = f'{item}_wrong'
+            n_wrong = int((grp[wcol] == 1).sum()) if wcol in grp.columns else 0
+            row[f'{item}_wrong_pct'] = round(100 * n_wrong / n, 2) if n else 0.0
+        summary.append(row)
+    pd.DataFrame(summary).to_csv(path, index=False)
+    logger.info(f"   Gold summary saved in: {path}")
+
+
 def report_rejection_breakdown(data, wrong_vcodes, answer_path):
     """
     Build and save a detailed breakdown of why submissions were rejected.
@@ -982,6 +1011,8 @@ def data_cleaning(filename, method, wrong_vcodes):
         worker_list.append(d)
     tmp_df = pd.DataFrame(gold_rows if method == "p804" else rec_list)
     tmp_df.to_csv('detailed_gold_question_performance.csv', index=False)
+    if method == "p804" and gold_rows:
+        write_gold_summary(gold_rows, 'gold_summary.csv')
     #
     logger.info(f"Number of submissions: {len(worker_list)}")
     report_file = os.path.splitext(filename)[0] + '_data_cleaning_report.csv'
