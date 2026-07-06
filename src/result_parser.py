@@ -318,11 +318,11 @@ def load_gold_overrides(path):
     """
     Load a CSV of corrected gold-clip answers/variance, keyed by clip URL.
 
-    Each row is one gold clip ``url`` plus, per scale, an overriding correct
-    answer (column ``<scale>``) and optional variance (column ``<scale>_var``).
-    Empty cells fall back to the encoded answer / config variance, and any gold
-    clip whose URL is absent from the file keeps the values encoded in the
-    answers CSV.
+    Each row is one gold clip ``url`` plus, per scale, the correct answer (column
+    ``<scale>``) and optional variance (column ``<scale>_var``). A listed clip is
+    authoritative: provided scale values are used, and a blank scale is skipped
+    (that scale is not checked). Any gold clip whose URL is absent from the file
+    keeps the values encoded in the answers CSV.
 
     :param path: Path to the overrides CSV.
     :return: Dict of {url: {column: value}} keeping only non-empty cells.
@@ -349,27 +349,34 @@ def resolve_gold_answer(gq_url, item, encoded_correct_ans, default_var):
     """
     Return the correct answer and variance for a gold scale, applying overrides.
 
-    If ``gq_url`` has an override for ``item``, that value (and its ``<item>_var``
-    when present) is used; otherwise the answer is decoded from the answers CSV
+    If ``gq_url`` is listed in the overrides file, that row is authoritative: a
+    provided value for ``item`` (with its ``<item>_var`` when present) is used,
+    while a blank scale is skipped by returning ``None`` (so that scale is not
+    checked). If the URL is not listed, the answer is decoded from the answers CSV
     and the default (config) variance applies.
 
     :param gq_url: The gold clip URL.
     :param item: The scale name (e.g. "loud").
     :param encoded_correct_ans: The encoded answer from the answers CSV.
     :param default_var: The variance to use when not overridden.
-    :return: Tuple of (correct answer as int or None, variance as int).
+    :return: Tuple of (correct answer as int or None, variance as int); a None
+        answer means the scale should be skipped.
     """
     override = gold_overrides.get(gq_url)
-    if override is not None and override.get(item) not in (None, ''):
+    if override is not None:
+        # listed clip: the row fully defines its gold answers
+        val = override.get(item)
+        if val in (None, ''):
+            return None, default_var  # blank scale -> skip (do not check)
         raw_var = override.get(f'{item}_var')
         try:
             var = int(float(raw_var)) if raw_var not in (None, '') else default_var
         except (TypeError, ValueError):
             var = default_var
         try:
-            return int(float(override[item])), var
+            return int(float(val)), var
         except (TypeError, ValueError):
-            pass
+            return None, default_var
     return decode_answer(gq_url, encoded_correct_ans), default_var
 
 
@@ -2451,9 +2458,9 @@ if __name__ == "__main__":
     parser.add_argument(
         '--gold_overrides', required=False, default=None,
         help="Optional path to a CSV of corrected gold-clip answers. Columns: url plus, per "
-             "scale, <scale> (corrected correct answer) and optional <scale>_var (variance). "
-             "Listed clips use these values as correct; clips not listed keep the answers "
-             "encoded in the answers CSV.")
+             "scale, <scale> (correct answer) and optional <scale>_var (variance). A listed "
+             "clip is authoritative: provided scales are checked with these values and blank "
+             "scales are skipped. Clips not listed keep the answers encoded in the answers CSV.")
     #parser.add_argument('--adc' , help="name of Advance Data Cleaning script. If set, the answers will be filtered by that as well",  default=None)
     
     args = parser.parse_args()
