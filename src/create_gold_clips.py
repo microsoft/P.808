@@ -43,6 +43,11 @@ LOUDNESS_TOO_QUIET_DBOV = -45.0
 # any degradation (or none, for the clean/score-5 case) is applied.
 GOLD_SOURCE_TARGET_DBOV = -26.0
 
+# Loudness and coloration degradations keep the first this-many seconds free of the
+# degradation (a clean reference), then apply it. Other artifacts (noise, distortion,
+# discontinuity) are applied from the beginning of the clip.
+GOLD_CLEAN_PREFIX_SEC = 3.0
+
 GOLD_TYPES = {
     'clean': {
         'suffix': 'clean',
@@ -89,7 +94,7 @@ GOLD_TYPES = {
     },
     'loudness': {
         'suffix': 'loud',
-        'p804': {'loud_ans': 1, 'ovrl_ans': 1},
+        'p804': {'loud_ans': 1},
     },
     'loudness_distortion': {
         'suffix': 'loud_distorted',
@@ -386,6 +391,35 @@ def _apply_random_post_processing(signal, sr, gold_type):
     return signal
 
 
+def _apply_delayed(base, degraded_full, sr, delay_sec=GOLD_CLEAN_PREFIX_SEC, fade_ms=30.0):
+    """
+    Keep the first ``delay_sec`` seconds of ``base`` and switch to ``degraded_full``
+    afterwards, with a short crossfade to avoid a click at the boundary.
+
+    Used so that loudness/coloration degradations only appear after an initial
+    clean-reference portion, while any other artifact already present in ``base``
+    (e.g. noise or distortion) continues throughout.
+
+    :param base: The signal without the delayed degradation (may already contain
+        other artifacts). Used for the clean prefix.
+    :param degraded_full: The full-length signal with the delayed degradation applied.
+    :param sr: Sample rate in Hz.
+    :param delay_sec: Length of the clean prefix in seconds.
+    :param fade_ms: Crossfade length in milliseconds at the switch point.
+    :return: The combined signal as a numpy array.
+    """
+    n = int(delay_sec * sr)
+    # clip too short to hold the clean prefix -> apply the degradation to all of it
+    if n >= len(base):
+        return degraded_full
+    result = np.concatenate([base[:n], degraded_full[n:]]).astype(float)
+    fade = min(int(fade_ms / 1000.0 * sr), len(base) - n)
+    if fade > 0:
+        ramp = np.linspace(0.0, 1.0, fade)
+        result[n:n + fade] = base[n:n + fade] * (1.0 - ramp) + degraded_full[n:n + fade] * ramp
+    return result
+
+
 def process_clip(signal, sr, gold_type, snr_db=-5.0, clip_threshold=0.005):
     """
     Apply the specified degradation type to an audio signal, followed by
@@ -413,19 +447,26 @@ def process_clip(signal, sr, gold_type, snr_db=-5.0, clip_threshold=0.005):
         result = apply_discontinuity(signal, sr)
         result = add_background_noise(result, sr, snr_db)
     elif gold_type == 'coloration':
-        result = apply_coloration(signal, sr)
+        # coloration starts after the clean-reference prefix
+        result = _apply_delayed(signal, apply_coloration(signal, sr), sr)
     elif gold_type == 'coloration_noise':
-        result = apply_coloration(signal, sr)
-        result = add_background_noise(result, sr, snr_db)
+        # noise from the beginning; coloration delayed after the clean prefix
+        base = add_background_noise(signal, sr, snr_db)
+        result = _apply_delayed(base, apply_coloration(base, sr), sr)
     elif gold_type == 'distortion_noise':
         result = apply_signal_distortion(signal, clip_threshold)
         result = add_background_noise(result, sr, snr_db)
     elif gold_type == 'loudness':
-        result = apply_loudness(signal, sr)
+        # loudness starts after the clean-reference prefix
+        result = _apply_delayed(signal, apply_loudness(signal, sr), sr)
     elif gold_type == 'loudness_distortion':
-        result = apply_loudness(apply_signal_distortion(signal, clip_threshold), sr)
+        # distortion from the beginning; loudness delayed after the clean prefix
+        base = apply_signal_distortion(signal, clip_threshold)
+        result = _apply_delayed(base, apply_loudness(base, sr), sr)
     elif gold_type == 'loudness_noise':
-        result = apply_loudness(add_background_noise(signal, sr, snr_db), sr)
+        # noise from the beginning; loudness delayed after the clean prefix
+        base = add_background_noise(signal, sr, snr_db)
+        result = _apply_delayed(base, apply_loudness(base, sr), sr)
     else:
         raise ValueError(f"Unknown gold type: {gold_type}")
 

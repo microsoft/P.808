@@ -132,6 +132,9 @@ Do not guess these values if they are missing:
      - Can they identify clean clips by a URL pattern (e.g. `*/clean/*`, `*/reference/*`)?
      - Would they like the agent to download a small subset of rating clips for the user to
        **listen to and manually remove any clips with distortion** before gold generation?
+     **Mandatory**: however the candidate clean clips are obtained, they **must** go through
+     the user review in section 5a (keep only clips the user would rate 5 on all scales)
+     before gold generation. This step is required and must not be skipped.
      **Important**: never use the sample clips bundled in this repository (`src\test_inputs\`).
      Source clips must come from the same dataset as the rating clips.
    - **Trapping clips**: if `trapping_clips.csv` is not provided, the quality of source
@@ -438,6 +441,31 @@ If downloading clips from Azure private storage, either:
 
 **How many source clips?** Use `BEST_PRACTICE_GOLD_SOURCE_COUNT` capped at
 `BEST_PRACTICE_MAX_GOLD_SOURCE_CLIPS`.
+
+#### 5a. MANDATORY — user review of clean reference clips before generation
+
+The clean reference clips are the foundation of every gold question: the generator assumes
+each source clip is **perfect** and would be rated **5 on all scales**. If a reference clip
+has any audible flaw, every gold clip derived from it will have a wrong expected answer and
+will wrongly fail workers. Therefore this review step is **required** and must not be skipped,
+regardless of how the candidate clips were obtained.
+
+**You must:**
+
+1. Copy the candidate clean/reference clips into a temporary review directory, e.g.
+   `RATING_CLIPS_PATH\gold_source_review`.
+2. **[ASK]** Instruct the user, in these exact terms, to review them:
+   - "Please listen to every clip in `gold_source_review`."
+   - "**Keep only the clips you would personally rate 5 on ALL scales**
+     (coloration, discontinuity, loudness, noise, reverb, signal, and overall)."
+   - "If a clip is not a perfect 5 on every scale, **delete that file** from the folder."
+   - "Do not edit the clips — only keep or delete them."
+3. **Wait for the user to explicitly confirm** they have finished reviewing and deleting.
+   Do not proceed on assumption.
+4. After confirmation, use **only the clips that remain** in the review directory as the
+   gold source (copy the survivors into `RATING_CLIPS_PATH\gold_source`). If the user
+   deleted everything, or too few remain, ask for more candidate clips and repeat — do not
+   fall back to unreviewed clips.
 
 Generate gold clips (filenames are **anonymized** by default — do **not** use
 `--no_anonymize`):
