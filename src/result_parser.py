@@ -785,6 +785,10 @@ def write_gold_summary(gold_rows, path):
         n = len(grp)
         row = {'url': url, 'n_submission': n}
         for item in items:
+            # expected (correct) answer for this scale on this gold clip (constant per
+            # clip; blank when the scale is not targeted / has no encoded answer)
+            expected = grp[item].dropna() if item in grp.columns else pd.Series([], dtype=float)
+            row[f'{item}_expected'] = int(expected.iloc[0]) if len(expected) else ''
             wcol = f'{item}_wrong'
             n_wrong = int((grp[wcol] == 1).sum()) if wcol in grp.columns else 0
             row[f'{item}_wrong_pct'] = round(100 * n_wrong / n, 2) if n else 0.0
