@@ -160,31 +160,182 @@ def get_submission_status(assignment_id):
         return None
     
 
+def get_study_id_for_submission(assignment_id):
+    """
+    Resolve the Prolific study id that a submission belongs to.
+
+    :param assignment_id: A Prolific submission id.
+    :return: The study id string, or None if it could not be determined.
+    """
+    data = get_submission_data(assignment_id)
+    if data:
+        return data.get('study_id') or data.get('study')
+    return None
+
+
+def fetch_submission_status_map(study_id):
+    """
+    Fetch the current status of every submission in a study.
+
+    Pages through the study's submissions once and returns a dict mapping the
+    lower-cased submission id to its Prolific status (e.g. "AWAITING REVIEW",
+    "APPROVED", "RETURNED"). This lets the review step act only on submissions
+    still awaiting review, instead of one status GET per submission.
+
+    :param study_id: The Prolific study id.
+    :return: Dict of {submission_id (lower-case): status}.
+    """
+    status_map = {}
+    url = f"{base_url}/studies/{study_id}/submissions/"
+    headers = {
+        'Authorization': f'Token {api_token}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    }
+    while url:
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+        except requests.exceptions.RequestException as e:
+            logger.info(f"Error listing submissions for study {study_id}: {e}")
+            break
+        if response.status_code != 200:
+            logger.info(f"Error listing submissions: {response.status_code} - {response.text}")
+            break
+        data = response.json()
+        for s in data.get('results', []):
+            sid = s.get('id')
+            if sid is not None:
+                status_map[str(sid).strip().lower()] = s.get('status')
+        # follow pagination: top-level 'next' or _links.next
+        next_url = data.get('next')
+        if not next_url:
+            links_next = data.get('_links', {}).get('next')
+            next_url = links_next.get('href') if isinstance(links_next, dict) else links_next
+        url = next_url
+    logger.info(f"Fetched status for {len(status_map)} submissions in study {study_id}.")
+    return status_map
+
+
+def approve_submission(assignment_id):
+    """
+    Approve a single submission via the transition endpoint.
+
+    Used for accepted submissions that cannot go through bulk-approve because they
+    are not AWAITING REVIEW (e.g. RETURNED or TIMED-OUT but the work was used).
+
+    :param assignment_id: The Prolific submission id.
+    :return: True if the submission was approved, False otherwise.
+    """
+    url = f"{base_url}/submissions/{assignment_id}/transition/"
+    headers = {
+        'Authorization': f'Token {api_token}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    }
+    payload = {"action": "APPROVE"}
+    try:
+        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
+    except requests.exceptions.RequestException as e:
+        logger.info(f"Submission {assignment_id} - approve error: {e}")
+        return False
+    if response.status_code == 200:
+        logger.info(f"Submission {assignment_id} approved individually.")
+        return True
+    logger.info(f"Submission {assignment_id} could not be approved "
+                f"(status {response.status_code}): {response.text}")
+    return False
+
+
 def send_reviews_for_study(csv_data_path, detailed_data_cleaning_report=None, block_report=None):
-    count = 0
     df = pd.read_csv(csv_data_path)
     # Approve is x
     df_approved = df[df['Approve'] == 'x']
     df_rejected = df[df['Approve'] != 'x']
 
-    submission_to_approve = df_approved['assignmentId'].tolist()
-    bulk_approve_submission(submission_to_approve)
+    # Fetch the current status of every submission once. Prolific only allows
+    # approving/rejecting/requesting-return of submissions that are still
+    # AWAITING REVIEW (bulk-approve even 400s the whole batch if one id is not),
+    # so on a re-run we must skip anything already approved/rejected/returned.
+    status_map = {}
+    all_ids = df['assignmentId'].dropna().astype(str).str.strip().str.lower().tolist()
+    if all_ids:
+        study_id = get_study_id_for_submission(all_ids[0])
+        if study_id:
+            status_map = fetch_submission_status_map(study_id)
+    if not status_map:
+        logger.warning("Could not fetch study submission statuses in bulk; "
+                       "falling back to a per-submission status check.")
 
+    def _status_of(aid):
+        st = status_map.get(aid)
+        if st is None and aid not in status_map:
+            st = get_submission_status(aid)  # fallback for ids missing from the bulk map
+        return str(st).strip().upper() if st is not None else None
+
+    # ---- approvals: pay for every accepted submission whose work we use ----
+    # AWAITING REVIEW go through bulk-approve; RETURNED/TIMED-OUT can't be
+    # bulk-approved, so try individually and record any that still can't be paid.
+    submission_to_approve = []
+    n_already_approved = 0
+    manual_payment_rows = []
+    for _, row in df_approved.iterrows():
+        aid = str(row['assignmentId']).strip().lower()
+        wid = str(row['WorkerId']).strip().lower()
+        st = _status_of(aid)
+        if st == "AWAITING REVIEW":
+            submission_to_approve.append(aid)
+        elif st == "APPROVED":
+            n_already_approved += 1
+        elif st in ("RETURNED", "TIMED-OUT"):
+            # the work was used, so the worker should be paid; bulk-approve won't
+            # take these, so attempt an individual approval and flag failures
+            if not approve_submission(aid):
+                manual_payment_rows.append({"WorkerId": wid, "assignmentId": aid,
+                                            "status": st, "reason": "used but could not be approved"})
+        else:
+            manual_payment_rows.append({"WorkerId": wid, "assignmentId": aid,
+                                        "status": st, "reason": "used but not in an approvable state"})
+
+    if submission_to_approve:
+        bulk_approve_submission(submission_to_approve)
+
+    n_actioned = 0
+    n_skipped = 0
     for index, row in df_rejected.iterrows():
         # WorkerId	assignmentId	HITId	Approve	Reject
         worker_id = row['WorkerId'].lower()
         assignment_id = row['assignmentId'].lower()
         hit_id = row['HITId']
-        count = count+ 1
-        
+
         if row['Approve'] is not None and not pd.isna(row['Approve']) and row['Approve'].strip() != "":
             continue # already handled in bulk approve
+        # Only submissions still AWAITING REVIEW can be rejected or asked to return; skip the
+        # rest (e.g. already RETURNED/REJECTED/APPROVED from a previous review run).
+        if _status_of(assignment_id) != "AWAITING REVIEW":
+            logger.info(f"Submission {assignment_id} skipped (status: {status_map.get(assignment_id)}); "
+                        f"only AWAITING REVIEW submissions are rejected/asked to return.")
+            n_skipped += 1
+            continue
+        reason = row['Reject']
+        if args.force_reject:
+            accept_reject_submission(worker_id, assignment_id, reason)
         else:
-            reason = row['Reject']
-            if args.force_reject:
-                accept_reject_submission(worker_id, assignment_id, reason)
-            else:
-                ask_return(assignment_id, reason)
+            ask_return(assignment_id, reason)
+        n_actioned += 1
+
+    if manual_payment_rows:
+        stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        out_dir = os.path.dirname(csv_data_path)
+        manual_path = os.path.join(out_dir, f"prolific_manual_payment_needed_{stamp}.csv")
+        pd.DataFrame(manual_payment_rows).to_csv(manual_path, index=False)
+        logger.info(f"{len(manual_payment_rows)} used submission(s) could not be auto-paid "
+                    f"(returned/timed-out); listed for manual payment in {manual_path}")
+
+    logger.info(f"Review complete: {len(submission_to_approve)} bulk-approved, "
+                f"{n_already_approved} already approved, "
+                f"{len(manual_payment_rows)} need manual payment, "
+                f"{n_actioned} {'rejected' if args.force_reject else 'asked to return'}, "
+                f"{n_skipped} reject/return-skipped (not awaiting review).")
 
      # assign participants with rdp to the group to be excluded from the future studies
     if detailed_data_cleaning_report and rdp_group_id is not None:
