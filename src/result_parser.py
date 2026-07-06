@@ -728,6 +728,42 @@ def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played):
     return answer_is_correct
 
 # p835
+def explode_p804_gold_rec(rec):
+    """
+    Turn a P.804 gold-question record into one row per gold question.
+
+    A P.804 submission is checked against one or two gold clips, and the raw
+    record stores them side by side (``url``/``url_2`` and per-dimension columns
+    with a ``""``/``_2`` postfix). This returns a list with one flat row per gold
+    clip so the detailed report has a single ``gold_url`` per line.
+
+    :param rec: The gold record dict for one submission (from ``check_gold_question``).
+    :return: List of per-gold-question row dicts.
+    """
+    items = ['noise', 'col', 'loud', 'disc', 'reverb', 'sig', 'ovrl']
+    common = {k: rec.get(k) for k in ('worker_id', 'HITID', 'correct_tps')}
+    rows = []
+    # two gold questions (postfixes "" and "_2") or a single one (no postfix)
+    postfixes = ['', '_2'] if 'url_2' in rec else ['']
+    for pf in postfixes:
+        row = dict(common)
+        row['gold_url'] = rec.get(f'url{pf}')
+        row['correct'] = rec.get(f'correct{pf}')
+        row['wrong'] = rec.get(f'wrong{pf}')
+        for item in items:
+            if pf == '' and 'url_2' not in rec:
+                # single-gold record uses un-postfixed keys (e.g. "noise", "noise_given")
+                row[item] = rec.get(item)
+                row[f'{item}_given'] = rec.get(f'{item}_given')
+                row[f'{item}_wrong'] = rec.get(f'{item}_wrong')
+            else:
+                row[item] = rec.get(f'{item}_{pf}')
+                row[f'{item}_given'] = rec.get(f'{item}_{pf}_given')
+                row[f'{item}_wrong'] = rec.get(f'{item}_{pf}_wrong')
+        rows.append(row)
+    return rows
+
+
 def report_rejection_breakdown(data, wrong_vcodes, answer_path):
     """
     Build and save a detailed breakdown of why submissions were rejected.
@@ -833,6 +869,7 @@ def data_cleaning(filename, method, wrong_vcodes):
     not_accepted_reasons = []
 
     rec_list = []
+    gold_rows = []  # one row per gold question (P.804 detailed report)
     for row in reader:
         correct_cmp_ans = 0
         #print(row['answer.8_hearing'] is None)
@@ -904,8 +941,13 @@ def data_cleaning(filename, method, wrong_vcodes):
                 rec['HITID'] = row["hitid"]
                 rec['worker_id'] = row["workerid"]
                 rec['correct_tps'] = d["correct_tps"]
-            rec_list.append(rec)
-            if  method =="p804" and 'url_2' in rec:
+            if method == "p804":
+                # detailed report: one row per gold question instead of one wide row per submission
+                if rec is not None:
+                    gold_rows.extend(explode_p804_gold_rec(rec))
+            else:
+                rec_list.append(rec)
+            if  method =="p804" and rec is not None and 'url_2' in rec:
                 gold_question_wrong = (1 if rec['wrong']>0 else 0)+ (2 if rec['wrong_2']>0 else 0)
                 d["gold_question_wrong"] = gold_question_wrong
                 # remove the comment to only reject on first gold question
@@ -938,8 +980,8 @@ def data_cleaning(filename, method, wrong_vcodes):
             d['accept_and_use'] = 0
 
         worker_list.append(d)
-    tmp_df = pd.DataFrame(rec_list)
-    tmp_df.to_csv('detailed_gold_question_performance.csv')
+    tmp_df = pd.DataFrame(gold_rows if method == "p804" else rec_list)
+    tmp_df.to_csv('detailed_gold_question_performance.csv', index=False)
     #
     logger.info(f"Number of submissions: {len(worker_list)}")
     report_file = os.path.splitext(filename)[0] + '_data_cleaning_report.csv'

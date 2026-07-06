@@ -184,13 +184,16 @@ of performance), and the most common reason combinations:
 
 Read `detailed_gold_question_performance.csv` from the working directory.
 
-- Look for columns matching `wrong*` — these indicate how many times each gold
-  clip received a wrong answer.
-- Look for columns matching `url*` — these identify the gold clip URLs.
-- **Any row where the sum of `wrong*` columns > 0** means that gold clip received
-  at least one wrong answer.
-- Calculate the rejection rate per gold clip:
-  `gold_rejection_rate = wrong_count / total_times_shown * 100`
+The report has **one row per gold question** (so a P.804 submission with two gold
+clips contributes two rows). Key columns:
+- `gold_url` — the gold clip evaluated on that row (exactly one per row).
+- `wrong` / `correct` — number of dimensions answered wrong / correct for that gold
+  on that submission; per-dimension detail is in `<dim>_wrong` (e.g. `sig_wrong`).
+- `worker_id`, `HITID` — the submission the row belongs to.
+
+To assess gold clips, **group by `gold_url`**:
+- A row counts as a failed presentation when `wrong > 0`.
+- `gold_rejection_rate = (rows with wrong > 0 for that gold_url) / (total rows for that gold_url) * 100`.
 
 **⚠️ If any gold clip is rejected > 20% of the time**: flag as alarming. Ask the
 user to check that clip and verify the expected answer is correct. It may
@@ -224,7 +227,7 @@ After analysis, direct the user to the key output files:
 | `Batch_XXX_data_cleaning_report.csv` | Detailed per-submission data cleaning report |
 | `Batch_XXX_rejection_reason_matrix.csv` | Reason co-occurrence matrix (total, only-this-reason, and pairwise counts) |
 | `Batch_XXX_rejection_reason_combinations.csv` | Count/percentage of each distinct reason combination |
-| `detailed_gold_question_performance.csv` | Per-gold-clip acceptance/rejection statistics |
+| `detailed_gold_question_performance.csv` | One row per gold question per submission (single `gold_url` per row) |
 | `Batch_XXX_quantity_bonus_report.csv` | Quantity bonus calculations (MTurk only; not generated when the platform is Prolific) |
 
 **Scale suffixes by method:**
