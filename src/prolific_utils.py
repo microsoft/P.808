@@ -282,13 +282,17 @@ def send_reviews_for_study(csv_data_path, detailed_data_cleaning_report=None, bl
      # assign participants with rdp to the group to be excluded from the future studies
     if detailed_data_cleaning_report and rdp_group_id is not None:
         df_detailed = pd.read_csv(detailed_data_cleaning_report)
-        # filter the participants with rdp
-        df_rdp = df_detailed[df_detailed['remote_desktop_failed'] == 1]
-        participant_ids = df_rdp['worker_id'].tolist()
-        if len(participant_ids) > 0:
-            unique_participant_ids = list(set(participant_ids))
-            logger.info(f"Adding {len(unique_participant_ids)} participants with rdp to the group")
-            add_participants_to_group(rdp_group_id, unique_participant_ids)
+        if 'remote_desktop_failed' in df_detailed.columns:
+            # filter the participants with rdp
+            df_rdp = df_detailed[df_detailed['remote_desktop_failed'] == 1]
+            participant_ids = df_rdp['worker_id'].tolist()
+            if len(participant_ids) > 0:
+                unique_participant_ids = list(set(participant_ids))
+                logger.info(f"Adding {len(unique_participant_ids)} participants with rdp to the group")
+                add_participants_to_group(rdp_group_id, unique_participant_ids)
+        else:
+            logger.info("No 'remote_desktop_failed' column in the data cleaning report; "
+                        "skipping RDP group assignment.")
 
     if block_report is not None and low_quality_group_id is not None:
         # if block report is provided, save the participants with rdp to the block report
