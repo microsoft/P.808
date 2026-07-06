@@ -160,62 +160,6 @@ def get_submission_status(assignment_id):
         return None
     
 
-def get_study_id_for_submission(assignment_id):
-    """
-    Resolve the Prolific study id that a submission belongs to.
-
-    :param assignment_id: A Prolific submission id.
-    :return: The study id string, or None if it could not be determined.
-    """
-    data = get_submission_data(assignment_id)
-    if data:
-        return data.get('study_id') or data.get('study')
-    return None
-
-
-def fetch_submission_status_map(study_id):
-    """
-    Fetch the current status of every submission in a study.
-
-    Pages through the study's submissions once and returns a dict mapping the
-    lower-cased submission id to its Prolific status (e.g. "AWAITING REVIEW",
-    "APPROVED", "RETURNED"). This lets the review step act only on submissions
-    still awaiting review, instead of one status GET per submission.
-
-    :param study_id: The Prolific study id.
-    :return: Dict of {submission_id (lower-case): status}.
-    """
-    status_map = {}
-    url = f"{base_url}/studies/{study_id}/submissions/"
-    headers = {
-        'Authorization': f'Token {api_token}',
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-    }
-    while url:
-        try:
-            response = requests.get(url, headers=headers, timeout=30)
-        except requests.exceptions.RequestException as e:
-            logger.info(f"Error listing submissions for study {study_id}: {e}")
-            break
-        if response.status_code != 200:
-            logger.info(f"Error listing submissions: {response.status_code} - {response.text}")
-            break
-        data = response.json()
-        for s in data.get('results', []):
-            sid = s.get('id')
-            if sid is not None:
-                status_map[str(sid).strip().lower()] = s.get('status')
-        # follow pagination: top-level 'next' or _links.next
-        next_url = data.get('next')
-        if not next_url:
-            links_next = data.get('_links', {}).get('next')
-            next_url = links_next.get('href') if isinstance(links_next, dict) else links_next
-        url = next_url
-    logger.info(f"Fetched status for {len(status_map)} submissions in study {study_id}.")
-    return status_map
-
-
 def approve_submission(assignment_id):
     """
     Approve a single submission via the transition endpoint.
@@ -252,25 +196,23 @@ def send_reviews_for_study(csv_data_path, detailed_data_cleaning_report=None, bl
     df_approved = df[df['Approve'] == 'x']
     df_rejected = df[df['Approve'] != 'x']
 
-    # Fetch the current status of every submission once. Prolific only allows
-    # approving/rejecting/requesting-return of submissions that are still
-    # AWAITING REVIEW (bulk-approve even 400s the whole batch if one id is not),
-    # so on a re-run we must skip anything already approved/rejected/returned.
-    status_map = {}
-    all_ids = df['assignmentId'].dropna().astype(str).str.strip().str.lower().tolist()
-    if all_ids:
-        study_id = get_study_id_for_submission(all_ids[0])
-        if study_id:
-            status_map = fetch_submission_status_map(study_id)
-    if not status_map:
-        logger.warning("Could not fetch study submission statuses in bulk; "
-                       "falling back to a per-submission status check.")
+    # The current Prolific status is carried in the review file (prolific_status column,
+    # populated by result_parser from the Prolific export). Prolific only allows
+    # approving/rejecting/requesting-return of AWAITING REVIEW submissions (bulk-approve
+    # even 400s the whole batch if one id is not), so we act based on that status and
+    # skip anything already approved/rejected/returned.
+    has_status = 'prolific_status' in df.columns
+    if not has_status:
+        logger.warning("No 'prolific_status' column in the review file; treating all "
+                       "submissions as AWAITING REVIEW. Re-run result_parser to add it.")
 
-    def _status_of(aid):
-        st = status_map.get(aid)
-        if st is None and aid not in status_map:
-            st = get_submission_status(aid)  # fallback for ids missing from the bulk map
-        return str(st).strip().upper() if st is not None else None
+    def _status_of(row):
+        if not has_status:
+            return "AWAITING REVIEW"
+        val = row.get('prolific_status')
+        if pd.isna(val) or str(val).strip() == "":
+            return None  # unknown for this row
+        return str(val).strip().upper()
 
     # ---- approvals: pay for every accepted submission whose work we use ----
     # AWAITING REVIEW go through bulk-approve; RETURNED/TIMED-OUT can't be
@@ -281,7 +223,7 @@ def send_reviews_for_study(csv_data_path, detailed_data_cleaning_report=None, bl
     for _, row in df_approved.iterrows():
         aid = str(row['assignmentId']).strip().lower()
         wid = str(row['WorkerId']).strip().lower()
-        st = _status_of(aid)
+        st = _status_of(row)
         if st == "AWAITING REVIEW":
             submission_to_approve.append(aid)
         elif st == "APPROVED":
@@ -311,8 +253,8 @@ def send_reviews_for_study(csv_data_path, detailed_data_cleaning_report=None, bl
             continue # already handled in bulk approve
         # Only submissions still AWAITING REVIEW can be rejected or asked to return; skip the
         # rest (e.g. already RETURNED/REJECTED/APPROVED from a previous review run).
-        if _status_of(assignment_id) != "AWAITING REVIEW":
-            logger.info(f"Submission {assignment_id} skipped (status: {status_map.get(assignment_id)}); "
+        if _status_of(row) != "AWAITING REVIEW":
+            logger.info(f"Submission {assignment_id} skipped (status: {row.get('prolific_status') if has_status else 'n/a'}); "
                         f"only AWAITING REVIEW submissions are rejected/asked to return.")
             n_skipped += 1
             continue

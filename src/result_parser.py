@@ -1005,6 +1005,8 @@ def data_cleaning(filename, method, wrong_vcodes):
         d['HITId'] = row['hitid']
         d['assignment'] = row['assignmentid']
         d['status'] = row['assignmentstatus']
+        # Prolific submission status (from the export), carried through for the review step
+        d['prolific_status'] = row.get('prolific_status', '') if 'prolific_status' in row else ''
         
         d['ip'] = row['x-real-ip'] if 'x-real-ip' in row else None
         d['study_url'] = row['study_url'] if 'study_url' in row else None
@@ -1292,7 +1294,10 @@ def save_approve_rejected_ones_for_gui(data, path, wrong_vcodes):
     """
     df = pd.DataFrame(data)
     df = df[df.status == 'Submitted']
-    small_df = df[['worker_id','assignment', 'HITId', 'Approve', 'Reject']].copy()
+    gui_cols = ['worker_id', 'assignment', 'HITId', 'Approve', 'Reject']
+    if 'prolific_status' in df.columns:
+        gui_cols.append('prolific_status')
+    small_df = df[gui_cols].copy()
     small_df.rename(columns={'assignment': 'assignmentId', 'worker_id':'WorkerId'}, inplace=True)
 
     if wrong_vcodes is not None:
@@ -2088,7 +2093,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
 
     columns_to_remove = prolific_ans.columns.difference(['Submission id','Participant id', 'Completion code', 'Country of birth',
                                              'Country of residence', 'Ethnicity simplified', 'Language',
-                                             'Nationality', 'Primary language', 'Sex', 'Time taken', 'Total approvals', 'URL'])
+                                             'Nationality', 'Primary language', 'Sex', 'Time taken', 'Total approvals', 'URL', 'Status'])
     
     prolific_ans.drop(columns=columns_to_remove, inplace=True)
     
@@ -2115,7 +2120,8 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
                                'Time taken': "WorkTimeInSeconds", 
                                'Submission id':'prolific_submission_id', 
                                'Total approvals':'prolific_total_approvals',
-                               'URL':'study_url'},  inplace=True)
+                               'URL':'study_url',
+                               'Status':'prolific_status'},  inplace=True)
     
     # mark prolific_ans to remove when study_url is nan and lenght of Answer.v_code is not 32
     # (abandoned/returned submissions). Keep any row whose submission id matches a completed
