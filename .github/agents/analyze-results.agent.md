@@ -206,6 +206,13 @@ per scale `<scale>_expected` (correct answer, blank if not targeted),
 `max_wrong_pct`; when the mean rating is far from the expected answer with a high
 wrong rate, the gold clip is likely mis-keyed or too hard on that scale.
 
+**Correcting gold answers**: to override mis-keyed gold clips, build a CSV with a
+`url` column plus, per scale, `<scale>` (corrected correct answer) and optional
+`<scale>_var` (variance), and pass it as `--gold_overrides`. Listed clips use these
+values; clips not listed keep the encoded answers. A good starting point per scale
+is the rounded `<scale>_mean` for scales with a high `<scale>_wrong_pct`; review
+before re-running.
+
 #### 4c. Summary to present
 
 Provide the user with a structured summary:

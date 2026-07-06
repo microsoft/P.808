@@ -311,6 +311,68 @@ def decode_answer(url, encoded):
             
 
 
+gold_overrides = {}
+
+
+def load_gold_overrides(path):
+    """
+    Load a CSV of corrected gold-clip answers/variance, keyed by clip URL.
+
+    Each row is one gold clip ``url`` plus, per scale, an overriding correct
+    answer (column ``<scale>``) and optional variance (column ``<scale>_var``).
+    Empty cells fall back to the encoded answer / config variance, and any gold
+    clip whose URL is absent from the file keeps the values encoded in the
+    answers CSV.
+
+    :param path: Path to the overrides CSV.
+    :return: Dict of {url: {column: value}} keeping only non-empty cells.
+    """
+    df = pd.read_csv(path, dtype=str)
+    overrides = {}
+    for _, r in df.iterrows():
+        url = str(r.get('url', '')).strip()
+        if not url or url.lower() == 'nan':
+            continue
+        vals = {}
+        for k, v in r.items():
+            if k == 'url' or v is None:
+                continue
+            v = str(v).strip()
+            if v != '' and v.lower() != 'nan':
+                vals[k] = v
+        overrides[url] = vals
+    logger.info(f"Loaded gold answer overrides for {len(overrides)} clip(s).")
+    return overrides
+
+
+def resolve_gold_answer(gq_url, item, encoded_correct_ans, default_var):
+    """
+    Return the correct answer and variance for a gold scale, applying overrides.
+
+    If ``gq_url`` has an override for ``item``, that value (and its ``<item>_var``
+    when present) is used; otherwise the answer is decoded from the answers CSV
+    and the default (config) variance applies.
+
+    :param gq_url: The gold clip URL.
+    :param item: The scale name (e.g. "loud").
+    :param encoded_correct_ans: The encoded answer from the answers CSV.
+    :param default_var: The variance to use when not overridden.
+    :return: Tuple of (correct answer as int or None, variance as int).
+    """
+    override = gold_overrides.get(gq_url)
+    if override is not None and override.get(item) not in (None, ''):
+        raw_var = override.get(f'{item}_var')
+        try:
+            var = int(float(raw_var)) if raw_var not in (None, '') else default_var
+        except (TypeError, ValueError):
+            var = default_var
+        try:
+            return int(float(override[item])), var
+        except (TypeError, ValueError):
+            pass
+    return decode_answer(gq_url, encoded_correct_ans), default_var
+
+
 def check_person_rec_qualification(row):
     correct_ans ={'dist1':'N', 'dist2':'N', 'dist3':'Y', 'dist4':'N', 'dist5':'Y'}
     pref = 'answer.'
@@ -463,7 +525,7 @@ def check_gold_question_P804(method, row):
                 for item in items:
                     # check for all subdimensions
                     encoded_correct_ans = row["input.gold_"+item+"_ans"]
-                    decodec_correct_ans = decode_answer(gq_url, encoded_correct_ans) 
+                    decodec_correct_ans, item_var = resolve_gold_answer(gq_url, item, encoded_correct_ans, gq_var)
                     rec[item] = decodec_correct_ans
                     rec[f'{item}_given'] = row[f"answer.{q_name}_{item}"]
                     #print("correct ans:", decodec_correct_ans)
@@ -473,7 +535,7 @@ def check_gold_question_P804(method, row):
                     #print('Given ans:'+ans)
                     #print(row['assignmentid'])
                     if (decodec_correct_ans is not None) and (int(ans) not in range(
-                        decodec_correct_ans - gq_var, decodec_correct_ans + gq_var + 1)):
+                        decodec_correct_ans - item_var, decodec_correct_ans + item_var + 1)):
                         correct_gq = 0
                         given_ans_report.append(f"{item}: "+ans)
                         wrong += 1
@@ -521,14 +583,14 @@ def check2_gold_questions_P804(method, row):
                     for item in items:
                         # check for all subdimensions
                         encoded_correct_ans = row["input.gold_"+item+f"_ans{pf}"]                        
-                        decodec_correct_ans = decode_answer(gq_url, encoded_correct_ans)                         
+                        decodec_correct_ans, item_var = resolve_gold_answer(gq_url, item, encoded_correct_ans, gq_var)
                         rec[f'{item}_{pf}'] = decodec_correct_ans
                         rec[f'{item}_{pf}_given'] = row[f"answer.{q_name}_{item}"]
                         
                         ans = row[f"answer.{q_name}_{item}"]                        
                         
                         if (decodec_correct_ans is not None) and ( len(ans)==0 or (int(float(ans)) not in range(
-                            decodec_correct_ans - gq_var, decodec_correct_ans + gq_var + 1))):
+                            decodec_correct_ans - item_var, decodec_correct_ans + item_var + 1))):
                             correct_gq = 0
                             given_ans_report.append(f"{item}_{pf}: "+ans)
                             wrong += 1
@@ -2386,6 +2448,12 @@ if __name__ == "__main__":
                                                 "Prolific does not include the reward in its export, so provide it here to "
                                                 "compute payment-per-hour statistics. Optional; takes precedence over --rewards."
                                                 , required=False, default=None)
+    parser.add_argument(
+        '--gold_overrides', required=False, default=None,
+        help="Optional path to a CSV of corrected gold-clip answers. Columns: url plus, per "
+             "scale, <scale> (corrected correct answer) and optional <scale>_var (variance). "
+             "Listed clips use these values as correct; clips not listed keep the answers "
+             "encoded in the answers CSV.")
     #parser.add_argument('--adc' , help="name of Advance Data Cleaning script. If set, the answers will be filtered by that as well",  default=None)
     
     args = parser.parse_args()
@@ -2439,5 +2507,8 @@ if __name__ == "__main__":
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
     logger.info(f"Start analyzing the results of {test_method} test")
+    if args.gold_overrides is not None:
+        assert os.path.exists(args.gold_overrides), f"No gold overrides file at [{args.gold_overrides}]"
+        gold_overrides = load_gold_overrides(args.gold_overrides)
     # start
     analyze_results(config, test_method,  answer_path, prolific_ans_path, list_of_req, args.quality_bonus, platform)
