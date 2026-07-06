@@ -766,11 +766,12 @@ def explode_p804_gold_rec(rec):
 
 def write_gold_summary(gold_rows, path):
     """
-    Write a per-gold-clip summary of how often each P.804 scale was answered wrong.
+    Write a per-gold-clip summary of how each P.804 scale performed.
 
     Aggregates the exploded gold rows by gold clip and reports, per clip, how many
-    submissions were checked against it and the percentage of those submissions
-    that got each scale wrong.
+    submissions were checked against it, the worst scale wrong rate, and per scale
+    the expected answer, the mean rating given, and the percentage of submissions
+    that got that scale wrong.
 
     :param gold_rows: List of per-gold-question row dicts (from explode_p804_gold_rec).
     :param path: Destination CSV path.
@@ -784,16 +785,29 @@ def write_gold_summary(gold_rows, path):
     for url, grp in gdf.groupby('gold_url'):
         n = len(grp)
         row = {'url': url, 'n_submission': n}
+        wrong_pcts = []
         for item in items:
             # expected (correct) answer for this scale on this gold clip (constant per
             # clip; blank when the scale is not targeted / has no encoded answer)
             expected = grp[item].dropna() if item in grp.columns else pd.Series([], dtype=float)
             row[f'{item}_expected'] = int(expected.iloc[0]) if len(expected) else ''
+            # mean of the ratings participants gave for this scale on this gold clip
+            given = pd.to_numeric(grp[f'{item}_given'], errors='coerce') if f'{item}_given' in grp.columns \
+                else pd.Series([], dtype=float)
+            row[f'{item}_mean'] = round(given.mean(), 2) if given.notna().any() else ''
             wcol = f'{item}_wrong'
             n_wrong = int((grp[wcol] == 1).sum()) if wcol in grp.columns else 0
-            row[f'{item}_wrong_pct'] = round(100 * n_wrong / n, 2) if n else 0.0
+            pct = round(100 * n_wrong / n, 2) if n else 0.0
+            row[f'{item}_wrong_pct'] = pct
+            wrong_pcts.append(pct)
+        # the biggest problem for this gold clip: worst per-scale wrong rate
+        row['max_wrong_pct'] = max(wrong_pcts) if wrong_pcts else 0.0
         summary.append(row)
-    pd.DataFrame(summary).to_csv(path, index=False)
+    df = pd.DataFrame(summary)
+    # surface max_wrong_pct right after n_submission
+    front = ['url', 'n_submission', 'max_wrong_pct']
+    df = df[front + [c for c in df.columns if c not in front]]
+    df.to_csv(path, index=False)
     logger.info(f"   Gold summary saved in: {path}")
 
 

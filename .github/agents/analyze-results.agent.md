@@ -200,10 +200,11 @@ user to check that clip and verify the expected answer is correct. It may
 indicate a bad gold clip rather than bad workers.
 
 For P.804, `gold_summary.csv` gives this directly: one row per gold clip with
-`url`, `n_submission`, and per scale both `<scale>_expected` (the correct answer,
-blank if not targeted) and `<scale>_wrong_pct` (percentage of submissions that got
-it wrong). A high wrong rate against a clear expected answer flags a bad/mis-keyed
-or too-hard gold clip.
+`url`, `n_submission`, `max_wrong_pct` (worst scale wrong rate for that clip), and
+per scale `<scale>_expected` (correct answer, blank if not targeted),
+`<scale>_mean` (mean rating participants gave), and `<scale>_wrong_pct`. Sort by
+`max_wrong_pct`; when the mean rating is far from the expected answer with a high
+wrong rate, the gold clip is likely mis-keyed or too hard on that scale.
 
 #### 4c. Summary to present
 
@@ -234,7 +235,7 @@ After analysis, direct the user to the key output files:
 | `Batch_XXX_rejection_reason_matrix.csv` | Reason co-occurrence matrix (total, only-this-reason, and pairwise counts) |
 | `Batch_XXX_rejection_reason_combinations.csv` | Count/percentage of each distinct reason combination |
 | `detailed_gold_question_performance.csv` | One row per gold question per submission (single `gold_url` per row) |
-| `gold_summary.csv` | Per-gold-clip summary (P.804): `url`, `n_submission`, and per scale `<scale>_expected` + `<scale>_wrong_pct` |
+| `gold_summary.csv` | Per-gold-clip summary (P.804): `url`, `n_submission`, `max_wrong_pct`, and per scale `<scale>_expected` + `<scale>_mean` + `<scale>_wrong_pct` |
 | `Batch_XXX_quantity_bonus_report.csv` | Quantity bonus calculations (MTurk only; not generated when the platform is Prolific) |
 
 **Scale suffixes by method:**
