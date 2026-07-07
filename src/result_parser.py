@@ -324,10 +324,30 @@ def load_gold_overrides(path):
     (that scale is not checked). Any gold clip whose URL is absent from the file
     keeps the values encoded in the answers CSV.
 
+    Each gold clip URL must appear at most once. If any URL is duplicated the values
+    would be ambiguous (only the last row would take effect), so this stops with an
+    error and asks the user to proof and fix the file.
+
     :param path: Path to the overrides CSV.
     :return: Dict of {url: {column: value}} keeping only non-empty cells.
+    :raises Exception: If the file contains duplicate gold clip URLs.
     """
     df = pd.read_csv(path, dtype=str)
+    # collect the non-blank URLs first so duplicates can be detected before use
+    urls = []
+    for _, r in df.iterrows():
+        url = str(r.get('url', '')).strip()
+        if not url or url.lower() == 'nan':
+            continue
+        urls.append(url)
+    counts = collections.Counter(urls)
+    duplicates = {u: c for u, c in counts.items() if c > 1}
+    if duplicates:
+        listing = "\n  ".join(f"{u} (appears {c} times)" for u, c in duplicates.items())
+        raise Exception(
+            f"Duplicate gold clip URL(s) found in the gold overrides file [{path}]:\n  "
+            f"{listing}\nEach gold clip must appear at most once. Please proof the file, "
+            f"remove or merge the duplicate row(s), and re-run.")
     overrides = {}
     for _, r in df.iterrows():
         url = str(r.get('url', '')).strip()
