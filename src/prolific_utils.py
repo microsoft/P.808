@@ -300,6 +300,8 @@ def bulk_approve_submission(assignment_ids, study_id=None, max_retries=6, poll_w
         for aid in pending:
             if not approve_submission(aid):
                 failures.append(aid)
+            # space the calls out so we don't trip Prolific's rate limiting
+            time.sleep(1.0)
 
     if failures:
         logger.warning(f"{len(failures)} submission(s) could not be approved: {failures}")
@@ -375,14 +377,19 @@ def get_submission_status(assignment_id):
         return None
     
 
-def approve_submission(assignment_id):
+def approve_submission(assignment_id, max_attempts=4, backoff=3.0):
     """
     Approve a single submission via the transition endpoint.
 
     Used for accepted submissions that cannot go through bulk-approve because they
-    are not AWAITING REVIEW (e.g. RETURNED or TIMED-OUT but the work was used).
+    are not AWAITING REVIEW (e.g. RETURNED or TIMED-OUT but the work was used) and as
+    the synchronous fallback for bulk approvals. Retries on transient errors (HTTP 429
+    rate limiting or 5xx) with a growing back-off, since firing many approvals in quick
+    succession can otherwise fail sporadically.
 
     :param assignment_id: The Prolific submission id.
+    :param max_attempts: Maximum number of attempts on transient errors.
+    :param backoff: Base seconds to wait between attempts; grows with each retry.
     :return: True if the submission was approved, False otherwise.
     """
     url = f"{base_url}/submissions/{assignment_id}/transition/"
@@ -392,16 +399,28 @@ def approve_submission(assignment_id):
         'Accept': 'application/json',
     }
     payload = {"action": "APPROVE"}
-    try:
-        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
-    except requests.exceptions.RequestException as e:
-        logger.info(f"Submission {assignment_id} - approve error: {e}")
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=30)
+        except requests.exceptions.RequestException as e:
+            logger.info(f"Submission {assignment_id} - approve error: {e}")
+            if attempt < max_attempts:
+                time.sleep(backoff * attempt)
+                continue
+            return False
+        if response.status_code == 200:
+            logger.info(f"Submission {assignment_id} approved individually.")
+            return True
+        # 429 (rate limit) and 5xx are transient: wait and retry
+        if response.status_code == 429 or response.status_code >= 500:
+            if attempt < max_attempts:
+                logger.info(f"Submission {assignment_id} approve transient error "
+                            f"(status {response.status_code}); retrying.")
+                time.sleep(backoff * attempt)
+                continue
+        logger.info(f"Submission {assignment_id} could not be approved "
+                    f"(status {response.status_code}): {response.text}")
         return False
-    if response.status_code == 200:
-        logger.info(f"Submission {assignment_id} approved individually.")
-        return True
-    logger.info(f"Submission {assignment_id} could not be approved "
-                f"(status {response.status_code}): {response.text}")
     return False
 
 
