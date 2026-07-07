@@ -222,6 +222,10 @@ def apply_coloration(signal, sr):
     Simulate coloration (voice timbre change) by randomly applying one of three
     heavy coloration styles: muffled, resonant, or telephone effect.
 
+    Cut-offs are specified in Hz and converted with the sample rate so the effect is
+    consistent across sample rates (16/24/48 kHz). The styles are deliberately strong,
+    with no clean passthrough, so the timbre change is clearly audible.
+
     :param signal: Audio signal as a numpy array.
     :param sr: Sample rate.
     :return: Colored signal as a numpy array.
@@ -231,22 +235,27 @@ def apply_coloration(signal, sr):
     style = np.random.choice(['muffled_heavy', 'resonant_heavy', 'telephone'])
 
     if style == 'muffled_heavy':
-        center_freq, bandwidth, lp_cutoff = 1200, 200, 0.12
-        mix_orig, mix_resonant, mix_muffled = 0.1, 0.3, 0.6
+        # very muffled / "underwater": aggressive low-pass, no clean passthrough
+        center_freq_hz, bandwidth_hz, lp_cutoff_hz = 900, 180, 800
+        mix_orig, mix_resonant, mix_muffled = 0.0, 0.2, 0.8
     elif style == 'resonant_heavy':
-        center_freq, bandwidth, lp_cutoff = 1000, 150, 0.20
-        mix_orig, mix_resonant, mix_muffled = 0.1, 0.7, 0.2
+        # strong narrow-band resonance (hollow / tinny)
+        center_freq_hz, bandwidth_hz, lp_cutoff_hz = 1000, 120, 2200
+        mix_orig, mix_resonant, mix_muffled = 0.0, 0.85, 0.15
     else:  # telephone
-        center_freq, bandwidth, lp_cutoff = 800, 200, 0.15
-        mix_orig, mix_resonant, mix_muffled = 0.0, 0.6, 0.4
+        # band-limited "old telephone" timbre
+        center_freq_hz, bandwidth_hz, lp_cutoff_hz = 750, 180, 1600
+        mix_orig, mix_resonant, mix_muffled = 0.0, 0.7, 0.3
 
-    low = max(0.01, (center_freq - bandwidth / 2) / (sr / 2.0))
-    high = min(0.99, (center_freq + bandwidth / 2) / (sr / 2.0))
-    high = max(low + 0.01, high)
+    nyquist = sr / 2.0
+    low = max(0.001, (center_freq_hz - bandwidth_hz / 2.0) / nyquist)
+    high = min(0.999, (center_freq_hz + bandwidth_hz / 2.0) / nyquist)
+    high = max(low + 0.001, high)
     b_bp, a_bp = butter(4, [low, high], btype='band')
     resonant = lfilter(b_bp, a_bp, signal)
 
-    b_lp, a_lp = butter(3, lp_cutoff, btype='low')
+    lp_norm = min(0.999, lp_cutoff_hz / nyquist)
+    b_lp, a_lp = butter(4, lp_norm, btype='low')
     muffled = lfilter(b_lp, a_lp, signal)
 
     colored = mix_orig * signal + mix_resonant * resonant + mix_muffled * muffled
