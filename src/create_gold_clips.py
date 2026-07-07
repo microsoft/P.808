@@ -46,7 +46,7 @@ GOLD_SOURCE_TARGET_DBOV = -26.0
 # Loudness and coloration degradations keep the first this-many seconds free of the
 # degradation (a clean reference), then apply it. Other artifacts (noise, distortion,
 # discontinuity) are applied from the beginning of the clip.
-GOLD_CLEAN_PREFIX_SEC = 3.0
+GOLD_CLEAN_PREFIX_SEC = 2.0
 
 GOLD_TYPES = {
     'clean': {

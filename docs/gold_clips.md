@@ -110,7 +110,7 @@ quality degradation, so only the `loud` dimension is targeted. When loudness is 
 artifact (distortion or noise), that other artifact drives the `ovrl` flag.
 
 **Note:** The loudness and coloration degradations keep the first few seconds of audio as a clean
-reference (`GOLD_CLEAN_PREFIX_SEC`, default 3 seconds) and only apply the degradation afterwards, so a
+reference (`GOLD_CLEAN_PREFIX_SEC`, default 2 seconds) and only apply the degradation afterwards, so a
 rater can perceive the change relative to the clean start. Other artifacts (noise, distortion,
 discontinuity) are applied from the beginning of the clip; when combined with loudness or coloration,
 the other artifact is present throughout while the loudness/coloration change appears after the prefix.
