@@ -358,13 +358,15 @@ def _apply_random_post_processing(signal, sr, gold_type):
     if gold_type in ('signal_distortion', 'both', 'distortion_noise',
                       'discontinuity', 'discontinuity_noise',
                       'coloration', 'coloration_noise'):
-        # Add smooth Gaussian-windowed bumps to raise crest factor and kurtosis
-        # without creating audible clicks
+        # Add smooth Gaussian-windowed bumps to subtly raise crest factor and kurtosis
+        # without creating audible clicks or masking the intended degradation. The
+        # amplitude is a small fraction of the signal peak; larger values (previously
+        # several times the peak) dominated the audio and hid the real degradation.
         n_bumps = np.random.randint(8, 25)
         peak_val = np.max(np.abs(signal))
         for _ in range(n_bumps):
             center = np.random.randint(0, len(signal))
-            amp = np.random.uniform(3.0, 8.0) * peak_val
+            amp = np.random.uniform(0.05, 0.2) * peak_val
             sign = np.random.choice([-1, 1])
             # Gaussian window width: 20–80 samples (~2.5–10 ms at 8kHz)
             width = np.random.randint(20, 80)
