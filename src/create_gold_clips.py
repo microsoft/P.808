@@ -474,9 +474,11 @@ def process_clip(signal, sr, gold_type, snr_db=-5.0, clip_threshold=0.005):
         # coloration starts after the clean-reference prefix
         result = _apply_delayed(signal, apply_coloration(signal, sr), sr)
     elif gold_type == 'coloration_noise':
-        # noise from the beginning; coloration delayed after the clean prefix
-        base = add_background_noise(signal, sr, snr_db)
-        result = _apply_delayed(base, apply_coloration(base, sr), sr)
+        # colour the speech first (delayed after the clean prefix), then add broadband
+        # noise on top, so the noise itself is not coloured (more realistic than
+        # colouring an already-noisy signal)
+        colored = _apply_delayed(signal, apply_coloration(signal, sr), sr)
+        result = add_background_noise(colored, sr, snr_db)
     elif gold_type == 'distortion_noise':
         result = apply_signal_distortion(signal, clip_threshold)
         result = add_background_noise(result, sr, snr_db)
