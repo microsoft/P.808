@@ -92,16 +92,29 @@ GOLD_TYPES = {
         'suffix': 'distorted_noisy',
         'p804': {'noise_ans': 1, 'ovrl_ans': 1},
     },
-    'loudness': {
-        'suffix': 'loud',
+    'loudness_high': {
+        'suffix': 'too_loud',
         'p804': {'loud_ans': 1},
     },
-    'loudness_distortion': {
-        'suffix': 'loud_distorted',
+    'loudness_low': {
+        'suffix': 'too_quiet',
+        'p804': {'loud_ans': 1},
+    },
+    'loudness_high_distortion': {
+        'suffix': 'too_loud_distorted',
+        'p804': {'loud_ans': 1, 'sig_ans': 1, 'ovrl_ans': 1},
+    },
+    'loudness_low_distortion': {
+        # too quiet (low gain): signal detail is hidden, so sig is not judged
+        'suffix': 'too_quiet_distorted',
         'p804': {'loud_ans': 1, 'ovrl_ans': 1},
     },
-    'loudness_noise': {
-        'suffix': 'loud_noisy',
+    'loudness_high_noise': {
+        'suffix': 'too_loud_noisy',
+        'p804': {'loud_ans': 1, 'noise_ans': 1, 'ovrl_ans': 1},
+    },
+    'loudness_low_noise': {
+        'suffix': 'too_quiet_noisy',
         'p804': {'loud_ans': 1, 'noise_ans': 1, 'ovrl_ans': 1},
     },
 }
@@ -456,17 +469,28 @@ def process_clip(signal, sr, gold_type, snr_db=-5.0, clip_threshold=0.005):
     elif gold_type == 'distortion_noise':
         result = apply_signal_distortion(signal, clip_threshold)
         result = add_background_noise(result, sr, snr_db)
-    elif gold_type == 'loudness':
-        # loudness starts after the clean-reference prefix
-        result = _apply_delayed(signal, apply_loudness(signal, sr), sr)
-    elif gold_type == 'loudness_distortion':
-        # distortion from the beginning; loudness delayed after the clean prefix
+    elif gold_type == 'loudness_high':
+        # too loud, applied after the clean-reference prefix
+        result = _apply_delayed(signal, apply_loudness(signal, sr, LOUDNESS_TOO_LOUD_DBOV), sr)
+    elif gold_type == 'loudness_low':
+        # too quiet (low gain), applied after the clean-reference prefix
+        result = _apply_delayed(signal, apply_loudness(signal, sr, LOUDNESS_TOO_QUIET_DBOV), sr)
+    elif gold_type == 'loudness_high_distortion':
+        # distortion from the beginning; too-loud gain delayed after the clean prefix
         base = apply_signal_distortion(signal, clip_threshold)
-        result = _apply_delayed(base, apply_loudness(base, sr), sr)
-    elif gold_type == 'loudness_noise':
-        # noise from the beginning; loudness delayed after the clean prefix
+        result = _apply_delayed(base, apply_loudness(base, sr, LOUDNESS_TOO_LOUD_DBOV), sr)
+    elif gold_type == 'loudness_low_distortion':
+        # distortion from the beginning; too-quiet gain delayed after the clean prefix
+        base = apply_signal_distortion(signal, clip_threshold)
+        result = _apply_delayed(base, apply_loudness(base, sr, LOUDNESS_TOO_QUIET_DBOV), sr)
+    elif gold_type == 'loudness_high_noise':
+        # noise from the beginning; too-loud gain delayed after the clean prefix
         base = add_background_noise(signal, sr, snr_db)
-        result = _apply_delayed(base, apply_loudness(base, sr), sr)
+        result = _apply_delayed(base, apply_loudness(base, sr, LOUDNESS_TOO_LOUD_DBOV), sr)
+    elif gold_type == 'loudness_low_noise':
+        # noise from the beginning; too-quiet gain delayed after the clean prefix
+        base = add_background_noise(signal, sr, snr_db)
+        result = _apply_delayed(base, apply_loudness(base, sr, LOUDNESS_TOO_QUIET_DBOV), sr)
     else:
         raise ValueError(f"Unknown gold type: {gold_type}")
 
