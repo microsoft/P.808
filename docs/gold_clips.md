@@ -88,16 +88,18 @@ of 1 are listed in the CSV; empty cells mean the dimension is not targeted (impl
 | Background noise | Pink noise | | | | 1 | | 1 |
 | Signal distortion | Hard clipping | | | | | 1 | 1 |
 | Discontinuity | Random segment dropouts (choppy) | | 1 | | | 1 | 1 |
-| Discontinuity + noise | Choppy + noise | | | | 1 | 1 | 1 |
+| Discontinuity + noise | Choppy + noise | | | | 1 | | 1 |
 | Coloration | Resonant/muffled/telephone filter | 1 | | | | 1 | 1 |
-| Coloration + noise | Coloration + noise | | | | 1 | 1 | 1 |
-| Distortion + noise | Clipping + noise | | | | 1 | 1 | 1 |
+| Coloration + noise | Coloration + noise | | | | 1 | | 1 |
+| Distortion + noise | Clipping + noise | | | | 1 | | 1 |
 | Loudness | Too loud (+25 dB) or too quiet (-25 dB) | | | 1 | | | |
-| Loudness + distortion | Loudness + clipping | | | 1 | | 1 | 1 |
+| Loudness + distortion | Loudness + clipping | | | 1 | | | 1 |
 | Loudness + noise | Loudness + noise | | | 1 | 1 | | 1 |
 
-**Note:** When distortion is combined with noise, only `sig` and `noise` are flagged because the
-specific type of underlying distortion is not clearly distinguishable to raters.
+**Note:** In high-noise and low-loudness cases the `sig` dimension cannot be judged reliably (the noise
+masks the signal, and a very quiet clip hides signal detail), so `sig` is not flagged for the
+noise-combined types (discontinuity/coloration/distortion + noise) or for loudness + distortion. In
+these cases the `ovrl` flag is still driven by the noise or loudness/distortion degradation.
 
 **Note:** Loudness alone does not flag `ovrl`. A level offset by itself is not treated as an overall
 quality degradation, so only the `loud` dimension is targeted. When loudness is combined with another

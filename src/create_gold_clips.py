@@ -78,7 +78,7 @@ GOLD_TYPES = {
     },
     'discontinuity_noise': {
         'suffix': 'choppy_noisy',
-        'p804': {'sig_ans': 1, 'noise_ans': 1, 'ovrl_ans': 1},
+        'p804': {'noise_ans': 1, 'ovrl_ans': 1},
     },
     'coloration': {
         'suffix': 'colored',
@@ -86,11 +86,11 @@ GOLD_TYPES = {
     },
     'coloration_noise': {
         'suffix': 'colored_noisy',
-        'p804': {'sig_ans': 1, 'noise_ans': 1, 'ovrl_ans': 1},
+        'p804': {'noise_ans': 1, 'ovrl_ans': 1},
     },
     'distortion_noise': {
         'suffix': 'distorted_noisy',
-        'p804': {'sig_ans': 1, 'noise_ans': 1, 'ovrl_ans': 1},
+        'p804': {'noise_ans': 1, 'ovrl_ans': 1},
     },
     'loudness': {
         'suffix': 'loud',
@@ -98,7 +98,7 @@ GOLD_TYPES = {
     },
     'loudness_distortion': {
         'suffix': 'loud_distorted',
-        'p804': {'loud_ans': 1, 'sig_ans': 1, 'ovrl_ans': 1},
+        'p804': {'loud_ans': 1, 'ovrl_ans': 1},
     },
     'loudness_noise': {
         'suffix': 'loud_noisy',
