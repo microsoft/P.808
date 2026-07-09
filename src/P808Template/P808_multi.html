@@ -627,6 +627,7 @@
 		Initialize the qualification section
 	*/
 	var qualification_ans = new Set();
+	var qualification_attempts = 0;
 	function initializeQualification() {
 		randomizeHearingtestItems();
 		makeCheckboxBeRequired();
@@ -640,13 +641,8 @@
 		check if the qualification all answered
 	*/
 	function isQualificationDone() {
-		
 		qualification_ans.add(this.name);
-		console.log("check if the qualification is done " + this.name + "," + qualification_ans.size);
-
-		//validateQualificationAnswer();
-		if (qualification_ans.size == 16)
-			validateQualificationAnswer();
+		// validation runs only when the participant clicks "Check answers"
 	}
 
 	/*
@@ -692,15 +688,23 @@
 			// add a qualification for 'qualificationValidFor' minutes
 			createCookie(config.qualificationCookieName, passed, config.qualificationValidFor);
 			if (passed) {
-				// activate the rest
+				// activate the rest and scroll to the setup section
 				$("#setup").removeClass("disabled2_section");
 				$("#device_check_section").removeClass("disabled2_section");
 				$("#training").removeClass("disabled2_section");
 				$("#details_instruction").removeClass("disabled2_section");
 				$("#rating_section").removeClass("disabled2_section");
+				document.getElementById("setup").scrollIntoView({ behavior: "smooth", block: "start" });
 			} else {
-				// show the error message
-				disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+				qualification_attempts++;
+				if (qualification_attempts < 2) {
+					// first failure: let the participant review and try once more
+					alert("Some of your answers are not correct. Please review your answers and click \"Check answers\" again.");
+				} else {
+					// second failure: not qualified -> screen-out
+					disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+					document.getElementById("qualification_rejected").scrollIntoView({ behavior: "smooth", block: "start" });
+				}
 			}
 		});
 
@@ -751,14 +755,23 @@
 		randomize clips in the hearing test
 	*/
 	function randomizeHearingtestItems() {
-		sections = [".rnd", ".rnd2", ".rnd4"];
+		var sections = [".rnd", ".rnd2", ".rnd4"];
 		for (var j = 0; j < sections.length; j++) {
-			var cards = $(sections[j]);
-			for (var i = 0; i < cards.length; i++) {
-				var target = Math.floor(Math.random() * cards.length - 1) + 1;
-				var target2 = Math.floor(Math.random() * cards.length - 1) + 1;
-				cards.eq(target).before(cards.eq(target2));
-			}		
+			var $cards = $(sections[j]);
+			if ($cards.length < 2)
+				continue;
+			var $parent = $cards.eq(0).parent();
+			var arr = $cards.toArray();
+			// Fisher-Yates shuffle, then re-append in the shuffled order
+			for (var i = arr.length - 1; i > 0; i--) {
+				var k = Math.floor(Math.random() * (i + 1));
+				var tmp = arr[i];
+				arr[i] = arr[k];
+				arr[k] = tmp;
+			}
+			for (var m = 0; m < arr.length; m++) {
+				$parent.append(arr[m]);
+			}
 		}
 	}
 	/*
@@ -3055,7 +3068,7 @@ function set_onclick_listeners(){
 				</fieldset>
 
 				<div class="text-center" style="margin: 15px 0;">
-					<button type="button" class="btn btn-primary" id="run_qualification_check">Run qualification check</button>
+					<button type="button" class="btn btn-primary" id="run_qualification_check">Check answers</button>
 				</div>
 
 				</div>
@@ -3630,13 +3643,19 @@ function set_onclick_listeners(){
 </section>
 
 <section class="container" id="qualification_rejected" hidden>
-	<p>There is no assignments that match to your profile now. Please try it again in two-weeks time.
-		We thank you for your participation.</p>
+	<p>Thank you for participating. Based on your answers in the screening section, you are not qualified for
+		this study.</p>
+	<p>To be paid for your effort in the screening part, please <b>submit this form</b> and enter the following
+		completion code on Prolific:</p>
+
+	<div class="alert alert-info" role="alert" style="font-size: 1.3em; text-align: center;">
+		<b>${screenout_code}</b>
+	</div>
 
 	<div class="alert alert-danger" role="alert">
 		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
-		<b>NOTE:</b> Any try to perform assignments and neglecting this message is forbidden and leads ro rejection of
-		all of your submissions.
+		<b>NOTE:</b> Any try to perform the rest of the assignment and neglecting this message is forbidden and
+		leads to rejection of all of your submissions.
 	</div>
 </section>
 
