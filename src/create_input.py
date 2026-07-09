@@ -285,6 +285,22 @@ def create_input_for_acr(cfg, df, output_path, method):
                                    (n_sessions // math_hash_source.count()) + 1)[:n_sessions]
         output_df['math_hash'] = math_hash_output
 
+    # bandwidth-check sets: sample a whole 5-clip set per session so each session's
+    # clips (comb_bw*), per-position roles (ans_comb_bw*, checked server-side) and
+    # per-position hashes (comb_bw_hash*, used client-side) stay row-aligned.
+    bw_clip_cols = [f'comb_bw{i}' for i in range(1, 6)]
+    if all(c in df.columns for c in bw_clip_cols):
+        bw_set_cols = [c for c in df.columns
+                       if c.startswith('comb_bw') or c.startswith('ans_comb_bw')]
+        bw_sets = df[bw_set_cols].dropna(subset=bw_clip_cols).reset_index(drop=True)
+        if len(bw_sets) > 0:
+            bw_idx = np.tile(np.arange(len(bw_sets)),
+                             (n_sessions // len(bw_sets)) + 1)[:n_sessions]
+            np.random.shuffle(bw_idx)
+            bw_selected = bw_sets.iloc[bw_idx].reset_index(drop=True)
+            for c in bw_set_cols:
+                output_df[c] = bw_selected[c].to_numpy()
+
     # CMPs: 4 pairs are needed for 1 session
     nPairs = 4 * n_sessions
     pair_a = df['pair_a'].dropna()

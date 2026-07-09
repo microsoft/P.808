@@ -757,36 +757,58 @@ def check_math(input, output, audio_played, expected_ans=None):
 def check_qualification_answer(row):
     checked = True
     # TODO hearing test - correct ans should be added in the inputs -update in master script is needed
-    
-    # check bw contrill
+
+    # check bw control
     if "answer.comb_bw1" not in row:
         return checked, ''
     # check if 'bw_min' and 'bw_max' are in config
     if 'bw_min' not in config['acceptance_criteria'] or 'bw_max' not in config['acceptance_criteria']:
         return checked, ''
-    
-    bw_v2_test_data ={"comb_bw1":'dq', "comb_bw2":'dq', "comb_bw3":'dq', "comb_bw4":'sq', "comb_bw5":'sq'}
-    bw_messages= {"comb_bw1":'BW TP failed', "comb_bw2":'SWB failed', "comb_bw3":'FB failed', "comb_bw4":'BW TP failed', "comb_bw5":'BW TP failed'}
-    ans_array= [0, 0, 0 ,0, 0]
+
+    # Per-position band role. Prefer the role delivered in the publish batch
+    # (input.ans_comb_bw*); fall back to the legacy fixed pattern (comb_bw1=wb obvious,
+    # comb_bw2=swb, comb_bw3=fb, comb_bw4/5=sq) so older studies are unaffected.
+    legacy_roles = {1: 'wb', 2: 'swb', 3: 'fb', 4: 'sq', 5: 'sq'}
+
+    def role_of(i):
+        key = f'input.ans_comb_bw{i}'
+        if key in row and str(row.get(key)).strip().lower() not in ('', 'nan', 'none'):
+            return str(row[key]).strip().lower()
+        return legacy_roles[i]
+
+    role_msg = {'wb': 'BW TP failed', 'swb': 'SWB failed', 'fb': 'FB failed', 'sq': 'BW TP failed'}
     msg = ''
+    # was the worker correct at the wb/swb/fb position, and at each sq position?
+    band_correct = {}
+    sq_correct = []
     for i in range(1, 6):
-        if row[f'answer.comb_bw{i}'] != bw_v2_test_data[f'comb_bw{i}']:            
-            msg += bw_messages[f'comb_bw{i}'] + ', '
-            ans_array[i-1] = 0
+        role = role_of(i)
+        expected = 'sq' if role == 'sq' else 'dq'
+        ok = str(row[f'answer.comb_bw{i}']).strip().lower() == expected
+        if not ok:
+            msg += role_msg.get(role, 'BW failed') + ', '
+        if role == 'sq':
+            sq_correct.append(ok)
         else:
-            ans_array[i-1] = 1
-    
+            band_correct[role] = ok
 
     bw_min = config['acceptance_criteria']['bw_min'].upper()
     bw_max = config['acceptance_criteria']['bw_max'].upper()
-    if ans_array[0] + ans_array[3] + ans_array[4] !=3:
-		#failed in trapping of obvious questions
-        return False, msg
-    if (bw_min == 'SWB' and ans_array[1] != 1) or (bw_min == 'FB' and ans_array[1]+ans_array[2] != 2):
-        return False, msg
 
-    if (bw_max == 'NB-WB' and ans_array[1]+ans_array[2] != 0) or (bw_max == 'SWB' and ans_array[2] != 0):
-        return False, msg	
+    # trapping of the obvious questions: the wide-band different clip and both same clips
+    if not (band_correct.get('wb', False) and len(sq_correct) == 2 and all(sq_correct)):
+        # failed in trapping of obvious questions
+        return False, msg
+    # bw_min: the worker must correctly hear the required bands
+    if bw_min == 'SWB' and not band_correct.get('swb', False):
+        return False, msg
+    if bw_min == 'FB' and not (band_correct.get('swb', False) and band_correct.get('fb', False)):
+        return False, msg
+    # bw_max: the worker must NOT hear bands above the maximum (answers "same")
+    if bw_max == 'NB-WB' and (band_correct.get('swb', False) or band_correct.get('fb', False)):
+        return False, msg
+    if bw_max == 'SWB' and band_correct.get('fb', False):
+        return False, msg
 
     return checked, msg
 
