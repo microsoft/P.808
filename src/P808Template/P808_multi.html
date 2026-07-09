@@ -1022,10 +1022,29 @@
 
 		if (c == Hide_HIT_REASON.MAX_ACHIVED)
 			$("#max_allowed_HITs_reached").show();
-		if (c == Hide_HIT_REASON.QUALIFICATON)
+		if (c == Hide_HIT_REASON.QUALIFICATON) {
+			applyScreenoutMessage();
 			$("#qualification_rejected").show();
+		}
 		if (c == Hide_HIT_REASON.GOLD_FAILED)
 			$("#gold_rejected").show();
+	}
+
+	/*
+		Decide which screen-out message to show. If a completion code was provided (either
+		baked in from the config or filled by the HIT app server), ask the participant to
+		submit the form and enter the code to be paid for the screening effort. Otherwise,
+		no code is available, so ask them to return the task.
+	*/
+	function applyScreenoutMessage() {
+		// build the placeholder token at runtime so the HIT app server's ${screenout_code}
+		// replacement does not rewrite this comparison string.
+		var placeholder = "$" + "{screenout_code}";
+		var codeEl = document.getElementById("screenout_code_value");
+		var code = codeEl ? codeEl.textContent.trim() : "";
+		var hasCode = code !== "" && code !== placeholder;
+		document.getElementById("screenout_paid_block").hidden = !hasCode;
+		document.getElementById("screenout_return_block").hidden = hasCode;
 	}
 
 	/*
@@ -3645,11 +3664,18 @@ function set_onclick_listeners(){
 <section class="container" id="qualification_rejected" hidden>
 	<p>Thank you for participating. Based on your answers in the screening section, you are not qualified for
 		this study.</p>
-	<p>To be paid for your effort in the screening part, please <b>submit this form</b> and enter the following
-		completion code on Prolific:</p>
 
-	<div class="alert alert-info" role="alert" style="font-size: 1.3em; text-align: center;">
-		<b>{{ cfg.screenout_code }}</b>
+	<div id="screenout_paid_block" hidden>
+		<p>To be paid for your effort in the screening part, please <b>submit this form</b> and enter the following
+			completion code on Prolific:</p>
+
+		<div class="alert alert-info" role="alert" style="font-size: 1.3em; text-align: center;">
+			<b id="screenout_code_value">{{ cfg.screenout_code }}</b>
+		</div>
+	</div>
+
+	<div id="screenout_return_block" hidden>
+		<p>As you are not qualified for this study, please <b>return the task</b> on Prolific.</p>
 	</div>
 
 	<div class="alert alert-danger" role="alert">
