@@ -914,11 +914,11 @@ def report_rejection_breakdown(data, wrong_vcodes, answer_path):
     Reason semantics: content checks (``gold``, ``tps``, ``math``,
     ``all_audio_played``) come from the per-submission acceptance checks;
     ``performance`` and ``max_hits`` are attributed only when the submission would
-    otherwise have been accepted; ``wrong_verification_code`` submissions are
-    tracked separately.
+    otherwise have been accepted; submissions that reached Prolific but have no
+    completed HIT App task are tracked separately.
 
     :param data: List of per-submission dicts (worker_list) after all rejection steps.
-    :param wrong_vcodes: Dataframe of wrong-verification-code submissions, or None.
+    :param wrong_vcodes: Dataframe of submissions with no completed HIT App task, or None.
     :param answer_path: Path used to derive the output CSV file names.
     :return: None.
     """
@@ -934,9 +934,10 @@ def report_rejection_breakdown(data, wrong_vcodes, answer_path):
         if not reasons:
             reasons.add('other')
         combos.append(tuple(sorted(reasons)))
-    # wrong-verification-code submissions are tracked outside worker_list
+    # submissions that reached Prolific but have no completed HIT App task are
+    # tracked outside worker_list
     if wrong_vcodes is not None and len(wrong_vcodes) > 0:
-        combos.extend([('wrong_verification_code',)] * len(wrong_vcodes))
+        combos.extend([('submitted_no_completed_hitapp_task',)] * len(wrong_vcodes))
 
     total_rejected = len(combos)
     if total_rejected == 0:
@@ -1323,7 +1324,7 @@ def save_approve_rejected_ones_for_gui(data, path, wrong_vcodes):
     if wrong_vcodes is not None:
         wrong_vcodes_assignments = wrong_vcodes[['WorkerId','AssignmentId', 'HITId']].copy()
         wrong_vcodes_assignments["Approve"] = ""
-        wrong_vcodes_assignments["Reject"] = "wrong verification code or incomplete submission"
+        wrong_vcodes_assignments["Reject"] = "Submitted on Prolific but no completed HIT App task"
         wrong_vcodes_assignments.rename(columns={'AssignmentId': 'assignmentId'}, inplace=True)        
         small_df = pd.concat([small_df, wrong_vcodes_assignments], ignore_index=True)
 
@@ -1368,7 +1369,7 @@ def save_block_list(block_list, path, wrong_v_code_freq):
     if wrong_v_code_freq is not None and len(wrong_v_code_freq) > 0:
         df2 = pd.DataFrame(wrong_v_code_freq, columns=['Worker ID'])
         df2['UPDATE BlockStatus'] = "Block"
-        df2['BlockReason'] = "Wrong verification code"
+        df2['BlockReason'] = "Submitted on Prolific but no completed HIT App task"
         # concat the two dataframes
         df = pd.concat([df, df2], ignore_index=True)
     save_csv(df, path, index=False)
@@ -1377,12 +1378,12 @@ def save_block_list(block_list, path, wrong_v_code_freq):
 def check_wrong_vcode_should_block(wrong_vcodes):
     if wrong_vcodes is None:
         return []       
-    # count the number of wrong verification code per worker
+    # count the number of submissions with no completed HIT App task per worker
     small_df = wrong_vcodes[['WorkerId']].copy()
     grouped = small_df.groupby(['WorkerId']).size().reset_index(name='counts')
-    # get the workers that have more than 5 wrong verification code
+    # get the workers that have more than 5 submissions with no completed HIT App task
     grouped = grouped[grouped.counts >= 5]
-    logger.info(f"{len(grouped.index)} workers have more than 5 wrong verification code")
+    logger.info(f"{len(grouped.index)} workers have more than 5 submissions with no completed HIT App task")
     cheater_workers_list = list(grouped['WorkerId'])
     return cheater_workers_list
 
@@ -1408,7 +1409,8 @@ def save_rejected_ones(data, path, wrong_vcodes, not_accepted_reasons, num_rej_p
 
     not_accepted_reasons_list = list(collections.Counter(not_accepted_reasons).items())
     if wrong_vcodes is not None:
-        not_accepted_reasons_list.append(('Wrong Verification Code', len(wrong_vcodes.index)))
+        not_accepted_reasons_list.append(
+            ('Submitted on Prolific but no completed HIT App task', len(wrong_vcodes.index)))
 
     if num_rej_perform != 0:
         not_accepted_reasons_list.append(('Performance', num_rej_perform))
@@ -1419,7 +1421,7 @@ def save_rejected_ones(data, path, wrong_vcodes, not_accepted_reasons, num_rej_p
     small_df.rename(columns={'assignment': 'assignmentId', 'Reject': 'feedback'}, inplace=True)
     if wrong_vcodes is not None:
         wrong_vcodes_assignments = wrong_vcodes[['AssignmentId']].copy()
-        wrong_vcodes_assignments["feedback"] = "Wrong verificatioon code or incomplete submission"
+        wrong_vcodes_assignments["feedback"] = "Submitted on Prolific but no completed HIT App task"
         wrong_vcodes_assignments.rename(columns={'AssignmentId': 'assignmentId'}, inplace=True)
         small_df = pd.concat([small_df, wrong_vcodes_assignments], ignore_index=True)
 

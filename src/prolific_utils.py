@@ -30,7 +30,7 @@ def accept_reject_submission(worker_id, assignment_id, reason):
             "control clip incorrectly", "All clips should be played", "Both earplugs should be used.", "Qualification did not passed"
         ]
         
-        if "wrong verification code" in message:
+        if "no completed HIT App task" in message or "wrong verification code" in message:
             return "REJECT", "NO_CODE"
         if any(phrase in message for phrase in control_failed_phrases):
             return "REJECT", "FAILED_CHECK"
