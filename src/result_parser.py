@@ -2240,7 +2240,22 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     # last part of prolific_export_68114a150c74b353a03bfd9e.csv
     hitgroup_id =  os.path.basename(prolific_ans_path).split('_')[-1].split('.')[0]
     not_in_hitapp['HITId'] = 'created_'+hitgroup_id+not_in_hitapp['AssignmentId']    
-    
+
+    # Separate the participants who were legitimately SCREENED OUT on Prolific from the
+    # genuine "submitted a completion code but no completed HIT App task" cases. Screened-out
+    # participants failed the in-HIT screening honestly and are already compensated by
+    # Prolific's screen-out fee, so they must not be rejected nor counted toward blocking.
+    if 'prolific_status' in not_in_hitapp.columns:
+        status_norm = (not_in_hitapp['prolific_status'].astype(str).str.strip()
+                       .str.upper().str.replace('_', ' ', regex=False))
+        screened_out = not_in_hitapp[status_norm == 'SCREENED OUT'].copy()
+        not_in_hitapp = not_in_hitapp[status_norm != 'SCREENED OUT'].copy()
+        if len(screened_out) > 0:
+            logger.info(f"** {len(screened_out)} participants were SCREENED OUT on Prolific "
+                        f"(failed the in-HIT screening); reported separately, excluded from "
+                        f"rejection and blocking.")
+            save_csv(screened_out, os.path.splitext(hitapp_ans_path)[0] + '_screened_out.csv', index=False)
+
     return merged_ans_path, not_in_hitapp
 
 def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_req, quality_bonus, platform="mturk"):
