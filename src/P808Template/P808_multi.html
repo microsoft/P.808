@@ -525,6 +525,7 @@
 		updateResult();
 		// just to check
 		checkScripts();
+		$("#run_qualification_check").on("click", validateQualificationAnswer);
 	});
 
 	async function generateHash(content) {
@@ -683,67 +684,66 @@
 		if (checkQualNumCorrect($("input[name='num5']").val().trim(), config.qualification.num5))
 			count_correct_ht++;
 		
-		bw_check = validate_bw_test();
-		
-		//console.log("count_correct_ht:"+count_correct_ht);
-		passed = m_tongue_check && device_check && working_area_checked && hearing_self_report_check && bw_check &&
-			count_correct_ht >= 3;
+		// bandwidth check is async (hash-based); finish the decision once it resolves
+		validate_bw_test().then(function (bw_check) {
+			passed = m_tongue_check && device_check && working_area_checked &&
+				hearing_self_report_check && bw_check && count_correct_ht >= 3;
 
-		
-		// add a qualification for 'qualificationValidFor' minutes
-		createCookie(config.qualificationCookieName, passed, config.qualificationValidFor);
-		if (passed){
-			// activate the rest
-			$("#setup").removeClass("disabled2_section");
-			$("#device_check_section").removeClass("disabled2_section");				
-			$("#training").removeClass("disabled2_section");
-			$("#details_instruction").removeClass("disabled2_section");			
-			$("#rating_section").removeClass("disabled2_section");
-		}else{
-			// show the error message
-			disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
-		}
+			// add a qualification for 'qualificationValidFor' minutes
+			createCookie(config.qualificationCookieName, passed, config.qualificationValidFor);
+			if (passed) {
+				// activate the rest
+				$("#setup").removeClass("disabled2_section");
+				$("#device_check_section").removeClass("disabled2_section");
+				$("#training").removeClass("disabled2_section");
+				$("#details_instruction").removeClass("disabled2_section");
+				$("#rating_section").removeClass("disabled2_section");
+			} else {
+				// show the error message
+				disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+			}
+		});
 
 	}
 
 
-	bw_v2_test_data ={
-        "comb_bw1":'dq',
-        "comb_bw2":'dq',
-        "comb_bw3":'dq',
-        "comb_bw4":'sq',
-        "comb_bw5":'sq',   
-    }
+	// Per-position correct-answer hashes injected from the publish batch
+	// (sha256(clip_url:dq|sq)). The plain answers are never rendered into the page.
+	var bwHashes = ["${comb_bw_hash1}", "${comb_bw_hash2}", "${comb_bw_hash3}", "${comb_bw_hash4}", "${comb_bw_hash5}"];
 
 	/**
-	 * Validate the band-width check
+	 * Verify one bandwidth-check answer against its hash (no plain answer in the page).
 	 **/
-	function validate_bw_test() {
-		data = bw_v2_test_data;
-		count_correct = 0;
-		ans_array = Array(5).fill(0);
-		for (var i = 1; i <6; i++) {
-			q_name = 'comb_bw'+i;			
-			ans = $("input[name='"+q_name+"']:checked").val();
-			if (ans == data[q_name]) 
-				ans_array[i-1] = 1;			
-			else
-				ans_array[i-1] = 0;
+	async function verifyBwHash(i, userAnswer) {
+		var h = bwHashes[i - 1];
+		if (!h || h === "$" + "{comb_bw_hash" + i + "}")
+			return true;
+		var url = document.getElementById("comb_bw" + i).getAttribute("data-src");
+		var data = new TextEncoder().encode(url + ":" + String(userAnswer).trim());
+		var buf = await crypto.subtle.digest("SHA-256", data);
+		var hex = Array.from(new Uint8Array(buf)).map(function (b) {
+			return b.toString(16).padStart(2, "0");
+		}).join("");
+		return hex === h;
+	}
+
+	/**
+	 * Validate the band-width check locally (hash-based). Resolves to true only when
+	 * every clip is identified correctly. The authoritative per-band bw_min/bw_max
+	 * decision is done server-side by the result parser.
+	 **/
+	async function validate_bw_test() {
+		for (var i = 1; i < 6; i++) {
+			q_name = 'comb_bw' + i;
+			ans = $("input[name='" + q_name + "']:checked").val();
+			if (!ans)
+				return false;
+			var ok = await verifyBwHash(i, ans);
+			if (!ok)
+				return false;
 		}
-		console.log(ans_array);
-		bw_min = config['bw_min'].toUpperCase();
-		bw_max = config['bw_max'].toUpperCase();
-
-		if (ans_array[0] + ans_array[3] + ans_array[4] !=3)
-			// failed in trapping of obvious questions
-			return false;
-		if ((bw_min == 'SWB' && ans_array[1] != 1) || (bw_min == 'FB' && ans_array[1]+ans_array[2] != 2))
-			return false;
-
-		if ((bw_max == 'NB-WB' && ans_array[1]+ans_array[2] != 0) || (bw_max == 'SWB' && ans_array[2] != 0))
-			return false;	
 		return true;
-}
+	}
 
 
 
@@ -2986,7 +2986,7 @@ function set_onclick_listeners(){
 					<div class="row" style="margin: 30px;">
 						<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
 							<div class="row" style="text-align:center;">
-								<span class="baudio" id="comb_bw1" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g1_cmb.wav" >&nbsp;</span>
+								<span class="baudio" id="comb_bw1" title="" data-src="${comb_bw1}" >&nbsp;</span>
 							</div>
 							<div class="row" style="margin-left:20px" >
 							<div class="radio">
@@ -3000,7 +3000,7 @@ function set_onclick_listeners(){
 			
 						<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4" >
 							<div class="row" style="text-align:center;">
-								<span class="baudio" id="comb_bw2" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g2_cmb.wav">&nbsp;</span>
+								<span class="baudio" id="comb_bw2" title="" data-src="${comb_bw2}">&nbsp;</span>
 							</div>
 							<div class="row" style="margin-left:20px" >
 							<div class="radio">
@@ -3013,7 +3013,7 @@ function set_onclick_listeners(){
 						</div>
 						<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
 							<div class="row" style="text-align:center;">
-								<span class="baudio" id="comb_bw3" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g3_cmb.wav">&nbsp;</span>
+								<span class="baudio" id="comb_bw3" title="" data-src="${comb_bw3}">&nbsp;</span>
 							</div>
 							<div class="row" style="margin-left:20px" >
 								<div class="radio">
@@ -3026,7 +3026,7 @@ function set_onclick_listeners(){
 						</div>
 						<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
 							<div class="row" style="text-align:center;">
-								<span class="baudio" id="comb_bw4" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g4_cmb.wav">&nbsp;</span>
+								<span class="baudio" id="comb_bw4" title="" data-src="${comb_bw4}">&nbsp;</span>
 							</div>
 							<div class="row" style="margin-left:20px" >
 								<div class="radio">
@@ -3039,7 +3039,7 @@ function set_onclick_listeners(){
 						</div>
 						<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
 							<div class="row" style="text-align:center;">
-								<span class="baudio" id="comb_bw5" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g5_cmb.wav">&nbsp;</span>
+								<span class="baudio" id="comb_bw5" title="" data-src="${comb_bw5}">&nbsp;</span>
 							</div>
 							<div class="row" style="margin-left:20px" >
 								<div class="radio">
@@ -3053,6 +3053,10 @@ function set_onclick_listeners(){
 					</div>
 			
 				</fieldset>
+
+				<div class="text-center" style="margin: 15px 0;">
+					<button type="button" class="btn btn-primary" id="run_qualification_check">Run qualification check</button>
+				</div>
 
 				</div>
 			</div>
