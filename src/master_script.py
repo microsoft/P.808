@@ -935,6 +935,18 @@ def extend_general_cfg_bw(general, hitapp):
     return general
 
 
+def _get_screenout_code(hitapp):
+    """
+    Resolve the study-level screen-out completion code from the HIT app config section.
+
+    :param hitapp: Config section (SectionProxy) holding the HIT app settings.
+    :return: The configured screen-out code, or the literal '${screenout_code}' placeholder
+        when it is not set, so the HIT app server can fill it at runtime.
+    """
+    code = (hitapp.get('screenout_code', '') or '').strip()
+    return code if code else '${screenout_code}'
+
+
 async def main(cfg, test_method, args):
     # check assets
     if args.general_assets:
@@ -1009,6 +1021,9 @@ async def main(cfg, test_method, args):
     general_cfg = prepare_basic_cfg(df)
     # add BW check config
     general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app)
+    # optional study-level screen-out completion code (paid for the screening effort).
+    # Left as ${screenout_code} for the HIT app server to fill when not set in the config.
+    general_cfg['screenout_code'] = _get_screenout_code(cfg_hit_app)
 
     # create hit_app
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831_fest else f"{args.project}_{test_method}.html"       
