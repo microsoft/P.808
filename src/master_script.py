@@ -11,6 +11,7 @@ import os
 import asyncio
 import base64
 import random
+import re
 import string
 
 import configparser as CP
@@ -31,6 +32,19 @@ from utils.preview_html import generate_previews
 
 #p835_personalized = "p835_personalized"
 p835_personalized = "pp835"
+
+
+def _strip_author_lines(text):
+    """
+    Remove any line containing an ``@author`` tag from a template's text.
+
+    Generated HIT-app HTML files are published to crowd workers, so personal author
+    attribution carried over from the templates is stripped out during generation.
+
+    :param text: The template file content.
+    :return: The content with any line containing ``@author`` removed.
+    """
+    return re.sub(r'(?m)^.*@author.*\r?\n?', '', text)
 
 
 def _get_cookie_value(cfg, key):
@@ -71,6 +85,7 @@ def create_analyzer_cfg_acr(cfg, template_path, out_path):
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     cfg_file = t.render(cfg=config)
 
@@ -117,6 +132,7 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path, gener
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     cfg_file = t.render(cfg=config)
 
@@ -160,6 +176,7 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     cfg_file = t.render(cfg=config)
 
@@ -225,6 +242,7 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     html = t.render(cfg=config)
 
@@ -305,6 +323,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     html = t.render(cfg=config)
 
@@ -390,6 +409,7 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     html = t.render(cfg=config)
 
@@ -518,6 +538,7 @@ async def create_hit_app_pp835_p804(
     with open(template_path, "r", encoding="utf-8") as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     html = t.render(cfg=config)
 
@@ -768,6 +789,7 @@ def create_qualification_only(args):
     template_path = os.path.join(os.path.dirname(__file__), "P808Template/Qualification.html")
     with open(template_path, "r", encoding="utf-8") as file:
         html = file.read()
+    html = _strip_author_lines(html)
 
     os.makedirs(args.project, exist_ok=True)
     out_path = os.path.join(args.project, f"{args.project}_qualification.html")
