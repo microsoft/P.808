@@ -157,6 +157,10 @@ $(function() {
 		if (qual_passed!==null && qual_passed=="true"){
 			$('.qualificationFieldset').prop("disabled", true);
 			$("#qualification").hide();
+			$("#setup").removeClass("disabled2_section");
+			$("#device_check_section").removeClass("disabled2_section");
+			$("#training").removeClass("disabled2_section");
+			$("#rating_section").removeClass("disabled2_section");
 			$("#qualification :input").removeAttr("required");
 			cookie_debug_status=cookie_debug_status+"ACR_LISTENER Exist*";
 		}
@@ -248,6 +252,7 @@ function initializeActivePageMonitoring(){
 		updateResult();
 		// just to check
 		checkScripts();
+		$("#run_qualification_check").on("click", validateQualificationAnswer);
 	});
 
 	async function generateHash(content) {
@@ -348,6 +353,7 @@ function recordError(name, message){
 	Initialize the qualification section
 */
 var qualification_ans= new Set();
+var qualification_attempts = 0;
 function initializeQualification(){
 	randomizeHearingtestItems();
     makeCheckboxBeRequired();
@@ -359,10 +365,7 @@ function initializeQualification(){
 */
 function isQualificationDone(){
 	qualification_ans.add(this.name);
-	console.log("check if the qualification is done"+this.name+","+qualification_ans.size);
-	validateQualificationAnswer();
-	if (qualification_ans.size==18)
-		validateQualificationAnswer();
+	// validation runs only when the participant clicks "Check answers"
 }
 
 /*
@@ -395,69 +398,97 @@ function validateQualificationAnswer(){
 	if (checkQualNumCorrect($("input[name='num5']").val().trim(),config.qualification.num5))
 		count_correct_ht ++;
 	//console.log("count_correct_ht:"+count_correct_ht);
-	bw_check = validate_bw_test();
-	console.log('BW ans:' +bw_check);
-	passed=  m_tongue_check && device_check && working_area_checked &&  hearing_self_report_check && bw_check &&
-		count_correct_ht>= 3;
-	console.log(passed);
-	// add a qualification for 'qualificationValidFor' minutes
-	createCookie(config.qualificationCookieName,passed,config.qualificationValidFor);
+	// bandwidth check is async (hash-based); finish the decision once it resolves
+	validate_bw_test().then(function (bw_check) {
+		passed = m_tongue_check && device_check && working_area_checked &&
+			hearing_self_report_check && bw_check && count_correct_ht >= 3;
+
+		// add a qualification for 'qualificationValidFor' minutes
+		createCookie(config.qualificationCookieName, passed, config.qualificationValidFor);
+		if (passed) {
+			// activate the rest and scroll to the setup section
+			$("#setup").removeClass("disabled2_section");
+			$("#device_check_section").removeClass("disabled2_section");
+			$("#training").removeClass("disabled2_section");
+			$("#rating_section").removeClass("disabled2_section");
+			document.getElementById("setup").scrollIntoView({ behavior: "smooth", block: "start" });
+		} else {
+			qualification_attempts++;
+			if (qualification_attempts < 2) {
+				// first failure: let the participant review and try once more
+				alert("Some of your answers are not correct. Please review your answers and click \"Check answers\" again. You have one more try.");
+			} else {
+				// second failure: not qualified -> screen-out
+				disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+				document.getElementById("qualification_rejected").scrollIntoView({ behavior: "smooth", block: "start" });
+			}
+		}
+	});
 }
 
-bw_v2_test_data ={
-		// from 3.5 to 24 kHz
-        "comb_bw1":'dq',
-		// from +8kHz to 24 kHz
-        "comb_bw2":'dq',
-		// from 15 to 24 kHz
-        "comb_bw3":'dq',
-        "comb_bw4":'sq',
-        "comb_bw5":'sq',   
-    }
+// Per-position correct-answer hashes injected from the publish batch
+// (sha256(clip_url:dq|sq)). The plain answers are never rendered into the page.
+var bwHashes = ["${comb_bw_hash1}", "${comb_bw_hash2}", "${comb_bw_hash3}", "${comb_bw_hash4}", "${comb_bw_hash5}"];
 
 /**
  * Validate the band-width check
  **/
-function validate_bw_test() {
-	data = bw_v2_test_data;
-	count_correct = 0;
-	ans_array = Array(5).fill(0);
-	for (var i = 1; i <6; i++) {
-		q_name = 'comb_bw'+i;			
-		ans = $("input[name='"+q_name+"']:checked").val();
-		if (ans == data[q_name]) 
-			ans_array[i-1] = 1;			
-		else
-			ans_array[i-1] = 0;
+/**
+ * Verify one bandwidth-check answer against its hash (no plain answer in the page).
+ **/
+async function verifyBwHash(i, userAnswer) {
+	var h = bwHashes[i - 1];
+	if (!h || h === "$" + "{comb_bw_hash" + i + "}")
+		return true;
+	var url = document.getElementById("comb_bw" + i).getAttribute("data-src");
+	var data = new TextEncoder().encode(url + ":" + String(userAnswer).trim());
+	var buf = await crypto.subtle.digest("SHA-256", data);
+	var hex = Array.from(new Uint8Array(buf)).map(function (b) {
+		return b.toString(16).padStart(2, "0");
+	}).join("");
+	return hex === h;
+}
+
+/**
+ * Validate the band-width check locally (hash-based). Resolves to true only when
+ * every clip is identified correctly. The authoritative per-band bw_min/bw_max
+ * decision is done server-side by the result parser.
+ **/
+async function validate_bw_test() {
+	for (var i = 1; i < 6; i++) {
+		q_name = 'comb_bw' + i;
+		ans = $("input[name='" + q_name + "']:checked").val();
+		if (!ans)
+			return false;
+		var ok = await verifyBwHash(i, ans);
+		if (!ok)
+			return false;
 	}
-	console.log(ans_array);
-	bw_min = config['bw_min'].toUpperCase();
-	bw_max = config['bw_max'].toUpperCase();
-
-	if (ans_array[0] + ans_array[3] + ans_array[4] !=3)
-		// failed in trapping of obvious questions
-		return false;
-	if ((bw_min == 'SWB' && ans_array[1] != 1) || (bw_min == 'FB' && ans_array[1]+ans_array[2] != 2))
-		return false;
-
-	if ((bw_max == 'NB-WB' && ans_array[1]+ans_array[2] != 0) || (bw_max == 'SWB' && ans_array[2] != 0))
-		return false;	
 	return true;
 }
 
 /*
 	randomize clips in the hearing test
 */
-	function randomizeHearingtestItems() {
-		sections = [".rnd", ".rnd2", ".rnd4"];
-		for (var j = 0; j < sections.length; j++) {
-			var cards = $(sections[j]);
-			for (var i = 0; i < cards.length; i++) {
-				var target = Math.floor(Math.random() * cards.length - 1) + 1;
-				var target2 = Math.floor(Math.random() * cards.length - 1) + 1;			
-				cards.eq(target).before(cards.eq(target2));
-			}
-    	}
+	function randomizeHearingtestItems(){
+	var sections = [".rnd", ".rnd2", ".rnd4"];
+	for (var j = 0; j < sections.length; j++) {
+		var $cards = $(sections[j]);
+		if ($cards.length < 2)
+			continue;
+		var $parent = $cards.eq(0).parent();
+		var arr = $cards.toArray();
+		// Fisher-Yates shuffle, then re-append in the shuffled order
+		for (var i = arr.length - 1; i > 0; i--) {
+			var k = Math.floor(Math.random() * (i + 1));
+			var tmp = arr[i];
+			arr[i] = arr[k];
+			arr[k] = tmp;
+		}
+		for (var m = 0; m < arr.length; m++) {
+			$parent.append(arr[m]);
+		}
+	}
 }
 
 /*
@@ -674,8 +705,27 @@ function disableTheHIT(c){
 
 	if (c == Hide_HIT_REASON.MAX_ACHIVED)
 		$("#max_allowed_HITs_reached").show();
-	if (c == Hide_HIT_REASON.QUALIFICATON)
+	if (c == Hide_HIT_REASON.QUALIFICATON) {
+		applyScreenoutMessage();
 		$("#qualification_rejected").show();
+	}
+}
+
+/*
+	Decide which screen-out message to show. If a completion code was provided (either
+	baked in from the config or filled by the HIT app server), ask the participant to
+	submit the form and enter the code to be paid for the screening effort. Otherwise,
+	no code is available, so ask them to return the task.
+*/
+function applyScreenoutMessage() {
+	// build the placeholder token at runtime so the HIT app server's ${screenout_code}
+	// replacement does not rewrite this comparison string.
+	var placeholder = "$" + "{screenout_code}";
+	var codeEl = document.getElementById("screenout_code_value");
+	var code = codeEl ? codeEl.textContent.trim() : "";
+	var hasCode = code !== "" && code !== placeholder;
+	document.getElementById("screenout_paid_block").hidden = !hasCode;
+	document.getElementById("screenout_return_block").hidden = hasCode;
 }
 
 /*
@@ -1692,7 +1742,7 @@ function questionName2Text(qName){
 		<div class="row" style="margin: 30px;">
 			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
 				<div class="row" style="text-align:center;">
-					<span class="baudio" id="comb_bw1" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g1_cmb.wav" >&nbsp;</span>
+					<span class="baudio" id="comb_bw1" title="" data-src="${comb_bw1}" >&nbsp;</span>
 				</div>
 				<div class="row" style="margin-left:20px" >
 				<div class="radio">
@@ -1706,7 +1756,7 @@ function questionName2Text(qName){
 
 			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4" >
 				<div class="row" style="text-align:center;">
-					<span class="baudio" id="comb_bw2" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g2_cmb.wav">&nbsp;</span>
+					<span class="baudio" id="comb_bw2" title="" data-src="${comb_bw2}">&nbsp;</span>
 				</div>
 				<div class="row" style="margin-left:20px" >
 				<div class="radio">
@@ -1719,7 +1769,7 @@ function questionName2Text(qName){
 			</div>
 			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
 				<div class="row" style="text-align:center;">
-					<span class="baudio" id="comb_bw3" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g3_cmb.wav">&nbsp;</span>
+					<span class="baudio" id="comb_bw3" title="" data-src="${comb_bw3}">&nbsp;</span>
 				</div>
 				<div class="row" style="margin-left:20px" >
 					<div class="radio">
@@ -1732,7 +1782,7 @@ function questionName2Text(qName){
 			</div>
 			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
 				<div class="row" style="text-align:center;">
-					<span class="baudio" id="comb_bw4" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g4_cmb.wav">&nbsp;</span>
+					<span class="baudio" id="comb_bw4" title="" data-src="${comb_bw4}">&nbsp;</span>
 				</div>
 				<div class="row" style="margin-left:20px" >
 					<div class="radio">
@@ -1745,7 +1795,7 @@ function questionName2Text(qName){
 			</div>
 			<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
 				<div class="row" style="text-align:center;">
-					<span class="baudio" id="comb_bw5" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g5_cmb.wav">&nbsp;</span>
+					<span class="baudio" id="comb_bw5" title="" data-src="${comb_bw5}">&nbsp;</span>
 				</div>
 				<div class="row" style="margin-left:20px" >
 					<div class="radio">
@@ -1760,6 +1810,10 @@ function questionName2Text(qName){
 
 	</fieldset>
 
+	<div class="text-center" style="margin: 15px 0;">
+		<button type="button" class="btn btn-primary" id="run_qualification_check">Check answers</button>
+	</div>
+
 
 	  </div>
   </div>
@@ -1770,7 +1824,7 @@ function questionName2Text(qName){
 
 
 <!-- Setup -->
-<section class="container" id="setup">
+<section class="container disabled2_section" id="setup">
 <div class="panel panel-info">
   <div class="panel-heading">
     <h3 class="panel-title">
@@ -1912,7 +1966,7 @@ function questionName2Text(qName){
 <!-- Setup  ends-->
 
 <!-- Device Check -->
-<section class="container" id="device_check_section">
+<section class="container disabled2_section" id="device_check_section">
 	<div class="panel panel-primary">
 		<div class="panel-heading">
 			<h3 class="panel-title">
@@ -1937,7 +1991,7 @@ function questionName2Text(qName){
 <!-- Device Check ends-->
 
 <!-- Training section, appears once a day-->
-<section class="container" id="training">
+<section class="container disabled2_section" id="training">
 		<div class="panel panel-primary">
 			<div class="panel-heading">
 				<h3 class="panel-title">
@@ -2051,13 +2105,27 @@ function questionName2Text(qName){
 </section>
 
 <section class="container" id="qualification_rejected" hidden>
-	<p>There is no assignments that match to your profile now. Please try it again in two-weeks time.
-	We thank you for your participation.</p>
+	<p>Thank you for participating. Based on your answers in the screening section, you are not qualified for
+		this study.</p>
+
+	<div id="screenout_paid_block" hidden>
+		<p>To be paid for your effort in the screening part, please <b>submit this form</b> and enter the following
+			completion code on Prolific:</p>
+
+		<div class="alert alert-info" role="alert" style="font-size: 1.3em; text-align: center;">
+			<b id="screenout_code_value">{{ cfg.screenout_code }}</b>
+		</div>
+	</div>
+
+	<div id="screenout_return_block" hidden>
+		<p>As you are not qualified for this study, please <b>return the task</b> on Prolific.</p>
+	</div>
 
 	<div class="alert alert-danger" role="alert">
 		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
-			  <b>NOTE:</b> Any try to perform assignments and neglecting this message is forbidden and leads ro rejection of all of your submissions.
-			</div>
+		<b>NOTE:</b> Any try to perform the rest of the assignment and neglecting this message is forbidden and
+		leads to rejection of all of your submissions.
+	</div>
 </section>
 
 
