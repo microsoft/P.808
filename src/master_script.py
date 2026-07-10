@@ -979,6 +979,17 @@ def _get_screenout_code(hitapp, key):
     return '${' + key + '}'
 
 
+def _is_true(value):
+    """
+    Interpret a config value as a boolean flag, defaulting to True.
+
+    :param value: Raw config value (string or None).
+    :return: False when the value is one of false/0/no/off (case-insensitive),
+        otherwise True.
+    """
+    return str(value).strip().lower() not in ("false", "0", "no", "off")
+
+
 async def main(cfg, test_method, args):
     # check assets
     if args.general_assets:
@@ -1058,6 +1069,22 @@ async def main(cfg, test_method, args):
     # in the config; a warning is printed for each missing code.
     general_cfg['screenout_code_qualification'] = _get_screenout_code(cfg_hit_app, 'screenout_code_qualification')
     general_cfg['screenout_code_setup'] = _get_screenout_code(cfg_hit_app, 'screenout_code_setup')
+
+    # Online (in-HIT) evaluation toggles for the qualification and setup sections
+    # (both default true). When a flag is false, the section's correct answers are not
+    # embedded in the HTML, the client-side check and its "Check answers" button are
+    # hidden, and grading is left entirely to result_parser.
+    run_online_eval_qual = _is_true(cfg_hit_app.get("run_online_eval_qualification", "true"))
+    run_online_eval_setup = _is_true(cfg_hit_app.get("run_online_eval_setup", "true"))
+    general_cfg['run_online_eval_qualification'] = "true" if run_online_eval_qual else "false"
+    general_cfg['run_online_eval_setup'] = "true" if run_online_eval_setup else "false"
+    if not run_online_eval_setup:
+        # do not embed the setup (CMP) correct answers in the page
+        general_cfg['cmp_correct_answers'] = []
+    if not run_online_eval_qual:
+        # do not embed the hearing-test answers in the page
+        for i in range(1, 6):
+            general_cfg[f'num{i}_ans'] = ""
 
     # create hit_app
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831_fest else f"{args.project}_{test_method}.html"       
