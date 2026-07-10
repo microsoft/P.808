@@ -48,8 +48,8 @@ created in the first step ([preparation](preparation.md)).
     * `[downloaded_batch_result]_votes_per_clip.csv`: Aggregated result per clip, including MOS, standard deviations, and 95% Confidence Intervals.  
     * `[downloaded_batch_result]_votes_per_cond.csv`: Aggregated result per condition.
     * `[downloaded_batch_result]_votes_per_worker.csv`: Long format of rating per clip, includes: HITId, workerid, file, vote and condition.
-    * `[downloaded_batch_result]_quantity_bonus_report.csv`: List of workers who are eligible for quantity bonus with the amount of bonus (to be used with the mturk_utils.py).
-    * `[downloaded_batch_result]_quality_bonus_report.csv`: List of workers who are eligible for quality bonus with the amount of bonus (to be used with the mturk_utils.py).
+    * `[downloaded_batch_result]_quantity_bonus_report.csv`: List of workers who are eligible for quantity bonus with the amount of bonus (to be used with the utils/mturk_utils.py).
+    * `[downloaded_batch_result]_quality_bonus_report.csv`: List of workers who are eligible for quality bonus with the amount of bonus (to be used with the utils/mturk_utils.py).
     * `[downloaded_batch_result]_extending.csv`: List of HITIds with number of assignment per each which are needed to reach a specific number of votes per clip. 
     
     
@@ -76,7 +76,7 @@ created in the first step ([preparation](preparation.md)).
 
   ``` bash
     cd src
-    python prolific_utils.py ^
+    python utils/prolific_utils.py ^
         --cfg your_prolific_configuration_file.cfg ^ 
         --review [path to you project's root directory] ^
   ```
@@ -98,7 +98,7 @@ submission.
  
     ```bash
     cd src
-    python mturk_utils.py ^
+    python utils/mturk_utils.py ^
         --cfg mturk.cfg ^
         --approve_reject [downloaded_batch_result]_accept_reject_gui.csv  
     ```
@@ -111,7 +111,7 @@ submission.
  
     ```bash
     cd src
-    python mturk_utils.py ^
+    python utils/mturk_utils.py ^
         --cfg mturk.cfg ^
         --send_bonus [downloaded_batch_result]_*_bonus_report.csv
     ```
@@ -124,7 +124,7 @@ submission.
  
      ```bash
     cd src
-    python mturk_utils.py ^
+    python utils/mturk_utils.py ^
         --cfg mturk.cfg ^
         --extend_hits [downloaded_batch_result]_extending.csv
     ```
@@ -138,7 +138,7 @@ submission.
     
         ```bash
         cd src
-        python mturk_utils.py ^
+        python utils/mturk_utils.py ^
             --cfg mturk.cfg ^
             --extended_hits_status [downloaded_batch_result]_extending.csv
         ```  

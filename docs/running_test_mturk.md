@@ -68,7 +68,7 @@ all actions (like download results, approve/reject assignments, etc.) should be 
 
     ```bash
     cd src
-    python mturk_utils.py ^
+    python utils/mturk_utils.py ^
         --cfg mturk.cfg ^
         --create_hit create_hit.cfg ^
         --create_hit_input YOUR_PROJECT_NAME_publish_batch.csv
@@ -80,7 +80,7 @@ all actions (like download results, approve/reject assignments, etc.) should be 
 1. Later, download the results
     ```bash
     cd src
-    python mturk_utils.py ^
+    python utils/mturk_utils.py ^
         --cfg mturk.cfg ^
         --answers Batch_123_456.csv
     ```
