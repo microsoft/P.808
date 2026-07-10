@@ -49,6 +49,32 @@ the URL), output clip file names are random UUIDs. The correct answer is recorde
 in the manifest (`ans_pair` / `ans_url`) and the A/B order is randomized, so the hosted file
 names reveal nothing about which clip is correct.
 
+## Building source clips with silence gaps (optional)
+
+A silent gap between the two sentences of a clip exposes the noise floor: once white noise is
+added, the listener hears the faint hiss in the quiet gap, which makes the small SNR difference
+much easier to notice on a good setup. `merge_jnd_sources.py` builds such source clips from
+pre-split segments (`<source>_p1.wav`, `<source>_p2.wav`, …), joining two segments with a silent
+lead-in, a silent gap, and a silent tail:
+
+```
+[pre silence] segment_i [mid silence] segment_j [post silence]
+```
+
+```bash
+cd src
+python utils/merge_jnd_sources.py ^
+    --input_dir C:/datasets/clean_speech/split ^
+    --output_dir C:/datasets/clean_speech/jnd_sources ^
+    --pre_sec 1.5 --mid_sec 1.5 --post_sec 0.5
+```
+
+By default every ordered pair of distinct segments is produced (`1+2`, `2+1`, `1+3`, …), named
+`<source>_p<i><j>.wav`, so a source with three segments yields six merged clips. Use `--sources`,
+`--combos`, and `--limit` to build a subset while tuning the silence lengths. Feed the resulting
+directory to `create_jnd_check_clips.py` as its `--input_dir`. A pre/mid/post of
+**1.5 / 1.5 / 0.5 s** was found to work well.
+
 ## Generating the clips
 
 ```bash
