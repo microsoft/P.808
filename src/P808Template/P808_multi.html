@@ -327,6 +327,10 @@
 		},
 		runOnlineEvalQualification: {{cfg.run_online_eval_qualification}},
 		runOnlineEvalSetup: {{cfg.run_online_eval_setup}},
+		// required active playback device for the objective listening-device check
+		requiredPlaybackDevice: "{{cfg.required_playback_device}}",
+		// microphone-to-playback coupling (dB) at/above which a loudspeaker is inferred
+		deviceCheckThresholdDb: {{cfg.device_check_threshold_db}},
 		cmp_correct_answers: {{ cfg.cmp_correct_answers }},
 		cmp_max_n_feedback: {{ cfg.cmp_max_n_feedback }},
 		cmp_pass_threshold: {{ cfg.cmp_pass_threshold }},
@@ -347,6 +351,9 @@
 	// how many times a feedback was given to the workers,
 	var n_cmp_feedbacks = 0;
 	var n_setup_feedback = 0;
+	// listening-device (acoustic echo) check state
+	var device_check_passed = false;
+	var device_check_attempts = 0;
 	const Hide_HIT_REASON = Object.freeze({ "MAX_ACHIVED": 1, "QUALIFICATON": 2, "GOLD_FAILED":3, "SETUP":4 })
 	/*
 	Initializing the page: generate and hide sections depending to the cookies value
@@ -404,10 +411,9 @@
 				$("#qualification").hide();
 				$("#qualification :input").removeAttr("required");
 				$("#setup").removeClass("disabled2_section");
-				$("#device_check_section").removeClass("disabled2_section");					
-				$("#details_instruction").removeClass("disabled2_section");	
-				$("#training").removeClass("disabled2_section");
-				$("#rating_section").removeClass("disabled2_section");
+				$("#device_check_section").removeClass("disabled2_section");
+				// details/training/rating stay locked until the device check passes
+				// (the device check re-runs every session, playback can change)
 
 				cookie_debug_status = cookie_debug_status + "ACR_LISTENER Exist*";
 			}
@@ -529,9 +535,14 @@
 		checkScripts();
 		$("#run_qualification_check").on("click", validateQualificationAnswer);
 		$("#run_setup_check").on("click", runSetupCheck);
+		// show which device the mandatory listening-device check requires
+		$("#required_device_label").text(requiredDeviceLabel());
 		if (!config.runOnlineEvalQualification) {
-			// online qualification check is disabled -> do not gate the sections
-			$(".disabled2_section").removeClass("disabled2_section");
+			// online qualification check is disabled -> do not gate on the answers, but
+			// the objective device check stays mandatory, so only unlock setup +
+			// device check here; the device check unlocks the remaining sections.
+			$("#setup").removeClass("disabled2_section");
+			$("#device_check_section").removeClass("disabled2_section");
 		}
 	});
 
@@ -695,12 +706,11 @@
 			// add a qualification for 'qualificationValidFor' minutes
 			createCookie(config.qualificationCookieName, passed, config.qualificationValidFor);
 			if (passed) {
-				// activate the rest and scroll to the setup section
+				// activate the setup + device-check sections and scroll to setup.
+				// The device check is a mandatory gate: it unlocks the remaining
+				// sections (details/training/rating) only after it passes.
 				$("#setup").removeClass("disabled2_section");
 				$("#device_check_section").removeClass("disabled2_section");
-				$("#training").removeClass("disabled2_section");
-				$("#details_instruction").removeClass("disabled2_section");
-				$("#rating_section").removeClass("disabled2_section");
 				document.getElementById("setup").scrollIntoView({ behavior: "smooth", block: "start" });
 			} else {
 				qualification_attempts++;
@@ -1784,42 +1794,179 @@ function preventTabsChangeBeforeRateRating(){
 <script type="text/javascript" id="js_part3"  nonce="csp_nonce_token">
 
 	/*
-		functions responsible to headset check
-	*/
-	function isHeadsetOn(webrtc_raw) {
-		keywords = ["headphone", "headset", "airpod", "usb audio device"]
-		for (var i = 0; i < keywords.length; i++) {
-			if (webrtc_raw.includes(keywords[i]))
-				return true;
-		}
-		return false;
-	}
+		functions responsible for the objective listening-device check.
 
-	const constraints = {
-		audio: true,
-		video: false
-	};
+		We play a short probe tone through the participant's active playback device and,
+		at the same time, record the microphone with all browser audio processing
+		(echo cancellation, automatic gain control, noise suppression) DISABLED. When a
+		loudspeaker is used, the probe leaks into the room and the microphone picks it up
+		strongly; with a headset the acoustic coupling is weak. The measured coupling (in
+		dB) and the inferred device are stored in the hidden fields for offline checking.
+	*/
 
 	/*
-		Async function to check the list of audio devices when the user allowed
+		Return the self-reported device class from the 4_ld checkboxes:
+		"headset", "loudspeaker", or null when it is ambiguous/not answered.
 	*/
-	const startHeadsetCheck = async function () {
-		$('#status').html("waiting for allowance...")
-		await navigator.mediaDevices.getUserMedia(constraints);
+	function selfReportedDeviceClass() {
+		var headsetVals = ["in-ear", "over-ear"];
+		var speakerVals = ["ex-ls", "ib-ls"];
+		var isHeadset = false, isSpeaker = false;
+		$("input[name='4_ld']:checked").each(function () {
+			var v = $(this).val();
+			if (headsetVals.indexOf(v) >= 0) isHeadset = true;
+			if (speakerVals.indexOf(v) >= 0) isSpeaker = true;
+		});
+		if (isHeadset && !isSpeaker) return "headset";
+		if (isSpeaker && !isHeadset) return "loudspeaker";
+		return null;
+	}
 
-		navigator.mediaDevices.enumerateDevices()
-			.then(devices => {
-				var device_list = "";
-				for (var i = 0; i < devices.length; i++) {
-					if (devices[i].kind.startsWith('audio')) {
-						device_list = device_list + devices[i].kind + ":" + devices[i].label.toLowerCase() + "+";
-					}
+	function sleepMs(ms) {
+		return new Promise(function (resolve) { setTimeout(resolve, ms); });
+	}
+
+	/*
+		Average the linear magnitude of the analyser spectrum in a few bins around a
+		target frequency, sampled repeatedly over a short window.
+	*/
+	async function averageBandMagnitude(analyser, audioCtx, freqHz, durationMs) {
+		var bins = new Float32Array(analyser.frequencyBinCount);
+		var binHz = audioCtx.sampleRate / analyser.fftSize;
+		var centerBin = Math.round(freqHz / binHz);
+		var acc = 0, count = 0;
+		var start = performance.now();
+		while (performance.now() - start < durationMs) {
+			analyser.getFloatFrequencyData(bins);
+			var mag = 0, n = 0;
+			for (var b = centerBin - 1; b <= centerBin + 1; b++) {
+				if (b >= 0 && b < bins.length) {
+					mag += Math.pow(10, bins[b] / 20);
+					n++;
 				}
-				headsetDetected = isHeadsetOn(device_list);
-				$("#webrtc_raw").val(device_list);
-				$("#use_headset").val(headsetDetected);
-				$("#status").html("Done. Please continue.");
-			});
+			}
+			acc += (n > 0 ? mag / n : 0);
+			count++;
+			await sleepMs(25);
+		}
+		return count > 0 ? acc / count : 0;
+	}
+
+	/*
+		Play a probe tone while recording the microphone and measure the acoustic
+		coupling. Returns { detected: "headset"|"loudspeaker", couplingDb: Number }.
+	*/
+	async function runAcousticEchoCheck() {
+		var probeHz = 1000;
+		// disable browser audio processing: echo cancellation would otherwise remove
+		// exactly the loudspeaker leakage we are trying to detect.
+		var stream = await navigator.mediaDevices.getUserMedia({
+			audio: {
+				echoCancellation: false,
+				autoGainControl: false,
+				noiseSuppression: false
+			},
+			video: false
+		});
+		var AudioCtx = window.AudioContext || window.webkitAudioContext;
+		var audioCtx = new AudioCtx();
+		if (audioCtx.state === "suspended") {
+			await audioCtx.resume();
+		}
+		var micSource = audioCtx.createMediaStreamSource(stream);
+		var analyser = audioCtx.createAnalyser();
+		analyser.fftSize = 8192;
+		analyser.smoothingTimeConstant = 0;
+		micSource.connect(analyser);
+
+		// 1. baseline energy at the probe frequency (no tone playing yet)
+		var baseline = await averageBandMagnitude(analyser, audioCtx, probeHz, 400);
+
+		// 2. play the probe tone through the active playback device and re-measure
+		var osc = audioCtx.createOscillator();
+		osc.type = "sine";
+		osc.frequency.value = probeHz;
+		var gain = audioCtx.createGain();
+		gain.gain.value = 0.4;
+		osc.connect(gain);
+		gain.connect(audioCtx.destination);
+		osc.start();
+		await sleepMs(200);
+		var withProbe = await averageBandMagnitude(analyser, audioCtx, probeHz, 600);
+		osc.stop();
+
+		// 3. clean up (nothing is kept or transmitted)
+		stream.getTracks().forEach(function (t) { t.stop(); });
+		gain.disconnect();
+		try { await audioCtx.close(); } catch (e) { /* ignore */ }
+
+		var couplingDb = 20 * Math.log10((withProbe + 1e-12) / (baseline + 1e-12));
+		var threshold = Number(config.deviceCheckThresholdDb);
+		var detected = couplingDb >= threshold ? "loudspeaker" : "headset";
+		return { detected: detected, couplingDb: couplingDb };
+	}
+
+	/*
+		Human-readable label for the required playback device.
+	*/
+	function requiredDeviceLabel() {
+		return config.requiredPlaybackDevice === "loudspeaker"
+			? "a loudspeaker"
+			: "a headset (headphones or earphones)";
+	}
+
+	/*
+		Run the device check, verify the detected device against the required device (and
+		the self-report when available), and gate the rest of the HIT. The participant is
+		allowed two tries; a second failure screens them out.
+	*/
+	const startDeviceCheck = async function () {
+		var startBtn = document.getElementById("start_headset_check");
+		$("#status").html("Checking your playback device, please wait&hellip;");
+		if (startBtn) startBtn.disabled = true;
+
+		var result;
+		try {
+			result = await runAcousticEchoCheck();
+		} catch (err) {
+			recordError(err.name, err.message);
+			$("#status").html("We could not access your microphone. Please allow microphone access in your browser and click <b>Start</b> again.");
+			if (startBtn) startBtn.disabled = false;
+			return;
+		}
+
+		$("#webrtc_raw").val("coupling_db=" + result.couplingDb.toFixed(2) + ";detected=" + result.detected);
+		$("#use_headset").val(result.detected === "headset");
+
+		var required = config.requiredPlaybackDevice;
+		var selfReport = selfReportedDeviceClass();
+		var matchesRequired = (result.detected === required);
+		var matchesSelfReport = (selfReport === null) || (result.detected === selfReport);
+
+		if (matchesRequired && matchesSelfReport) {
+			device_check_passed = true;
+			$("#status").html("Thank you, your playback device was verified. You can continue.");
+			// device check is a mandatory gate: only now unlock the following sections
+			$("#details_instruction").removeClass("disabled2_section");
+			$("#training").removeClass("disabled2_section");
+			$("#rating_section").removeClass("disabled2_section");
+			var next = document.getElementById("details_instruction");
+			if (next) next.scrollIntoView({ behavior: "smooth", block: "start" });
+			return;
+		}
+
+		// failed to confirm the required device: allow one more try, then screen out
+		device_check_attempts++;
+		if (startBtn) startBtn.disabled = false;
+		var requiredLabel = requiredDeviceLabel();
+		if (device_check_attempts < 2) {
+			$("#status").html("This task must be done with " + requiredLabel + ", but we could not confirm it. Please switch to " + requiredLabel + ", make sure it is connected, and click <b>Start</b> again. You have one more try.");
+		} else {
+			$("#status").html("We could not confirm that you are using " + requiredLabel + ".");
+			disableTheHIT(Hide_HIT_REASON.SETUP);
+			var rej = document.getElementById("setup_rejected");
+			if (rej) rej.scrollIntoView({ behavior: "smooth", block: "start" });
+		}
 	}
 
 	/*
@@ -2740,8 +2887,8 @@ function preventTabsChangeBeforeRateRating(){
 function set_onclick_listeners(){
 	document.getElementById("gold_warning_checkbox").onchange = function() { gold_warning(); };
 	document.getElementById("Math").onchange = function() { userAnsweringToSetupQuestions(); };
-	// same here: <button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
-	document.getElementById("start_headset_check").onclick = function() { startHeadsetCheck(); };
+	// device check runs an objective acoustic echo test (see startDeviceCheck)
+	document.getElementById("start_headset_check").onclick = function() { startDeviceCheck(); };
 	//<input type="checkbox" id="inst_check" name="instruction" value="understand" onchange="inst_finished('checkbox')">
 	document.getElementById("inst_check").onchange = function() { inst_finished('checkbox'); };
 
@@ -3321,12 +3468,14 @@ function set_onclick_listeners(){
 		<div class="panel-collapse collapse in" id="device_check">
 			<div class="panel-body">
 				<b>Introduction</b>
-				<p>We need to check your listening device. It is an automated test using your Web-browser functionality.
-					Please click on <b>Start</b>.
-					After that, you might see a popup message from your browser asking for allowance to use your
-					microphone.
-					Please click on <b>Allow</b> (on some of smartphones there will be no message). <u>We do not process
-						or record any audio with your microphone</u>.
+				<p>This task must be done with <b id="required_device_label">a headset</b>. We run a short automated
+					check in your Web browser to verify your active playback device. Please click on <b>Start</b>.
+					Your browser may then ask for permission to use your microphone &mdash; please click
+					<b>Allow</b> (on some smartphones there is no prompt).
+					During the check we play a brief test tone and listen with your microphone <u>only to detect
+						whether the sound comes from a headset or a loudspeaker. No audio is recorded, stored, or
+						transmitted &mdash; the measurement happens locally in your browser and is discarded
+						immediately.</u> You must pass this check to continue.
 				<div class="center">
 					<button type="button" class="btn btn-primary center" id="start_headset_check">Start</button>
 					<div id="status"> </div>
