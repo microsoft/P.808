@@ -28,6 +28,28 @@ import base64
 max_found_per_file = -1
 p835_personalized = "pp835"
 
+# Base directory used to display saved-file locations as short relative paths in the
+# log instead of long absolute paths. Set at the start of analyze_results.
+_base_dir = None
+
+
+def rel_path(p):
+    """
+    Return a file path for logging, relative to the input/answer directory.
+
+    Falls back to a path relative to the current working directory, and finally to
+    the bare file name, so the log never shows a long absolute path.
+
+    :param p: Absolute or relative file path to display.
+    :return: A short, human-friendly relative path string.
+    """
+    try:
+        base = _base_dir if _base_dir else os.getcwd()
+        return os.path.relpath(p, base)
+    except (ValueError, TypeError):
+        return os.path.basename(str(p))
+
+
 def outliers_modified_z_score(votes):
     """
     return  outliers, using modified z-score
@@ -919,7 +941,7 @@ def write_gold_summary(gold_rows, path):
     front = ['url', 'n_submission', 'max_wrong_pct']
     df = df[front + [c for c in df.columns if c not in front]]
     df.to_csv(path, index=False)
-    logger.info(f"   Gold summary saved in: {path}")
+    logger.info(f"   Gold summary saved in: {rel_path(path)}")
 
 
 def report_rejection_breakdown(data, wrong_vcodes, answer_path):
@@ -997,7 +1019,7 @@ def report_rejection_breakdown(data, wrong_vcodes, answer_path):
     matrix.insert(0, 'total', [marginal[r] for r in reasons_sorted])
     matrix.index.name = 'reason'
     matrix.to_csv(os.path.splitext(answer_path)[0] + '_rejection_reason_matrix.csv')
-    logger.info(f'   Rejection matrix saved in: {os.path.splitext(answer_path)[0]}_rejection_reason_matrix.csv')
+    logger.info(f'   Rejection matrix saved in: {rel_path(os.path.splitext(answer_path)[0] + "_rejection_reason_matrix.csv")}')
 
 
 def data_cleaning(filename, method, wrong_vcodes):
@@ -1182,7 +1204,7 @@ def data_cleaning(filename, method, wrong_vcodes):
     not_used_reasons_list = list(collections.Counter(not_using_further_reasons).items())
     not_used_reasons_list.append(('performance', num_not_used_sub_perform))
     logger.info(f"   {len(accept_and_use_sessions)} answers ({round(len(accept_and_use_sessions)*100/len(worker_list),2)}%) are good to be used further {not_used_reasons_list}")
-    logger.info(f"   Data cleaning report is saved in: {report_file}")
+    logger.info(f"   Data cleaning report is saved in: {rel_path(report_file)}")
     if 'p835' in method:
         logger.info(f"   percentage of 'sig_bak':  {round(count_sig_bak*100/len(accept_and_use_sessions),2)} %")
     return worker_list, use_sessions
@@ -1238,7 +1260,7 @@ def evaluate_rater_performance(data, use_sessions, reject_on_failure=False):
     grouped_rej = grouped[(grouped.acceptance_rate < rater_min_acceptance_rate_current_test)
                       | (grouped.used_count < rater_min_accepted_hits_current_test)]
     n_submission_removed_only_for_performance = grouped_rej['used_count'].sum()
-    logger.info(f'{n_submission_removed_only_for_performance} sessions are removed only becuase of performance criteria ({section}).')
+    logger.info(f'{n_submission_removed_only_for_performance} sessions are removed only because of performance criteria ({section}).')
     workers_list_to_remove = list(grouped_rej['worker_id'])
     
     result = []
@@ -1534,7 +1556,7 @@ def calc_quantity_bonuses(answer_list, conf, path):
 
     if path is not None:
         if save_csv(merged, path, index=False):
-            logger.info(f'   Quantity bonuses report is saved in: {path}')
+            logger.info(f'   Quantity bonuses report is saved in: {rel_path(path)}')
     return merged
 
 
@@ -1661,7 +1683,7 @@ def calc_quality_bonuses(
     else:
         smaller_df = pd.DataFrame(columns=['workerId',	'r', 'accept', 'assignmentId', 	'bonusAmount', 'reason'])
     if save_csv(smaller_df.head(max_workers), path, index=False):
-        logger.info(f'   Quality bonuses report is saved in: {path}')
+        logger.info(f'   Quality bonuses report is saved in: {rel_path(path)}')
 
 
 def write_dict_as_csv(dic_to_write, file_name, *args, **kwargs):
@@ -2031,7 +2053,7 @@ def calc_payment_stat(df):
     avg_pay = 3600*float(paymnet[0])/median_time_in_sec
     formatted_time = time.strftime("%M:%S", time.gmtime(median_time_in_sec))
 
-    return formatted_time, avg_pay
+    return formatted_time, round(avg_pay, 2)
 
 
 def calc_stats(input_file):
@@ -2070,10 +2092,34 @@ def calc_stats(input_file):
     else:
         only_r_time = 'No-case'
         only_r_pay = 'No-case'
+
+    def _fmt_pct(count):
+        """
+        Format a submission share as a percentage string with two decimals.
+
+        :param count: Number of submissions in the sub-set.
+        :return: A string such as '78.07%', or 'N/A' when the batch is empty.
+        """
+        n_all = len(df.index)
+        return f"{100 * count / n_all:.2f}%" if n_all else 'N/A'
+
+    def _fmt_pay(value):
+        """
+        Format a payment-per-hour value with two decimals, passing non-numeric
+        markers (e.g. 'No-case', None) through unchanged.
+
+        :param value: A numeric payment-per-hour value or a non-numeric marker.
+        :return: A two-decimal string for numbers, 'N/A' for None, else str(value).
+        """
+        if isinstance(value, (int, float)):
+            return f"{value:.2f}"
+        return 'N/A' if value is None else str(value)
+
     data = {'Case': ['All submissions', 'All sections', 'Only rating'],
-            'Percent of submissions': [1, len(df_full.index)/len(df.index), len(only_rating.index)/len(df.index)],
+            'Percent of submissions': [_fmt_pct(len(df.index)), _fmt_pct(len(df_full.index)),
+                                       _fmt_pct(len(only_rating.index))],
             'Work duration (median) MM:SS': [overall_time, full_time, only_r_time ],
-            'payment per hour ($)': [overall_pay, full_pay, only_r_pay]}
+            'payment per hour ($)': [_fmt_pay(overall_pay), _fmt_pay(full_pay), _fmt_pay(only_r_pay)]}
     stat = pd.DataFrame.from_dict(data)
     logger.info('Payment statistics:')
     logger.info(stat.to_string(index=False))
@@ -2131,6 +2177,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     """
     prolific_ans = pd.read_csv(prolific_ans_path, low_memory=False)
     hitapp_ans = pd.read_csv(hitapp_ans_path, low_memory=False)
+    logger.info('Combining the Prolific export with the HIT App server answers:')
     # copy index as id column
     hitapp_ans['h_id'] = hitapp_ans.index
     prolific_ans['p_id'] = prolific_ans.index   
@@ -2156,7 +2203,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     save_csv(hitapp_ans_incomplete, os.path.splitext(hitapp_ans_path)[0] + '_incomplete_submissions.csv', index=False)
     unique_assignments = hitapp_ans_incomplete['hitapp_assignmentid'].unique()
     # print the size
-    logger.info(f"** {len(unique_assignments)} submissions are not completed by the workers.")
+    logger.info(f"   - {len(unique_assignments)} submissions are not completed by the workers.")
     
     # prolific rename columsn
     prolific_ans.rename(columns={"Participant id": "prolific_participant_id",
@@ -2191,12 +2238,12 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     count_duplicate_prolific = prolific_ans['prolific_submission_id'].duplicated(keep='first')
     count_duplicate_hitapp = hitapp_ans['hitapp_assignmentid'].duplicated(keep='first')
     if count_duplicate_prolific.any():
-        logger.info(f"** {len(prolific_ans[count_duplicate_prolific])} duplicates in the Prolific data.")
+        logger.info(f"   - {len(prolific_ans[count_duplicate_prolific])} duplicates in the Prolific data.")
         # save the duplicates in a separate file
         prolific_ans[count_duplicate_prolific].to_csv(prolific_ans_path.replace('.csv' , '_duplicate_submission_id.csv'), index=False)
         prolific_ans.drop_duplicates(subset=['prolific_submission_id'], keep='first', inplace=True)
     if count_duplicate_hitapp.any():
-        logger.info(f"** {len(hitapp_ans[count_duplicate_hitapp])} duplicates in the HITAPP data.")
+        logger.info(f"   - {len(hitapp_ans[count_duplicate_hitapp])} duplicates in the HITAPP data.")
         # save the duplicates in a separate file
         hitapp_ans[count_duplicate_hitapp].to_csv(hitapp_ans_path.replace('.csv' , '_duplicate_assignment_id.csv'), index=False)
         hitapp_ans.drop_duplicates(subset=['hitapp_assignmentid'], keep='first', inplace=True)   
@@ -2205,13 +2252,13 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     #not_in_hitapp = prolific_ans[~prolific_ans['Answer.v_code'].isin(hitapp_ans.v_code)]
     not_in_hitapp = prolific_ans[~prolific_ans['prolific_submission_id'].isin(hitapp_ans.hitapp_assignmentid)].copy()
     # print the lenght
-    logger.info(f"** {len(not_in_hitapp)} submissions are not found in the HITAPP server.")
+    logger.info(f"   - {len(not_in_hitapp)} submissions are not found in the HITAPP server.")
     # Todo check if it can be adapted
     #recover_submission_withoiut_matching_vcode(hitapp_ans, amt_ans, not_in_hitapp)
 
     # print number of rows for both dataframes
-    logger.info(f"** {len(prolific_ans)} rows in the Prolific data.")
-    logger.info(f"** {len(hitapp_ans)} rows in the HITAPP server data.")
+    logger.info(f"   - {len(prolific_ans)} rows in the Prolific data.")
+    logger.info(f"   - {len(hitapp_ans)} rows in the HITAPP server data.")
     #merged = pd.merge(hitapp_ans, prolific_ans, left_on='v_code', right_on='Answer.v_code')
     merged = pd.merge(hitapp_ans, prolific_ans, left_on='hitapp_assignmentid', right_on='prolific_submission_id')
     # save as tmp
@@ -2231,7 +2278,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     hitapp_ans_not_found_in_amt = hitapp_ans[~hitapp_ans['h_id'].isin(merged['h_id'])]
     save_csv(hitapp_ans_not_found_in_amt, os.path.splitext(hitapp_ans_path)[0] + '_not_found_in_prolific.csv', index=False)
     # print the size
-    logger.info(f"** {len(hitapp_ans_not_found_in_amt)} submissions in HITAPP data are not found in the Prolific data.")
+    logger.info(f"   - {len(hitapp_ans_not_found_in_amt)} submissions in HITAPP data are not found in the Prolific data.")
 
     # add WorkerId and AssignmentId to the not_in_hitapp dataframe
     not_in_hitapp['WorkerId'] = not_in_hitapp['prolific_participant_id']
@@ -2251,7 +2298,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
         screened_out = not_in_hitapp[status_norm == 'SCREENED OUT'].copy()
         not_in_hitapp = not_in_hitapp[status_norm != 'SCREENED OUT'].copy()
         if len(screened_out) > 0:
-            logger.info(f"** {len(screened_out)} participants were SCREENED OUT on Prolific "
+            logger.info(f"   - {len(screened_out)} participants were SCREENED OUT on Prolific "
                         f"(failed the in-HIT screening); reported separately, excluded from "
                         f"rejection and blocking.")
             save_csv(screened_out, os.path.splitext(hitapp_ans_path)[0] + '_screened_out.csv', index=False)
@@ -2272,6 +2319,8 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
     """
     global question_name_suffix
     global suffixes
+    global _base_dir
+    _base_dir = os.path.dirname(os.path.abspath(answer_path))
     suffixes, question_name_suffix = get_ans_suffixes(test_method)
     all_data_per_worker = []
     if prolific_ans_path:
@@ -2323,7 +2372,7 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
                 u_session_update.append(us)
         logger.info(f' {len(accepted_sessions) - len(u_session_update)} sessions removed due to low IRR')
         accepted_sessions = u_session_update
-        logger.info(f' {len(accepted_sessions) } ({round(len(accepted_sessions)*100/len(full_data),2)}%) sessions are remained')
+        logger.info(f' {len(accepted_sessions) } ({round(len(accepted_sessions)*100/len(full_data),2)}%) sessions remained')
 
     # votes_per_file, votes_per_condition = transform(accepted_sessions)
     if len(accepted_sessions) > 1:
@@ -2363,11 +2412,11 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
             headers = create_headers_for_per_file_report(test_method, condition_keys)
             
             write_dict_as_csv(votes_per_file, votes_per_file_path, headers=headers)
-            logger.info(f'   Votes per files are saved in: {votes_per_file_path}')
+            logger.info(f'   Votes per files are saved in: {rel_path(votes_per_file_path)}')
             if use_condition_level:
                 vote_per_condition = sorted(vote_per_condition, key=lambda i: i['condition_name'])
                 write_dict_as_csv(vote_per_condition, votes_per_cond_path)
-                logger.info(f'   Votes per files are saved in: {votes_per_cond_path}')
+                logger.info(f'   Votes per conditions are saved in: {rel_path(votes_per_cond_path)}')
                 condition_set.append(pd.DataFrame(vote_per_condition))
             if create_per_worker:
                 write_dict_as_csv(
