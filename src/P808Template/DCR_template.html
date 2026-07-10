@@ -207,6 +207,7 @@ $(function() {
 		updateResult();
 		checkScripts();
 		$("#run_qualification_check").on("click", validateQualificationAnswer);
+		$("#run_setup_check").on("click", runSetupCheck);
 	});
 
 	async function generateHash(content) {
@@ -496,10 +497,25 @@ function isCMPAnsCorrect(selected_url){
 }
 
 // add this to onload of page
-function cmp_check_on_load(){
-	$('#setup').find(':input').filter(':visible').each(function(){
-	  $(this).on('change', validateCMPSection);
-	});
+function runSetupCheck() {
+	// Require every setup question to be answered before evaluating, then run the
+	// same validation used for the setup (CMP + math) section.
+	for (var i = 1; i < 5; i++) {
+		if (!$("input[name='cmp" + i + "']:checked").val()) {
+			alert("Please answer all questions in the setup section before checking your answers.");
+			return;
+		}
+	}
+	if (!$('#Math').val()) {
+		alert("Please answer all questions in the setup section before checking your answers.");
+		return;
+	}
+	validateCMPSection();
+}
+
+function cmp_check_on_load() {
+	// The setup section is evaluated when the participant clicks "Check answers"
+	// (see runSetupCheck / #run_setup_check), not automatically on each input change.
 }
 
 async function verifyMathHash(userAnswer){
@@ -1600,6 +1616,10 @@ function generate_rating_section(){
 		</div>
 
 		</fieldset>
+
+		<div class="text-center" style="margin: 15px 0;">
+			<button type="button" class="btn btn-primary" id="run_setup_check">Check answers</button>
+		</div>
 
 	  </div>
   </div>
