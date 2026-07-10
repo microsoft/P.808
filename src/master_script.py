@@ -701,18 +701,38 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
     return result
 
 
+def _correct_pair_url(row):
+    """
+    Return the correct (better-quality) clip URL of a JND setup pair.
+
+    Prefer the explicit ``pair_ans`` answer (the URL of the correct/cleaner clip) when
+    it is present; this is required for anonymized clips whose file names do not encode
+    the SNR. Otherwise fall back to the legacy convention where the higher-SNR clip -
+    the one whose file name starts with the larger 2-digit SNR prefix - is correct.
+
+    :param row: A dataframe row (Series) with ``pair_a`` / ``pair_b`` and optionally
+        ``pair_ans``.
+    :return: The correct clip URL as a string.
+    """
+    ans = row.get("pair_ans") if "pair_ans" in row.index else None
+    if isinstance(ans, str) and ans.strip():
+        return ans.strip()
+    a = int((row["pair_a"].rsplit("/", 1)[-1])[:2])
+    b = int((row["pair_b"].rsplit("/", 1)[-1])[:2])
+    return row["pair_a"] if a > b else row["pair_b"]
+
+
 def prepare_basic_cfg(df):
     config = {}
-    only_cfgs = df[["pair_a", "pair_b"]].copy()
+    pair_cols = ["pair_a", "pair_b"] + (["pair_ans"] if "pair_ans" in df.columns else [])
+    only_cfgs = df[pair_cols].copy()
     only_cfgs.dropna(subset=["pair_a"], inplace=True)
     cmp_correct_hashes = []
     for index, row in only_cfgs.iterrows():
-        a = int((row["pair_a"].rsplit("/", 1)[-1])[:2])
-        b = int((row["pair_b"].rsplit("/", 1)[-1])[:2])
-        url = row["pair_a"] if a > b else row["pair_b"]
-        # SHA-256 hex of the correct (louder) clip URL, so the plain answer is not
-        # exposed in the page (mirrors the bandwidth-check hashing). The client verifies
-        # a selected clip by hashing its URL and matching against this list.
+        # SHA-256 hex of the correct clip URL, so the plain answer is not exposed in the
+        # page (mirrors the bandwidth-check hashing). The client verifies a selected clip
+        # by hashing its URL and matching against this list.
+        url = _correct_pair_url(row)
         cmp_correct_hashes.append(hashlib.sha256(url.encode("utf-8")).hexdigest())
 
     # randomly select numbers for hearing test
