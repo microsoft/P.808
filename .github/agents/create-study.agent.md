@@ -621,11 +621,20 @@ quantity_bonus: 0.1
 quality_top_percentage: 20
 quality_bonus: 0.15
 contact_email:USER_PROVIDED_EMAIL
+# Optional screen-out completion codes, paid on the platform for the screening effort.
+# Leave unset to keep the ${screenout_code_qualification} / ${screenout_code_setup}
+# placeholder for the HIT App Server to fill; with no code the participant returns the task.
+#screenout_code_qualification: XXXXXXXX
+#screenout_code_setup: XXXXXXXX
 ```
 
 **Key rules:**
 - `number_of_gold_clips_per_session` = **2 for P.804**, 1 for others.
 - `bw_min` defaults to `FB`. Valid: `NB-WB`, `SWB`, `FB`.
+- `screenout_code_qualification` / `screenout_code_setup` (optional) = completion codes a
+  screened-out participant enters on the platform to be paid for the screening effort. If unset,
+  the master script prints a warning and leaves a `${...}` placeholder for the HIT App Server to
+  fill; when no code is provided at all, the participant is asked to return the task.
 - `contact_email` = user-provided. Never hardcode.
 - `allowed_max_hit_in_project` = `BEST_PRACTICE_ALLOWED_MAX_HITS`.
 - `quantity_hits_more_than` ≈ `floor(total_sessions / 2)`, at least 2.

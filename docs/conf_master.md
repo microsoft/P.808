@@ -58,6 +58,18 @@ eligible for quantity bonus).
 * `quality_bonus: 0.15`: The amount of the quality bonus per accepted assignment.
 * `bw_min: FB `: minimum bandwidth that participants playback should support, can be "NB-WB", "SWB", "FB"
 * `bw_max: FB `: maximum bandwidth that participants playback should support, can be "NB-WB", "SWB", "FB"
+* (optional) `show_qualification: true`: Whether the in-HIT qualification section is shown (`true`/`false`).
+Set to `false` when the qualification is run as a separate study (e.g. a Prolific screener). Default: `true`.
+* (optional) `screenout_code_qualification:`: Study-level completion code shown to a participant who fails the
+in-HIT **qualification** (bandwidth/hearing) check on their final attempt. They enter it on the crowdsourcing
+platform (e.g. Prolific) to be paid for their screening effort.
+* (optional) `screenout_code_setup:`: Same as `screenout_code_qualification`, but shown when a participant fails
+the **setup** (listening environment/attention) check after the allowed number of attempts.
+
+If a screen-out code is not set, `master_script.py` prints a warning at generation time and leaves the
+`${screenout_code_qualification}` / `${screenout_code_setup}` placeholder in the generated HIT so the HIT App
+Server can fill it at run time. When neither the configuration nor the server provides a code, the participant is
+asked to **return the task** instead of being paid for the screening.
 
 
 ## `[acr_html]` or `[p835_html]` _deprecated_ 
