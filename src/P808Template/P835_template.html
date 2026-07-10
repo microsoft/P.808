@@ -620,15 +620,29 @@ function validateCMPSection(){
 	// 2. check math question via SHA-256 hash (client-side pre-check)
 	verifyMathHash(math_ans).then(function(mathCorrect) {
 		if (!mathCorrect) {
-			n_setup_feedback ++;
-			if (n_setup_feedback < config["cmp_max_n_feedback"]) {
-				alert("Please listen carefully and answer the math question correctly. Make sure both earbuds are working.");
-				return;
-			}
+			setupCheckFailed("Please listen carefully and answer the math question correctly. Make sure both earbuds are working and you are in a quiet environment.");
+			return;
 		}
 		validateCMPSectionAfterMath(cmp_answers);
 	});
 	return;
+}
+
+function setupCheckFailed(msg) {
+	// The setup allows up to two attempts. On the first failure the participant is
+	// asked to fix their setup and try once more; a second failure screens them out.
+	removeCookie(config['cookieName'] + "_setup");
+	n_cmp_feedbacks++;
+	if (n_cmp_feedbacks < 2) {
+		makeAllCMPsUnChecked();
+		alert(msg + " You have one more try.");
+	} else {
+		$('#setup').find(':input').filter(':visible').each(function () {
+			$(this).off('change');
+		});
+		disableTheHIT(Hide_HIT_REASON.SETUP);
+		document.getElementById("setup_rejected").scrollIntoView({ behavior: "smooth", block: "start" });
+	}
 }
 
 async function validateCMPSectionAfterMath(cmp_answers){
@@ -650,21 +664,7 @@ async function validateCMPSectionAfterMath(cmp_answers){
 		if (setupNext) setupNext.scrollIntoView({ behavior: "smooth", block: "start" });
 		return;
 	}
-	removeCookie(config['cookieName']+"_setup");
-	if (n_cmp_feedbacks < config["cmp_max_n_feedback"] - 1) {
-		n_cmp_feedbacks++;
-		msg = "Based on your answers, your environment is NOT quite enough or your setup is NOT good enough. Please make sure to do your task in a quite environment with headset and use both earpods. Try the Setup section again.";
-		makeAllCMPsUnChecked();
-		alert(msg);
-	} else {
-		// setup failed after the allowed number of attempts -> screen the worker out
-		n_cmp_feedbacks++;
-		$('#setup').find(':input').filter(':visible').each(function () {
-			$(this).off('change');
-		});
-		disableTheHIT(Hide_HIT_REASON.SETUP);
-		document.getElementById("setup_rejected").scrollIntoView({ behavior: "smooth", block: "start" });
-	}
+	setupCheckFailed("Based on your answers, your environment is not quiet enough or your setup is not good enough. Please make sure you are in a quiet environment, wearing a headset with both earbuds.");
 }
 
 function makeAllCMPsUnChecked(){
