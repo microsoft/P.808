@@ -353,7 +353,6 @@
 	var n_setup_feedback = 0;
 	// listening-device (acoustic echo) check state
 	var device_check_passed = false;
-	var device_check_attempts = 0;
 	const Hide_HIT_REASON = Object.freeze({ "MAX_ACHIVED": 1, "QUALIFICATON": 2, "GOLD_FAILED":3, "SETUP":4 })
 	/*
 	Initializing the page: generate and hide sections depending to the cookies value
@@ -410,10 +409,9 @@
 				$('.qualificationFieldset').prop("disabled", true);
 				$("#qualification").hide();
 				$("#qualification :input").removeAttr("required");
-				$("#setup").removeClass("disabled2_section");
 				$("#device_check_section").removeClass("disabled2_section");
-				// details/training/rating stay locked until the device check passes
-				// (the device check re-runs every session, playback can change)
+				// setup/details/training/rating stay locked until the device check
+				// passes (the device check re-runs every session, playback can change)
 
 				cookie_debug_status = cookie_debug_status + "ACR_LISTENER Exist*";
 			}
@@ -539,9 +537,8 @@
 		$("#required_device_label").text(requiredDeviceLabel());
 		if (!config.runOnlineEvalQualification) {
 			// online qualification check is disabled -> do not gate on the answers, but
-			// the objective device check stays mandatory, so only unlock setup +
-			// device check here; the device check unlocks the remaining sections.
-			$("#setup").removeClass("disabled2_section");
+			// the objective device check stays mandatory, so only unlock the device
+			// check here; passing it unlocks the remaining sections.
 			$("#device_check_section").removeClass("disabled2_section");
 		}
 	});
@@ -670,16 +667,10 @@
 		m_tongue = $("input[name='3_mother_tongue']").val().toLowerCase().trim();
 		m_tongue_check = config.qualification.mother_tongue.includes(m_tongue)
 		
-		// check listening devices
-		var listening_device = [];
-		$.each($("input[name='4_ld']:checked"), function () {
-			listening_device.push($(this).val());
-		});
-		device_check = false;
-		for (var i = 0; i < listening_device.length; i++) {
-			device_check = device_check || config.qualification.ld_in.includes(listening_device[i]);
-		}
-		
+		// check listening-device self-report against the required playback device
+		// (headset -> in-ear/over-ear, loudspeaker -> ex-ls/ib-ls). The objective
+		// device check later verifies the actual active device.
+		device_check = (selfReportedDeviceClass() === config.requiredPlaybackDevice);
 
 		working_area_checked = $("input[name='7_working_area']:checked").val() == "N"
 		
@@ -706,12 +697,10 @@
 			// add a qualification for 'qualificationValidFor' minutes
 			createCookie(config.qualificationCookieName, passed, config.qualificationValidFor);
 			if (passed) {
-				// activate the setup + device-check sections and scroll to setup.
-				// The device check is a mandatory gate: it unlocks the remaining
-				// sections (details/training/rating) only after it passes.
-				$("#setup").removeClass("disabled2_section");
+				// device check is the mandatory next step directly after qualification;
+				// it unlocks setup + the remaining sections only after it passes.
 				$("#device_check_section").removeClass("disabled2_section");
-				document.getElementById("setup").scrollIntoView({ behavior: "smooth", block: "start" });
+				document.getElementById("device_check_section").scrollIntoView({ behavior: "smooth", block: "start" });
 			} else {
 				qualification_attempts++;
 				if (qualification_attempts < 2) {
@@ -992,7 +981,7 @@
 			// valid response in cmp
 			createCookie(config['cookieName'] + "_setup", "un_important", config['showSetupEveryMinutes']);
 			alert("Your setup looks good. You can continue with the task.");
-			var setupNext = document.getElementById("device_check_section");
+			var setupNext = document.getElementById("details_instruction");
 			if (setupNext) setupNext.scrollIntoView({ behavior: "smooth", block: "start" });
 			return;
 		}
@@ -1910,15 +1899,13 @@ function preventTabsChangeBeforeRateRating(){
 		Human-readable label for the required playback device.
 	*/
 	function requiredDeviceLabel() {
-		return config.requiredPlaybackDevice === "loudspeaker"
-			? "a loudspeaker"
-			: "a headset (headphones or earphones)";
+		return deviceLabelFor(config.requiredPlaybackDevice);
 	}
 
 	/*
-		Run the device check, verify the detected device against the required device (and
-		the self-report when available), and gate the rest of the HIT. The participant is
-		allowed two tries; a second failure screens them out.
+		Run the objective device check, compare the detected device with the required
+		device, and gate the rest of the HIT. On a mismatch the participant chooses how
+		to proceed (retry / no device / dispute); see wireDeviceCheckOptions.
 	*/
 	const startDeviceCheck = async function () {
 		var startBtn = document.getElementById("start_headset_check");
@@ -1939,34 +1926,87 @@ function preventTabsChangeBeforeRateRating(){
 		$("#use_headset").val(result.detected === "headset");
 
 		var required = config.requiredPlaybackDevice;
-		var selfReport = selfReportedDeviceClass();
-		var matchesRequired = (result.detected === required);
-		var matchesSelfReport = (selfReport === null) || (result.detected === selfReport);
-
-		if (matchesRequired && matchesSelfReport) {
-			device_check_passed = true;
-			$("#status").html("Thank you, your playback device was verified. You can continue.");
-			// device check is a mandatory gate: only now unlock the following sections
-			$("#details_instruction").removeClass("disabled2_section");
-			$("#training").removeClass("disabled2_section");
-			$("#rating_section").removeClass("disabled2_section");
-			var next = document.getElementById("details_instruction");
-			if (next) next.scrollIntoView({ behavior: "smooth", block: "start" });
+		if (result.detected === required) {
+			passDeviceCheck();
 			return;
 		}
 
-		// failed to confirm the required device: allow one more try, then screen out
-		device_check_attempts++;
+		// detected device does not match the required device: ask the participant to
+		// confirm / dispute and choose how to proceed (see wireDeviceCheckOptions).
 		if (startBtn) startBtn.disabled = false;
-		var requiredLabel = requiredDeviceLabel();
-		if (device_check_attempts < 2) {
-			$("#status").html("This task must be done with " + requiredLabel + ", but we could not confirm it. Please switch to " + requiredLabel + ", make sure it is connected, and click <b>Start</b> again. You have one more try.");
-		} else {
-			$("#status").html("We could not confirm that you are using " + requiredLabel + ".");
-			disableTheHIT(Hide_HIT_REASON.SETUP);
-			var rej = document.getElementById("setup_rejected");
-			if (rej) rej.scrollIntoView({ behavior: "smooth", block: "start" });
-		}
+		var detectedLabel = deviceLabelFor(result.detected);
+		var requiredLabel = deviceLabelFor(required);
+		$("#status").html("");
+		$("#device_check_detected").text(detectedLabel);
+		$("#device_check_required").text(requiredLabel);
+		$(".device_check_required_inline").text(requiredLabel);
+		$("input[name='device_check_choice']").prop("checked", false);
+		$("#device_check_result").show();
+		document.getElementById("device_check_result").scrollIntoView({ behavior: "smooth", block: "center" });
+	}
+
+	/*
+		Human-readable label for a device class, without the leading article.
+	*/
+	function deviceLabelFor(deviceClass) {
+		return deviceClass === "loudspeaker"
+			? "a loudspeaker"
+			: "a headset (headphones or earphones)";
+	}
+
+	/*
+		Passing the device check is the mandatory gate: unlock setup and the remaining
+		sections and scroll to the setup section.
+	*/
+	function passDeviceCheck() {
+		device_check_passed = true;
+		$("#device_check_result").hide();
+		$("#status").html("Thank you, your playback device was verified. You can continue.");
+		$("#setup").removeClass("disabled2_section");
+		$("#details_instruction").removeClass("disabled2_section");
+		$("#training").removeClass("disabled2_section");
+		$("#rating_section").removeClass("disabled2_section");
+		var next = document.getElementById("setup");
+		if (next) next.scrollIntoView({ behavior: "smooth", block: "start" });
+	}
+
+	/*
+		Wire the three options shown when the detected device does not match the required
+		one:
+		  - retry: the participant will fix their setup and run the check again;
+		  - no_device: they do not have the required device -> screen out with the
+		    qualification completion code;
+		  - dispute: they insist they are using the required device -> log the
+		    disagreement and let them continue.
+	*/
+	function wireDeviceCheckOptions() {
+		var submitBtn = document.getElementById("device_check_choice_submit");
+		if (!submitBtn) return;
+		submitBtn.onclick = function () {
+			var choice = $("input[name='device_check_choice']:checked").val();
+			if (!choice) {
+				alert("Please select one of the options.");
+				return;
+			}
+			if (choice === "retry") {
+				$("#device_check_result").hide();
+				$("#status").html("Please change your setup to the required device, then click <b>Start</b> again.");
+				var startBtn = document.getElementById("start_headset_check");
+				if (startBtn) startBtn.disabled = false;
+			} else if (choice === "no_device") {
+				// participant does not have the required device -> screen out (paid code)
+				var raw = $("#webrtc_raw").val();
+				$("#webrtc_raw").val(raw + ";user_choice=no_device");
+				disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+				var rej = document.getElementById("qualification_rejected");
+				if (rej) rej.scrollIntoView({ behavior: "smooth", block: "start" });
+			} else if (choice === "dispute") {
+				// participant disputes the detection -> log it and let them continue
+				var raw2 = $("#webrtc_raw").val();
+				$("#webrtc_raw").val(raw2 + ";user_choice=dispute");
+				passDeviceCheck();
+			}
+		};
 	}
 
 	/*
@@ -2889,6 +2929,7 @@ function set_onclick_listeners(){
 	document.getElementById("Math").onchange = function() { userAnsweringToSetupQuestions(); };
 	// device check runs an objective acoustic echo test (see startDeviceCheck)
 	document.getElementById("start_headset_check").onclick = function() { startDeviceCheck(); };
+	wireDeviceCheckOptions();
 	//<input type="checkbox" id="inst_check" name="instruction" value="understand" onchange="inst_finished('checkbox')">
 	document.getElementById("inst_check").onchange = function() { inst_finished('checkbox'); };
 
@@ -3275,6 +3316,52 @@ function set_onclick_listeners(){
 </section>
 
 
+<!-- Device Check -->
+<section class="container disabled2_section" id="device_check_section">
+	<div class="panel panel-primary">
+		<div class="panel-heading">
+			<h3 class="panel-title">
+				<a data-target="#device_check" data-toggle="collapse">Listening device check</a>
+			</h3>
+		</div>
+		<div class="panel-collapse collapse in" id="device_check">
+			<div class="panel-body">
+				<b>Introduction</b>
+				<p>This task must be done with <b id="required_device_label">a headset</b>. We run a short automated
+					check in your Web browser to verify your active playback device. Please click on <b>Start</b>.
+					Your browser may then ask for permission to use your microphone &mdash; please click
+					<b>Allow</b> (on some smartphones there is no prompt).
+					During the check we play a brief test tone and listen with your microphone <u>only to detect
+						whether the sound comes from a headset or a loudspeaker. No audio is recorded, stored, or
+						transmitted &mdash; the measurement happens locally in your browser and is discarded
+						immediately.</u> You must pass this check to continue.
+				<div class="center">
+					<button type="button" class="btn btn-primary center" id="start_headset_check">Start</button>
+					<div id="status"> </div>
+				</div>
+				<div id="device_check_result" class="alert alert-warning" style="display:none; margin-top:15px;">
+					<p>We detected <b id="device_check_detected">a loudspeaker</b>, although this study
+						requires <b id="device_check_required">a headset</b>. Please tell us which is correct:</p>
+					<div class="radio"><label>
+							<input type="radio" name="device_check_choice" value="retry">
+							Correct &mdash; let me change my setup and retry.</label></div>
+					<div class="radio"><label>
+							<input type="radio" name="device_check_choice" value="no_device">
+							Correct &mdash; I do not have <span class="device_check_required_inline">a headset</span>
+							right now.</label></div>
+					<div class="radio"><label>
+							<input type="radio" name="device_check_choice" value="dispute">
+							Wrong &mdash; I am using <span class="device_check_required_inline">a headset</span>.</label>
+					</div>
+					<button type="button" class="btn btn-primary" id="device_check_choice_submit">Continue</button>
+				</div>
+			</div>
+		</div>
+
+	</div>
+</section>
+<!-- Device Check ends-->
+
 <!-- Setup -->
 <section class="container disabled2_section" id="setup">
 	<div class="panel panel-info">
@@ -3457,35 +3544,6 @@ function set_onclick_listeners(){
 </section>
 <!-- Setup  ends-->
 
-<!-- Device Check -->
-<section class="container disabled2_section" id="device_check_section">
-	<div class="panel panel-primary">
-		<div class="panel-heading">
-			<h3 class="panel-title">
-				<a data-target="#device_check" data-toggle="collapse">Listening device check</a>
-			</h3>
-		</div>
-		<div class="panel-collapse collapse in" id="device_check">
-			<div class="panel-body">
-				<b>Introduction</b>
-				<p>This task must be done with <b id="required_device_label">a headset</b>. We run a short automated
-					check in your Web browser to verify your active playback device. Please click on <b>Start</b>.
-					Your browser may then ask for permission to use your microphone &mdash; please click
-					<b>Allow</b> (on some smartphones there is no prompt).
-					During the check we play a brief test tone and listen with your microphone <u>only to detect
-						whether the sound comes from a headset or a loudspeaker. No audio is recorded, stored, or
-						transmitted &mdash; the measurement happens locally in your browser and is discarded
-						immediately.</u> You must pass this check to continue.
-				<div class="center">
-					<button type="button" class="btn btn-primary center" id="start_headset_check">Start</button>
-					<div id="status"> </div>
-				</div>
-			</div>
-		</div>
-
-	</div>
-</section>
-<!-- Device Check ends-->
 
 <!-- Instruction section-->
 <section class="container disabled2_section" id="details_instruction">
