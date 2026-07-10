@@ -226,6 +226,32 @@ def add_clips_random_ccr(clips, refs, n_clips_per_session, output_df):
         output_df[f'Q{q}_R'] = refs_sessions[:, q]
 
 
+def _assign_cmp_answers(df, output_df, new_4):
+    """
+    Record the correct answer of each setup (CMP) pair for offline grading.
+
+    When the general resource provides an explicit correct answer (``pair_ans``, the
+    URL of the better-quality clip - required for anonymized clips whose file names do
+    not encode the SNR), this adds ``ans_cmp1``..``ans_cmp4`` columns holding ``"a"`` or
+    ``"b"`` to say which slot of each shown pair is the correct one. The result parser
+    reads these to grade the setup without relying on the file name. When ``pair_ans``
+    is absent the columns are not added and the parser falls back to the legacy
+    higher-SNR-file-name heuristic.
+
+    :param df: The general/clip dataframe (may contain a ``pair_ans`` column).
+    :param output_df: The per-session output dataframe to add the columns to.
+    :param new_4: Array of shape ``(n_sessions, 8)`` with the CMP clip URLs, ordered
+        ``CMP1_A, CMP1_B, ... CMP4_A, CMP4_B``.
+    :return: None. ``output_df`` is modified in place.
+    """
+    if 'pair_ans' not in df.columns or not df['pair_ans'].notna().any():
+        return
+    correct_urls = set(df['pair_ans'].dropna())
+    for k in range(4):
+        col_a = new_4[:, 2 * k]
+        output_df[f'ans_cmp{k + 1}'] = ['a' if u in correct_urls else 'b' for u in col_a]
+
+
 def create_input_for_acr(cfg, df, output_path, method):
     """
     create the input for the acr methods
@@ -325,6 +351,7 @@ def create_input_for_acr(cfg, df, output_path, method):
                                     'CMP2_A': new_4[:, 2], 'CMP2_B': new_4[:, 3],
                                     'CMP3_A': new_4[:, 4], 'CMP3_B': new_4[:, 5],
                                     'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
+    _assign_cmp_answers(df, output_df, new_4)
 
     # trappings
     if int(cfg['number_of_trapping_per_session']) > 0:
@@ -520,6 +547,7 @@ def create_input_for_dcrccr(cfg, df, output_path):
                                     'CMP2_A': new_4[:, 2], 'CMP2_B': new_4[:, 3],
                                     'CMP3_A': new_4[:, 4], 'CMP3_B': new_4[:, 5],
                                     'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
+    _assign_cmp_answers(df, output_df, new_4)
     # add math
     output_df['math'] = math_output
     if math_ans_output is not None:

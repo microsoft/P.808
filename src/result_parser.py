@@ -835,7 +835,7 @@ def check_qualification_answer(row):
     return checked, msg
 
 
-def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played):
+def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played, correct_slot=None):
     """
     check if pair comparison answered correctly
     :param file_a:
@@ -843,20 +843,34 @@ def check_a_cmp(file_a, file_b, ans, audio_a_played, audio_b_played):
     :param ans:
     :param audio_a_played:
     :param audio_b_played:
+    :param correct_slot: Explicit correct answer for this pair ("a"/"b"/"o") from the
+        publish batch (``input.ans_cmp*``). Required for anonymized clips whose file
+        names do not encode the SNR; when absent the legacy file-name heuristic is used.
     :return:
     """
     if (audio_a_played == 0 or
             audio_b_played == 0):
         return False
-    a = int((file_a.rsplit('/', 1)[-1])[:2])
-    b = int((file_b.rsplit('/', 1)[-1])[:2])
+    ans = str(ans).strip()
+    # Prefer the explicit correct slot delivered in the batch (input.ans_cmp*). This is
+    # required for anonymized clips whose file names carry no SNR prefix.
+    if isinstance(correct_slot, str) and correct_slot.strip().lower() in ('a', 'b', 'o'):
+        return ans == correct_slot.strip().lower()
+    # Legacy fallback: the higher-SNR clip - the one whose file name starts with the
+    # larger 2-digit number - has the better quality. Guard against non-numeric
+    # (e.g. anonymized) names so grading never crashes.
+    try:
+        a = int((file_a.rsplit('/', 1)[-1])[:2])
+        b = int((file_b.rsplit('/', 1)[-1])[:2])
+    except (ValueError, AttributeError):
+        return False
     # one is 50 and one is 42, the one with bigger number (higher SNR) has to have a better quality
     answer_is_correct = False
-    if a > b and ans.strip() == 'a':
+    if a > b and ans == 'a':
         answer_is_correct = True
-    elif b > a and ans.strip() == 'b':
+    elif b > a and ans == 'b':
         answer_is_correct = True
-    elif a == b and ans.strip() == 'o':
+    elif a == b and ans == 'o':
         answer_is_correct = True
     return answer_is_correct
 
@@ -1109,7 +1123,8 @@ def data_cleaning(filename, method, wrong_vcodes):
             for i in range(1, 5):
                 if check_a_cmp(row[f'input.cmp{i}_a'], row[f'input.cmp{i}_b'], row[f'answer.cmp{i}'],
                                row[f'answer.audio_n_play_cmp{i}_a'],
-                               row[f'answer.audio_n_play_cmp{i}_b']):
+                               row[f'answer.audio_n_play_cmp{i}_b'],
+                               row.get(f'input.ans_cmp{i}')):
                     correct_cmp_ans += 1
             d['correct_cmps'] = correct_cmp_ans
         if method == p835_personalized and 'answer.dist1' in row:
