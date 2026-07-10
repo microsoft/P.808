@@ -10,6 +10,7 @@ import argparse
 import os
 import asyncio
 import base64
+import hashlib
 import random
 import re
 import string
@@ -704,12 +705,15 @@ def prepare_basic_cfg(df):
     config = {}
     only_cfgs = df[["pair_a", "pair_b"]].copy()
     only_cfgs.dropna(subset=["pair_a"], inplace=True)
-    base64_urls = []
+    cmp_correct_hashes = []
     for index, row in only_cfgs.iterrows():
         a = int((row["pair_a"].rsplit("/", 1)[-1])[:2])
         b = int((row["pair_b"].rsplit("/", 1)[-1])[:2])
         url = row["pair_a"] if a > b else row["pair_b"]
-        base64_urls.append(base64.b64encode(url.encode("ascii")).decode("ascii"))
+        # SHA-256 hex of the correct (louder) clip URL, so the plain answer is not
+        # exposed in the page (mirrors the bandwidth-check hashing). The client verifies
+        # a selected clip by hashing its URL and matching against this list.
+        cmp_correct_hashes.append(hashlib.sha256(url.encode("utf-8")).hexdigest())
 
     # randomly select numbers for hearing test
     clear_sample_url = "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s0.wav"
@@ -735,7 +739,7 @@ def prepare_basic_cfg(df):
         )
 
     # set environment test
-    config["cmp_correct_answers"] = base64_urls
+    config["cmp_correct_answers"] = cmp_correct_hashes
     config["cmp_max_n_feedback"] = 4
     config["cmp_pass_threshold"] = 2
     return config

@@ -947,14 +947,14 @@
 		return;
 	}
 
-	function validateCMPSectionAfterMath(cmp_answers) {
+	async function validateCMPSectionAfterMath(cmp_answers) {
 		// 3. check cmps
 		correct_ans = 0;
 		for (i = 0; i < 4; i++) {
 			if (cmp_answers[i] == "o")
 				continue;
 			url = $('span[id="CMP{0}_{1}"]'.f(i + 1, cmp_answers[i].toUpperCase())).attr("data-src");
-			if (config["cmp_correct_answers"].includes(btoa(url)))
+			if (config["cmp_correct_answers"].includes(await generateHash(url)))
 				correct_ans++;
 		}
 		// 4. shows the message if needed
