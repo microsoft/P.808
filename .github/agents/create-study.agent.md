@@ -626,6 +626,11 @@ contact_email:USER_PROVIDED_EMAIL
 # placeholder for the HIT App Server to fill; with no code the participant returns the task.
 #screenout_code_qualification: XXXXXXXX
 #screenout_code_setup: XXXXXXXX
+# Online (in-HIT) grading of the qualification / setup sections (both default true).
+# Set to false to grade that section only offline in result_parser (answers not embedded,
+# check button hidden).
+#run_online_eval_qualification: true
+#run_online_eval_setup: true
 ```
 
 **Key rules:**
@@ -635,6 +640,9 @@ contact_email:USER_PROVIDED_EMAIL
   screened-out participant enters on the platform to be paid for the screening effort. If unset,
   the master script prints a warning and leaves a `${...}` placeholder for the HIT App Server to
   fill; when no code is provided at all, the participant is asked to return the task.
+- `run_online_eval_qualification` / `run_online_eval_setup` (optional, default `true`) = grade the
+  qualification / setup section in the browser. Set to `false` to hide that section's answers and
+  "Check answers" button and grade it only offline in `result_parser`.
 - `contact_email` = user-provided. Never hardcode.
 - `allowed_max_hit_in_project` = `BEST_PRACTICE_ALLOWED_MAX_HITS`.
 - `quantity_hits_more_than` ≈ `floor(total_sessions / 2)`, at least 2.

@@ -130,15 +130,17 @@ To use freshly generated clips:
 
 1. Upload the generated WAV files to a public location (for example
    `p808-assets/clips/jnd-test`).
-2. Add the `pair_a` / `pair_b` URLs (and the recorded correct answer) to the internal general
-   resource (`src/assets_master_script/general_assets_internal.csv`).
-3. `master_script.py` determines the correct clip and hashes it for the server-authoritative
-   check.
+2. Add the `pair_a` / `pair_b` URLs and the correct answer (`ans_url`, as a `pair_ans` column) to
+   the internal general resource (`src/assets_master_script/general_assets_internal.csv`).
+3. `master_script.py` reads `pair_ans` to hash the correct clip into `cmp_correct_answers` (online
+   check), and `create_input.py` records the correct slot per shown pair as `ans_cmp1`…`ans_cmp4`
+   in the publish batch so `result_parser.py` can grade the setup **offline** too (needed when
+   `run_online_eval_setup` is `false`).
 
 > **Note:** the legacy pairs encode the correct answer in the file name (higher SNR = cleaner),
-> which `master_script.py` reads via the 2-digit SNR prefix. Anonymized clips carry the answer in
-> the manifest (`ans_pair` / `ans_url`) instead, so wiring them into the general resource uses the
-> explicit answer rather than the file name.
+> which `master_script.py` and `result_parser.py` read via the 2-digit SNR prefix. Anonymized clips
+> carry the answer explicitly (`pair_ans` / `ans_cmp`) instead, so wiring them into the general
+> resource uses the explicit answer rather than the file name.
 
 ## Reproducibility
 

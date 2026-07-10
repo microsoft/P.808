@@ -70,6 +70,16 @@ If a screen-out code is not set, `master_script.py` prints a warning at generati
 `${screenout_code_qualification}` / `${screenout_code_setup}` placeholder in the generated HIT so the HIT App
 Server can fill it at run time. When neither the configuration nor the server provides a code, the participant is
 asked to **return the task** instead of being paid for the screening.
+* (optional) `run_online_eval_qualification: true`: Whether the **qualification** section (bandwidth/hearing)
+is graded in the browser (`true`/`false`). Default: `true`.
+* (optional) `run_online_eval_setup: true`: Whether the **setup** section (listening environment/attention)
+is graded in the browser (`true`/`false`). Default: `true`.
+
+When a `run_online_eval_*` flag is `false`, that section's correct answers are **not embedded** in the generated
+HTML, its client-side check and its **"Check answers"** button are hidden, and the participant is not gated by
+it — all grading for that section is then performed **offline** by `result_parser.py` from the submitted answers
+(the bandwidth answers and the setup pair-comparison / math answers are always recorded, so the parser can grade
+them regardless of the online setting).
 
 
 ## `[acr_html]` or `[p835_html]` _deprecated_ 
