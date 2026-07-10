@@ -935,16 +935,24 @@ def extend_general_cfg_bw(general, hitapp):
     return general
 
 
-def _get_screenout_code(hitapp):
+def _get_screenout_code(hitapp, key):
     """
-    Resolve the study-level screen-out completion code from the HIT app config section.
+    Resolve a study-level screen-out completion code from the HIT app config section.
 
     :param hitapp: Config section (SectionProxy) holding the HIT app settings.
-    :return: The configured screen-out code, or the literal '${screenout_code}' placeholder
-        when it is not set, so the HIT app server can fill it at runtime.
+    :param key: Config key holding the code (e.g. 'screenout_code_qualification' or
+        'screenout_code_setup').
+    :return: The configured code, or the literal '${<key>}' placeholder when it is not
+        set, so the HIT app server can fill it at runtime. A warning is printed when the
+        code is missing so the user knows to provide it when uploading to the HIT App Server.
     """
-    code = (hitapp.get('screenout_code', '') or '').strip()
-    return code if code else '${screenout_code}'
+    code = (hitapp.get(key, '') or '').strip()
+    if code:
+        return code
+    print(f"WARNING: '{key}' is not set in the configuration. The screen-out code will be "
+          f"left as the ${{{key}}} placeholder; please provide it when uploading the study "
+          f"to the HIT App Server.")
+    return '${' + key + '}'
 
 
 async def main(cfg, test_method, args):
@@ -1021,9 +1029,11 @@ async def main(cfg, test_method, args):
     general_cfg = prepare_basic_cfg(df)
     # add BW check config
     general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app)
-    # optional study-level screen-out completion code (paid for the screening effort).
-    # Left as ${screenout_code} for the HIT app server to fill when not set in the config.
-    general_cfg['screenout_code'] = _get_screenout_code(cfg_hit_app)
+    # optional study-level screen-out completion codes (paid for the screening effort).
+    # Left as ${screenout_code_*} placeholders for the HIT app server to fill when not set
+    # in the config; a warning is printed for each missing code.
+    general_cfg['screenout_code_qualification'] = _get_screenout_code(cfg_hit_app, 'screenout_code_qualification')
+    general_cfg['screenout_code_setup'] = _get_screenout_code(cfg_hit_app, 'screenout_code_setup')
 
     # create hit_app
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831_fest else f"{args.project}_{test_method}.html"       

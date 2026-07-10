@@ -345,7 +345,7 @@
 	// how many times a feedback was given to the workers,
 	var n_cmp_feedbacks = 0;
 	var n_setup_feedback = 0;
-	const Hide_HIT_REASON = Object.freeze({ "MAX_ACHIVED": 1, "QUALIFICATON": 2, "GOLD_FAILED":3 })
+	const Hide_HIT_REASON = Object.freeze({ "MAX_ACHIVED": 1, "QUALIFICATON": 2, "GOLD_FAILED":3, "SETUP":4 })
 	/*
 	Initializing the page: generate and hide sections depending to the cookies value
 	*/
@@ -948,22 +948,19 @@
 			return;
 		}
 		removeCookie(config['cookieName'] + "_setup");
-		if (n_cmp_feedbacks < config["cmp_max_n_feedback"]) {
+		if (n_cmp_feedbacks < config["cmp_max_n_feedback"] - 1) {
 			n_cmp_feedbacks++;
 			msg = "Based on your answers, your environment is NOT quite enough or your setup is NOT good enough. Please make sure to do your task in a quite environment with headset and use both earpods. Try the Setup section again.";
-			last_time_msg = " It is the last time you see this feedback.";
 			makeAllCMPsUnChecked();
-			if (n_cmp_feedbacks == config["cmp_max_n_feedback"])
-				alert(msg + last_time_msg);
-			else
-				alert(msg);
-
-		}
-		// 4.2 remove the listener
-		if (n_cmp_feedbacks >= config["cmp_max_n_feedback"]) {
+			alert(msg);
+		} else {
+			// setup failed after the allowed number of attempts -> screen the worker out
+			n_cmp_feedbacks++;
 			$('#setup').find(':input').filter(':visible').each(function () {
 				$(this).off('change');
 			});
+			disableTheHIT(Hide_HIT_REASON.SETUP);
+			document.getElementById("setup_rejected").scrollIntoView({ behavior: "smooth", block: "start" });
 		}
 	}
 
@@ -1023,8 +1020,12 @@
 		if (c == Hide_HIT_REASON.MAX_ACHIVED)
 			$("#max_allowed_HITs_reached").show();
 		if (c == Hide_HIT_REASON.QUALIFICATON) {
-			applyScreenoutMessage();
+			applyScreenoutMessage("qualification_rejected", "screenout_code_qualification");
 			$("#qualification_rejected").show();
+		}
+		if (c == Hide_HIT_REASON.SETUP) {
+			applyScreenoutMessage("setup_rejected", "screenout_code_setup");
+			$("#setup_rejected").show();
 		}
 		if (c == Hide_HIT_REASON.GOLD_FAILED)
 			$("#gold_rejected").show();
@@ -1036,15 +1037,17 @@
 		submit the form and enter the code to be paid for the screening effort. Otherwise,
 		no code is available, so ask them to return the task.
 	*/
-	function applyScreenoutMessage() {
-		// build the placeholder token at runtime so the HIT app server's ${screenout_code}
-		// replacement does not rewrite this comparison string.
-		var placeholder = "$" + "{screenout_code}";
-		var codeEl = document.getElementById("screenout_code_value");
+	function applyScreenoutMessage(sectionId, codeVar) {
+		// build the placeholder token at runtime so the HIT app server's ${...} replacement
+		// does not rewrite this comparison string.
+		var placeholder = "$" + "{" + codeVar + "}";
+		var section = document.getElementById(sectionId);
+		if (!section) return;
+		var codeEl = section.querySelector(".screenout_code_value");
 		var code = codeEl ? codeEl.textContent.trim() : "";
 		var hasCode = code !== "" && code !== placeholder;
-		document.getElementById("screenout_paid_block").hidden = !hasCode;
-		document.getElementById("screenout_return_block").hidden = hasCode;
+		section.querySelector(".screenout_paid_block").hidden = !hasCode;
+		section.querySelector(".screenout_return_block").hidden = hasCode;
 	}
 
 	/*
@@ -3665,17 +3668,41 @@ function set_onclick_listeners(){
 	<p>Thank you for participating. Based on your answers in the screening section, you are not qualified for
 		this study.</p>
 
-	<div id="screenout_paid_block" hidden>
+	<div class="screenout_paid_block" hidden>
 		<p>To be paid for your effort in the screening part, please <b>submit this form</b> and enter the following
 			completion code on Prolific:</p>
 
 		<div class="alert alert-info" role="alert" style="font-size: 1.3em; text-align: center;">
-			<b id="screenout_code_value">{{ cfg.screenout_code }}</b>
+			<b class="screenout_code_value">{{ cfg.screenout_code_qualification }}</b>
 		</div>
 	</div>
 
-	<div id="screenout_return_block" hidden>
+	<div class="screenout_return_block" hidden>
 		<p>As you are not qualified for this study, please <b>return the task</b> on Prolific.</p>
+	</div>
+
+	<div class="alert alert-danger" role="alert">
+		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
+		<b>NOTE:</b> Any try to perform the rest of the assignment and neglecting this message is forbidden and
+		leads to rejection of all of your submissions.
+	</div>
+</section>
+
+<section class="container" id="setup_rejected" hidden>
+	<p>Thank you for participating. Based on your answers in the setup section, your listening
+		environment or device does not meet the requirements for this study.</p>
+
+	<div class="screenout_paid_block" hidden>
+		<p>To be paid for your effort in the setup part, please <b>submit this form</b> and enter the following
+			completion code on Prolific:</p>
+
+		<div class="alert alert-info" role="alert" style="font-size: 1.3em; text-align: center;">
+			<b class="screenout_code_value">{{ cfg.screenout_code_setup }}</b>
+		</div>
+	</div>
+
+	<div class="screenout_return_block" hidden>
+		<p>As you do not meet the setup requirements for this study, please <b>return the task</b> on Prolific.</p>
 	</div>
 
 	<div class="alert alert-danger" role="alert">
