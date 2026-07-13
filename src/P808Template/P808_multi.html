@@ -331,6 +331,8 @@
 		requiredPlaybackDevice: "{{cfg.required_playback_device}}",
 		// microphone-to-playback coupling (dB) at/above which a loudspeaker is inferred
 		deviceCheckThresholdDb: {{cfg.device_check_threshold_db}},
+		// probe-tone level (linear gain 0..1); kept low for hearing safety
+		deviceCheckProbeGain: {{cfg.device_check_probe_gain}},
 		cmp_correct_answers: {{ cfg.cmp_correct_answers }},
 		cmp_max_n_feedback: {{ cfg.cmp_max_n_feedback }},
 		cmp_pass_threshold: {{ cfg.cmp_pass_threshold }},
@@ -1869,24 +1871,36 @@ function preventTabsChangeBeforeRateRating(){
 		micSource.connect(analyser);
 
 		// 1. baseline energy at the probe frequency (no tone playing yet)
-		var baseline = await averageBandMagnitude(analyser, audioCtx, probeHz, 400);
+		var baseline = await averageBandMagnitude(analyser, audioCtx, probeHz, 300);
 
-		// 2. play the probe tone through the active playback device and re-measure
+		// 2. play the probe tone through the active playback device and re-measure.
+		//    The level is kept low for hearing safety and is ramped in/out to avoid a
+		//    harsh click. Detection is ratio-based, so a quiet tone is enough.
+		var peakGain = Number(config.deviceCheckProbeGain);
+		if (!(peakGain > 0)) {
+			peakGain = 0.1;
+		}
 		var osc = audioCtx.createOscillator();
 		osc.type = "sine";
 		osc.frequency.value = probeHz;
 		var gain = audioCtx.createGain();
-		gain.gain.value = 0.4;
+		var tStart = audioCtx.currentTime;
+		gain.gain.setValueAtTime(0.0001, tStart);
+		gain.gain.exponentialRampToValueAtTime(peakGain, tStart + 0.06);
 		osc.connect(gain);
 		gain.connect(audioCtx.destination);
 		osc.start();
-		await sleepMs(200);
-		var withProbe = await averageBandMagnitude(analyser, audioCtx, probeHz, 600);
-		osc.stop();
+		await sleepMs(150);
+		var withProbe = await averageBandMagnitude(analyser, audioCtx, probeHz, 450);
+		// fade the tone out before stopping
+		var tEnd = audioCtx.currentTime;
+		gain.gain.setValueAtTime(peakGain, tEnd);
+		gain.gain.exponentialRampToValueAtTime(0.0001, tEnd + 0.06);
+		osc.stop(tEnd + 0.08);
 
 		// 3. clean up (nothing is kept or transmitted)
 		stream.getTracks().forEach(function (t) { t.stop(); });
-		gain.disconnect();
+		try { gain.disconnect(); } catch (e) { /* ignore */ }
 		try { await audioCtx.close(); } catch (e) { /* ignore */ }
 
 		var couplingDb = 20 * Math.log10((withProbe + 1e-12) / (baseline + 1e-12));
@@ -3335,6 +3349,8 @@ function set_onclick_listeners(){
 						whether the sound comes from a headset or a loudspeaker. No audio is recorded, stored, or
 						transmitted &mdash; the measurement happens locally in your browser and is discarded
 						immediately.</u> You must pass this check to continue.
+				<p class="text-danger"><b>Before you start, set your device volume to a comfortable, moderate
+						level.</b> We play only a short, quiet test tone, but please do not turn your volume up high.</p>
 				<div class="center">
 					<button type="button" class="btn btn-primary center" id="start_headset_check">Start</button>
 					<div id="status"> </div>

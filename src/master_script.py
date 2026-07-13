@@ -1098,6 +1098,10 @@ async def main(cfg, test_method, args):
         required_device = "headset"
     general_cfg['required_playback_device'] = required_device
     general_cfg['device_check_threshold_db'] = str(cfg_hit_app.get("device_check_threshold_db", "6")).strip()
+    # Probe-tone level (linear gain, 0..1) for the acoustic echo check. Kept low for
+    # hearing safety: the check runs before the volume-adjust step, so the participant's
+    # system volume is unknown. Detection is ratio-based, so a quiet tone still works.
+    general_cfg['device_check_probe_gain'] = str(cfg_hit_app.get("device_check_probe_gain", "0.1")).strip()
 
     # create hit_app
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831_fest else f"{args.project}_{test_method}.html"       
