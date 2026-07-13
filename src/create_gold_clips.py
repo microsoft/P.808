@@ -82,10 +82,12 @@ GOLD_TYPES = {
     },
     'coloration': {
         'suffix': 'colored',
-        # REVIEW: col_ans=1 is a suggested rating; coloration strength varies by style and
-        # content and is not always perceived as "very colored" (see apply_coloration note).
-        # Listen to each colored clip and confirm/adjust these answers before using as gold.
-        'p804': {'col_ans': 1, 'sig_ans': 1, 'ovrl_ans': 1},
+        # col_ans=1 (clearly colored); sig_ans/ovrl_ans default to 2 rather than 1 because
+        # listeners perceive coloration as milder on signal quality / overall than a "1"
+        # (v5 study: sig/ovrl on colored clips were rated higher than 1). This is still a
+        # suggested default - listen to each colored clip and confirm/adjust (some clips'
+        # coloration is subtle enough that even col=1 does not hold). See apply_coloration.
+        'p804': {'col_ans': 1, 'sig_ans': 2, 'ovrl_ans': 2},
     },
     'coloration_noise': {
         'suffix': 'colored_noisy',
@@ -231,15 +233,17 @@ def apply_coloration(signal, sr):
 
     REVIEW NOTE (coloration effect):
     The three styles do NOT all sound equally "colored". In the v5_gold_automatic_july_2026
-    study these clips were labelled col_ans=1 (very colored), yet on some clips a noticeable
-    minority of listeners rated them as only mildly colored or clean: ~13% of votes on the
-    colored gold clips were not in the col=1..2 range (a few clips dropped to ~60% agreement),
-    and coloration on real-world "merged" recordings was harder to hear than on studio (P501)
-    references. In other words, the fixed col_ans=1 does not always match perception for every
-    style/content combination. Before using colored clips as gold, the researcher should LISTEN
-    to each colored clip and confirm the suggested rating (col_ans, and sig_ans/ovrl_ans) is
-    appropriate for that specific clip; adjust the per-clip answer or drop clips whose coloration
-    is too subtle. See _CONFIG per-degradation ratings and the study's gold-agreement report.
+    study these clips were originally labelled col_ans=1, sig_ans=1, ovrl_ans=1, yet listeners
+    consistently rated signal quality and overall quality HIGHER than 1 (the coloration is
+    perceived as milder than a "1"), and on some clips a noticeable minority rated coloration
+    itself as only mild or clean (~13% of col votes off; a few clips down to ~60% agreement;
+    coloration on real-world "merged" recordings was harder to hear than on studio P501
+    references). Because of this, sig_ans and ovrl_ans now default to 2 (col_ans stays 1); with
+    sig=2/ovrl=2 the pass rate on the v5 colored clips rose from 2/33 to 17/33 at a >=80%
+    agreement bar. These are still SUGGESTED defaults: the researcher should LISTEN to each
+    colored clip and confirm/adjust the answers (some clips' coloration is subtle enough that
+    even col_ans=1 does not hold and the clip should be dropped). See the _CONFIG per-degradation
+    ratings and the study's gold-agreement report.
 
     :param signal: Audio signal as a numpy array.
     :param sr: Sample rate.
