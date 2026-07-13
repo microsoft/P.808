@@ -356,6 +356,10 @@
 	var n_setup_feedback = 0;
 	// listening-device (acoustic echo) check state
 	var device_check_passed = false;
+	// audibility (beep-count) check state, used to catch a muted / silent device
+	var dc_beep_expected = 0;
+	var dc_beep_played = false;
+	var dc_beep_attempts = 0;
 	const Hide_HIT_REASON = Object.freeze({ "MAX_ACHIVED": 1, "QUALIFICATON": 2, "GOLD_FAILED":3, "SETUP":4 })
 	/*
 	Initializing the page: generate and hide sections depending to the cookies value
@@ -2002,7 +2006,15 @@ function preventTabsChangeBeforeRateRating(){
 
 		var required = config.requiredPlaybackDevice;
 		if (result.detected === required) {
-			passDeviceCheck();
+			if (result.detected === "headset") {
+				// a headset shows low coupling, which is also what a muted / silent device
+				// looks like; confirm the participant can actually hear the audio.
+				startAudibilityCheck();
+			} else {
+				// a loudspeaker was detected via a strong probe echo, so audio is
+				// definitely playing (not muted) -> pass directly.
+				passDeviceCheck();
+			}
 			return;
 		}
 
@@ -2036,6 +2048,7 @@ function preventTabsChangeBeforeRateRating(){
 	function passDeviceCheck() {
 		device_check_passed = true;
 		$("#device_check_result").hide();
+		$("#device_check_audibility").hide();
 		$("#status").html("Thank you, your playback device was verified. You can continue.");
 		$("#setup").removeClass("disabled2_section");
 		$("#details_instruction").removeClass("disabled2_section");
@@ -2043,6 +2056,108 @@ function preventTabsChangeBeforeRateRating(){
 		$("#rating_section").removeClass("disabled2_section");
 		var next = document.getElementById("setup");
 		if (next) next.scrollIntoView({ behavior: "smooth", block: "start" });
+	}
+
+	/*
+		Audibility (beep-count) check. A muted or silent device is acoustically identical
+		to a well-sealed headset (both produce almost no coupling), so when a headset is
+		detected we additionally confirm the participant can actually hear the audio: play
+		a random number of gentle beeps and ask how many they heard. This also catches a
+		volume that is set too low.
+	*/
+	function startAudibilityCheck() {
+		dc_beep_attempts = 0;
+		dc_beep_played = false;
+		$("#device_check_result").hide();
+		$("#status").html("Your device looks like a headset. One quick check: please confirm you can hear the audio.");
+		$("input[name='dc_beep_count']").prop("checked", false);
+		$("#dc_beep_answer").hide();
+		$("#dc_beep_status").html("");
+		$("#device_check_audibility").show();
+		document.getElementById("device_check_audibility").scrollIntoView({ behavior: "smooth", block: "center" });
+	}
+
+	/*
+		Play a random number (2-4) of short, gentle beeps through the active playback
+		device, then reveal the answer options. No microphone is used here.
+	*/
+	async function dcPlayBeeps() {
+		var n = 2 + Math.floor(Math.random() * 3); // 2..4
+		dc_beep_expected = n;
+		var playBtn = document.getElementById("dc_play_beeps");
+		if (playBtn) playBtn.disabled = true;
+		$("#dc_beep_status").html("Playing&hellip;");
+		try {
+			var AudioCtx = window.AudioContext || window.webkitAudioContext;
+			var ctx = new AudioCtx();
+			if (ctx.state === "suspended") {
+				await ctx.resume();
+			}
+			var beepGain = 0.15;
+			var freq = 880;
+			var dur = 0.2, gap = 0.2;
+			var t = ctx.currentTime + 0.1;
+			for (var i = 0; i < n; i++) {
+				var osc = ctx.createOscillator();
+				osc.type = "sine";
+				osc.frequency.value = freq;
+				var g = ctx.createGain();
+				g.gain.setValueAtTime(0.0001, t);
+				g.gain.exponentialRampToValueAtTime(beepGain, t + 0.02);
+				g.gain.setValueAtTime(beepGain, t + dur - 0.02);
+				g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+				osc.connect(g);
+				g.connect(ctx.destination);
+				osc.start(t);
+				osc.stop(t + dur + 0.02);
+				t += dur + gap;
+			}
+			await sleepMs((n * (dur + gap) + 0.3) * 1000);
+			try { await ctx.close(); } catch (e) { /* ignore */ }
+		} catch (err) {
+			recordError(err.name, err.message);
+		}
+		dc_beep_played = true;
+		if (playBtn) playBtn.disabled = false;
+		$("#dc_beep_status").html("");
+		$("#dc_beep_answer").show();
+	}
+
+	/*
+		Check the reported beep count. A correct answer confirms audibility and passes the
+		device check; a wrong answer (or "no sound") is retried once, then screens out
+		because the participant cannot hear the audio needed for the task.
+	*/
+	function dcSubmitBeepCount() {
+		if (!dc_beep_played) {
+			alert("Please click \"Play beeps\" first.");
+			return;
+		}
+		var val = $("input[name='dc_beep_count']:checked").val();
+		if (val === undefined) {
+			alert("Please select how many beeps you heard.");
+			return;
+		}
+		var answer = parseInt(val, 10);
+		var raw = $("#webrtc_raw").val();
+		if (answer === dc_beep_expected) {
+			$("#webrtc_raw").val(raw + ";audible=1");
+			passDeviceCheck();
+			return;
+		}
+		dc_beep_attempts++;
+		if (dc_beep_attempts < 2) {
+			dc_beep_played = false;
+			$("#dc_beep_answer").hide();
+			$("input[name='dc_beep_count']").prop("checked", false);
+			$("#dc_beep_status").html("That is not what we played. Please make sure your device is <b>not muted</b> and the volume is at a comfortable level, then click <b>Play beeps</b> to try again.");
+		} else {
+			// repeatedly could not report the beeps -> cannot hear the audio -> screen out
+			$("#webrtc_raw").val(raw + ";audible=0");
+			disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+			var rej = document.getElementById("qualification_rejected");
+			if (rej) rej.scrollIntoView({ behavior: "smooth", block: "start" });
+		}
 	}
 
 	/*
@@ -2082,6 +2197,16 @@ function preventTabsChangeBeforeRateRating(){
 				passDeviceCheck();
 			}
 		};
+
+		// audibility (beep-count) check buttons
+		var playBtn = document.getElementById("dc_play_beeps");
+		if (playBtn) {
+			playBtn.onclick = function () { dcPlayBeeps(); };
+		}
+		var beepSubmit = document.getElementById("dc_beep_submit");
+		if (beepSubmit) {
+			beepSubmit.onclick = function () { dcSubmitBeepCount(); };
+		}
 	}
 
 	/*
@@ -3431,6 +3556,22 @@ function set_onclick_listeners(){
 							Wrong &mdash; I am using <span class="device_check_required_inline">a headset</span>.</label>
 					</div>
 					<button type="button" class="btn btn-primary" id="device_check_choice_submit">Continue</button>
+				</div>
+				<div id="device_check_audibility" class="alert alert-info" style="display:none; margin-top:15px;">
+					<p>We will play a few short beeps through your device. <b>How many beeps do you hear?</b>
+						Please make sure your device is not muted and the volume is at a comfortable level.</p>
+					<button type="button" class="btn btn-default" id="dc_play_beeps">Play beeps</button>
+					<div id="dc_beep_status" style="margin-top:8px;"></div>
+					<div id="dc_beep_answer" style="display:none; margin-top:10px;">
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="0">
+								I heard no sound</label></div>
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="1">1</label></div>
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="2">2</label></div>
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="3">3</label></div>
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="4">4</label></div>
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="5">5</label></div>
+						<button type="button" class="btn btn-primary" id="dc_beep_submit">Submit</button>
+					</div>
 				</div>
 			</div>
 		</div>
