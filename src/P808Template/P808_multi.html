@@ -417,9 +417,9 @@
 				$('.qualificationFieldset').prop("disabled", true);
 				$("#qualification").hide();
 				$("#qualification :input").removeAttr("required");
-				$("#device_check_section").removeClass("disabled2_section");
-				// setup/details/training/rating stay locked until the device check
-				// passes (the device check re-runs every session, playback can change)
+				// unlock the device check (which re-runs every session and gates the rest),
+				// or, when any device is accepted, skip it and open the following sections
+				unlockAfterQualification();
 
 				cookie_debug_status = cookie_debug_status + "ACR_LISTENER Exist*";
 			}
@@ -541,20 +541,24 @@
 		checkScripts();
 		$("#run_qualification_check").on("click", validateQualificationAnswer);
 		$("#run_setup_check").on("click", runSetupCheck);
-		// show which device the mandatory listening-device check requires
-		$("#required_device_label").text(requiredDeviceLabel());
+		// show which device the listening-device check requires, and adapt the
+		// instruction rule; hide the whole check when any device is accepted.
+		applyDeviceCheckTexts();
+		if (config.requiredPlaybackDevice === "any") {
+			$("#device_check_section").hide();
+		}
 		if (!config.runOnlineEvalQualification) {
 			// online qualification check is disabled -> do not gate on the answers, but
-			// the objective device check stays mandatory, so only unlock the device
-			// check here; passing it unlocks the remaining sections.
-			$("#device_check_section").removeClass("disabled2_section");
+			// the objective device check stays mandatory, so unlock the device check
+			// (which unlocks the rest on pass), or skip it when any device is accepted.
+			unlockAfterQualification();
 		}
 		// TEMPORARY (testing aid): make the listening-device check usable right away,
 		// without first passing qualification. Set to false (or remove this block)
 		// before release so the qualification gate is enforced.
 		var DEVICE_CHECK_TEST_MODE = true;
 		if (DEVICE_CHECK_TEST_MODE) {
-			$("#device_check_section").removeClass("disabled2_section");
+			unlockAfterQualification();
 		}
 	});
 
@@ -715,10 +719,13 @@
 			// add a qualification for 'qualificationValidFor' minutes
 			createCookie(config.qualificationCookieName, passed, config.qualificationValidFor);
 			if (passed) {
-				// device check is the mandatory next step directly after qualification;
-				// it unlocks setup + the remaining sections only after it passes.
-				$("#device_check_section").removeClass("disabled2_section");
-				document.getElementById("device_check_section").scrollIntoView({ behavior: "smooth", block: "start" });
+				// unlock what follows qualification. With a required device this only
+				// unlocks the device check (which then gates the rest); with "any" the
+				// device check is skipped and the remaining sections open directly.
+				unlockAfterQualification();
+				var afterQual = document.getElementById(
+					config.requiredPlaybackDevice === "any" ? "setup" : "device_check_section");
+				if (afterQual) afterQual.scrollIntoView({ behavior: "smooth", block: "start" });
 			} else {
 				qualification_attempts++;
 				if (qualification_attempts < 2) {
@@ -2142,6 +2149,41 @@ function preventTabsChangeBeforeRateRating(){
 	}
 
 	/*
+		Set the device-dependent texts: the label in the device-check intro and the
+		playback-device rule in the instruction section, adapted to the required device.
+	*/
+	function applyDeviceCheckTexts() {
+		$("#required_device_label").text(requiredDeviceLabel());
+		var rule;
+		if (config.requiredPlaybackDevice === "loudspeaker") {
+			rule = "You must use a <b>loudspeaker</b>, not a headset: otherwise your response will be rejected";
+		} else if (config.requiredPlaybackDevice === "any") {
+			rule = "You may use <b>a headset or a loudspeaker</b> for this task";
+		} else {
+			rule = "You must use a <b>headset</b>, not a loudspeaker: otherwise your response will be rejected";
+		}
+		$("#device_rule").html(rule);
+	}
+
+	/*
+		Unlock the sections that follow qualification. When a specific playback device is
+		required, only the device check is unlocked (it then gates the rest on pass). When
+		any device is accepted, the device check is skipped (hidden) and the following
+		sections are unlocked directly.
+	*/
+	function unlockAfterQualification() {
+		if (config.requiredPlaybackDevice === "any") {
+			$("#device_check_section").hide();
+			$("#setup").removeClass("disabled2_section");
+			$("#details_instruction").removeClass("disabled2_section");
+			$("#training").removeClass("disabled2_section");
+			$("#rating_section").removeClass("disabled2_section");
+		} else {
+			$("#device_check_section").removeClass("disabled2_section");
+		}
+	}
+
+	/*
 		Passing the device check is the mandatory gate: unlock setup and the remaining
 		sections and scroll to the setup section.
 	*/
@@ -3262,7 +3304,7 @@ function set_onclick_listeners(){
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
 				<p><b>Rules:</b></p>
 				<ul>
-					<li style="color:red;">You must use a <b>headset</b>, not the loudspeaker: otherwise your response will be rejected
+					<li id="device_rule" style="color:red;">You must use a <b>headset</b>, not the loudspeaker: otherwise your response will be rejected
 					</li>
 					<li>You must perform the task in a <b>quiet environment</b></li>
 					<li>Do not change the volume after modifying it in the Setup section.</li>
