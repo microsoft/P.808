@@ -1087,17 +1087,17 @@ async def main(cfg, test_method, args):
             general_cfg[f'num{i}_ans'] = ""
 
     # Listening-device check: the required active playback device ("headset" or
-    # "loudspeaker") that the objective (acoustic echo) check must confirm, and the
-    # coupling threshold in dB above which the microphone is judged to hear the
-    # loudspeaker. The check is mandatory; the participant cannot continue until the
-    # detected device matches this requirement (and their self-report).
+    # "loudspeaker") that the objective (acoustic echo) check must confirm, and the net
+    # coupling threshold in dB (probe-band rise minus control-band rise) at/above which the
+    # microphone is judged to hear the loudspeaker. The check is mandatory; the participant
+    # cannot continue until the detected device matches this requirement.
     required_device = str(cfg_hit_app.get("required_playback_device", "headset")).strip().lower()
     if required_device not in ("headset", "loudspeaker"):
         print(f"WARNING: 'required_playback_device' should be 'headset' or 'loudspeaker', "
               f"got '{required_device}'; defaulting to 'headset'.")
         required_device = "headset"
     general_cfg['required_playback_device'] = required_device
-    general_cfg['device_check_threshold_db'] = str(cfg_hit_app.get("device_check_threshold_db", "6")).strip()
+    general_cfg['device_check_threshold_db'] = str(cfg_hit_app.get("device_check_threshold_db", "20")).strip()
     # Probe-tone level (linear gain, 0..1) for the acoustic echo check. Kept low for
     # hearing safety: the check runs before the volume-adjust step, so the participant's
     # system volume is unknown. Detection is ratio-based, so a quiet tone still works.

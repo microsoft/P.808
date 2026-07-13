@@ -327,9 +327,10 @@
 		},
 		runOnlineEvalQualification: {{cfg.run_online_eval_qualification}},
 		runOnlineEvalSetup: {{cfg.run_online_eval_setup}},
-		// required active playback device for the objective listening-device check
+		// listening-device check: the required active playback device
 		requiredPlaybackDevice: "{{cfg.required_playback_device}}",
-		// microphone-to-playback coupling (dB) at/above which a loudspeaker is inferred
+		// net coupling (dB) at/above which a loudspeaker is inferred (probe rise minus
+		// control-band rise); classifies headset vs loudspeaker
 		deviceCheckThresholdDb: {{cfg.device_check_threshold_db}},
 		// probe-tone level (linear gain 0..1); kept low for hearing safety
 		deviceCheckProbeGain: {{cfg.device_check_probe_gain}},
@@ -1915,12 +1916,14 @@ function preventTabsChangeBeforeRateRating(){
 		try { await audioCtx.close(); } catch (e) { /* ignore */ }
 
 		// rise at the probe frequency; rise at the control frequency (broadband); and the
-		// net (probe rise above the broadband rise) which should isolate the actual echo.
+		// net (probe rise above the broadband rise). net_db isolates the actual tonal echo
+		// from a broadband mic-level change and separates headset from loudspeaker much
+		// more reliably than the raw probe rise, so it is the decision metric.
 		var couplingDb = 20 * Math.log10((withProbe + 1e-12) / (baselineProbe + 1e-12));
 		var refDb = 20 * Math.log10((withRef + 1e-12) / (baselineRef + 1e-12));
 		var netDb = couplingDb - refDb;
 		var threshold = Number(config.deviceCheckThresholdDb);
-		var detected = couplingDb >= threshold ? "loudspeaker" : "headset";
+		var detected = netDb >= threshold ? "loudspeaker" : "headset";
 
 		var diag = {
 			detected: detected,
@@ -1949,10 +1952,10 @@ function preventTabsChangeBeforeRateRating(){
 	function logDeviceCheckDiag(diag) {
 		try {
 			var line = "[device-check] detected=" + diag.detected +
+				" (decision: net_db >= " + diag.threshold + ")" +
+				" | net_db=" + diag.netDb.toFixed(2) +
 				" | coupling_db=" + diag.couplingDb.toFixed(2) +
 				" | ref_db=" + diag.refDb.toFixed(2) +
-				" | net_db=" + diag.netDb.toFixed(2) +
-				" | threshold_db=" + diag.threshold +
 				" | probe_gain=" + diag.probeGain +
 				" | sample_rate=" + diag.sampleRate;
 			if (window.console && console.info) {
