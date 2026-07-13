@@ -683,9 +683,12 @@
 		m_tongue_check = config.qualification.mother_tongue.includes(m_tongue)
 		
 		// check listening-device self-report against the required playback device
-		// (headset -> in-ear/over-ear, loudspeaker -> ex-ls/ib-ls). The objective
-		// device check later verifies the actual active device.
-		device_check = (selfReportedDeviceClass() === config.requiredPlaybackDevice);
+		// (headset -> in-ear/over-ear, loudspeaker -> ex-ls/ib-ls). When the study accepts
+		// "any" device, any single valid selection is fine. The objective device check
+		// later verifies the actual active device.
+		device_check = (config.requiredPlaybackDevice === "any")
+			? (selfReportedDeviceClass() !== null)
+			: (selfReportedDeviceClass() === config.requiredPlaybackDevice);
 
 		working_area_checked = $("input[name='7_working_area']:checked").val() == "N"
 		
@@ -1879,6 +1882,9 @@ function preventTabsChangeBeforeRateRating(){
 			},
 			video: false
 		});
+		// with microphone permission granted, collect the audio device names for logging
+		// (not used for the decision) so we can review/improve the check later.
+		var deviceLabels = await collectAudioDeviceLabels();
 		var AudioCtx = window.AudioContext || window.webkitAudioContext;
 		var audioCtx = new AudioCtx();
 		if (audioCtx.state === "suspended") {
@@ -1965,6 +1971,7 @@ function preventTabsChangeBeforeRateRating(){
 			sampleRate: sampleRate,
 			fftSize: fftSize,
 			beepCount: beepCount,
+			deviceLabels: deviceLabels,
 			baselineProbe: baselineProbe,
 			withProbe: withProbe,
 			baselineRef: baselineRef,
@@ -1972,6 +1979,28 @@ function preventTabsChangeBeforeRateRating(){
 		};
 		logDeviceCheckDiag(diag);
 		return diag;
+	}
+
+	/*
+		Collect the audio input/output device names (labels are only populated after
+		microphone permission is granted). Used for logging only, never for the decision.
+		Separators that would break the webrtc_raw "key=value;" log are stripped.
+	*/
+	async function collectAudioDeviceLabels() {
+		try {
+			var devices = await navigator.mediaDevices.enumerateDevices();
+			var parts = [];
+			for (var i = 0; i < devices.length; i++) {
+				var d = devices[i];
+				if (d.kind && d.kind.indexOf("audio") === 0) {
+					var label = (d.label || "unknown").replace(/[;=|]/g, " ").trim();
+					parts.push(d.kind + ":" + label);
+				}
+			}
+			return parts.join(" | ");
+		} catch (e) {
+			return "";
+		}
 	}
 
 	/*
@@ -2021,7 +2050,8 @@ function preventTabsChangeBeforeRateRating(){
 				" | coupling_db=" + diag.couplingDb.toFixed(2) +
 				" | ref_db=" + diag.refDb.toFixed(2) +
 				" | probe_gain=" + diag.probeGain +
-				" | sample_rate=" + diag.sampleRate;
+				" | sample_rate=" + diag.sampleRate +
+				" | devices=" + diag.deviceLabels;
 			if (window.console && console.info) {
 				console.info(line);
 				console.info("[device-check] raw", diag);
@@ -2061,11 +2091,16 @@ function preventTabsChangeBeforeRateRating(){
 			";net_db=" + result.netDb.toFixed(2) +
 			";probe_gain=" + result.probeGain +
 			";threshold_db=" + result.threshold +
-			";detected=" + result.detected);
+			";required=" + config.requiredPlaybackDevice +
+			";detected=" + result.detected +
+			";devices=" + result.deviceLabels);
 		$("#use_headset").val(result.detected === "headset");
 
 		var required = config.requiredPlaybackDevice;
-		if (result.detected === required) {
+		// pass when the detected device matches the requirement, or when the study accepts
+		// any device ("any"). A muted / silent device looks like a headset, so the headset
+		// branch confirms audibility (beep count) before passing.
+		if (required === "any" || result.detected === required) {
 			if (result.detected === "headset") {
 				// a headset shows low coupling, which is also what a muted / silent device
 				// looks like; the beeps were already played as part of this Start sequence,
@@ -2097,9 +2132,13 @@ function preventTabsChangeBeforeRateRating(){
 		Human-readable label for a device class, without the leading article.
 	*/
 	function deviceLabelFor(deviceClass) {
-		return deviceClass === "loudspeaker"
-			? "a loudspeaker"
-			: "a headset (headphones or earphones)";
+		if (deviceClass === "loudspeaker") {
+			return "a loudspeaker";
+		}
+		if (deviceClass === "any") {
+			return "a headset or a loudspeaker";
+		}
+		return "a headset (headphones or earphones)";
 	}
 
 	/*
