@@ -334,7 +334,7 @@
 		deviceCheckThresholdDb: {{cfg.device_check_threshold_db}},
 		// probe-tone level (linear gain 0..1); kept low for hearing safety
 		deviceCheckProbeGain: {{cfg.device_check_probe_gain}},
-		// P.804: show a per-scale "Cannot rate it" option on col/disc/reverb/sig scales
+		// P.804: show a per-scale "Cannot tell" option on col/disc/reverb/sig scales
 		allowCannotRate: {{cfg.allow_cannot_rate}},
 		cmp_correct_answers: {{ cfg.cmp_correct_answers }},
 		cmp_max_n_feedback: {{ cfg.cmp_max_n_feedback }},
@@ -2456,7 +2456,7 @@ function preventTabsChangeBeforeRateRating(){
 					</div>									
 				
 					{% if cfg.allow_cannot_rate == "true" %}
-					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_disc" value="0">&nbsp;Cannot rate it</label></div>
+					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_disc" value="0">&nbsp;Cannot tell</label><span class="cannot-tell-info" title="Select this only if other distortions (for example strong background noise) make the speech so hard to hear that you cannot judge this specific dimension." style="cursor:help;font-weight:bold;color:#337ab7;" role="button" tabindex="0">&nbsp;(?)</span><div class="cannot-tell-help" style="display:none;font-size:0.9em;color:#555;margin-top:4px;">Select this only if other distortions (for example strong background noise) make the speech so hard to hear that you cannot judge this specific dimension.</div></div>
 					{% endif %}
 				</div></br></br></br>
 			`;
@@ -2503,7 +2503,7 @@ function preventTabsChangeBeforeRateRating(){
 					</div>									
 				
 					{% if cfg.allow_cannot_rate == "true" %}
-					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_col" value="0">&nbsp;Cannot rate it</label></div>
+					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_col" value="0">&nbsp;Cannot tell</label><span class="cannot-tell-info" title="Select this only if other distortions (for example strong background noise) make the speech so hard to hear that you cannot judge this specific dimension." style="cursor:help;font-weight:bold;color:#337ab7;" role="button" tabindex="0">&nbsp;(?)</span><div class="cannot-tell-help" style="display:none;font-size:0.9em;color:#555;margin-top:4px;">Select this only if other distortions (for example strong background noise) make the speech so hard to hear that you cannot judge this specific dimension.</div></div>
 					{% endif %}
 				</div></br></br></br>
 			`;
@@ -2599,7 +2599,7 @@ function preventTabsChangeBeforeRateRating(){
 					
 				
 					{% if cfg.allow_cannot_rate == "true" %}
-					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_reverb" value="0">&nbsp;Cannot rate it</label></div>
+					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_reverb" value="0">&nbsp;Cannot tell</label><span class="cannot-tell-info" title="Select this only if other distortions (for example strong background noise) make the speech so hard to hear that you cannot judge this specific dimension." style="cursor:help;font-weight:bold;color:#337ab7;" role="button" tabindex="0">&nbsp;(?)</span><div class="cannot-tell-help" style="display:none;font-size:0.9em;color:#555;margin-top:4px;">Select this only if other distortions (for example strong background noise) make the speech so hard to hear that you cannot judge this specific dimension.</div></div>
 					{% endif %}
 				</div></br></br></br>`;
 
@@ -2652,7 +2652,7 @@ function preventTabsChangeBeforeRateRating(){
 					</table>
 				
 					{% if cfg.allow_cannot_rate == "true" %}
-					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_sig" value="0">&nbsp;Cannot rate it</label></div>
+					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_sig" value="0">&nbsp;Cannot tell</label><span class="cannot-tell-info" title="Select this only if other distortions (for example strong background noise) make the speech so hard to hear that you cannot judge this specific dimension." style="cursor:help;font-weight:bold;color:#337ab7;" role="button" tabindex="0">&nbsp;(?)</span><div class="cannot-tell-help" style="display:none;font-size:0.9em;color:#555;margin-top:4px;">Select this only if other distortions (for example strong background noise) make the speech so hard to hear that you cannot judge this specific dimension.</div></div>
 					{% endif %}
 				</fieldset>
 				</div>
@@ -3231,6 +3231,14 @@ function preventTabsChangeBeforeRateRating(){
 function set_onclick_listeners(){
 	document.getElementById("gold_warning_checkbox").onchange = function() { gold_warning(); };
 	document.getElementById("Math").onchange = function() { userAnsweringToSetupQuestions(); };
+	// "Cannot tell" (?) info: hovering shows the title tooltip; clicking (or pressing the
+	// key while focused) toggles the inline explanation. Delegated so it also works for the
+	// dynamically generated per-trial scale blocks.
+	$(document).on('click keypress', '.cannot-tell-info', function (e) {
+		if (e.type === 'keypress' && e.which !== 13 && e.which !== 32) { return; }
+		e.preventDefault();
+		$(this).closest('.cannot-rate').find('.cannot-tell-help').toggle();
+	});
 	// device check runs an objective acoustic echo test (see startDeviceCheck)
 	document.getElementById("start_headset_check").onclick = function() { startDeviceCheck(); };
 	wireDeviceCheckOptions();
