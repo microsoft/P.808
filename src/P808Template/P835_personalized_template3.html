@@ -895,7 +895,7 @@
 		no code is available, so ask them to return the task.
 	*/
 	function applyScreenoutMessage(sectionId, codeVar) {
-		// build the placeholder token at runtime so the HIT app server's ${...} replacement
+		// build the placeholder token at runtime so the HIT app server's dollar-brace placeholder replacement
 		// does not rewrite this comparison string.
 		var placeholder = "$" + "{" + codeVar + "}";
 		var section = document.getElementById(sectionId);
