@@ -82,6 +82,9 @@ GOLD_TYPES = {
     },
     'coloration': {
         'suffix': 'colored',
+        # REVIEW: col_ans=1 is a suggested rating; coloration strength varies by style and
+        # content and is not always perceived as "very colored" (see apply_coloration note).
+        # Listen to each colored clip and confirm/adjust these answers before using as gold.
         'p804': {'col_ans': 1, 'sig_ans': 1, 'ovrl_ans': 1},
     },
     'coloration_noise': {
@@ -225,6 +228,18 @@ def apply_coloration(signal, sr):
     Cut-offs are specified in Hz and converted with the sample rate so the effect is
     consistent across sample rates (16/24/48 kHz). The styles are deliberately strong,
     with no clean passthrough, so the timbre change is clearly audible.
+
+    REVIEW NOTE (coloration effect):
+    The three styles do NOT all sound equally "colored". In the v5_gold_automatic_july_2026
+    study these clips were labelled col_ans=1 (very colored), yet on some clips a noticeable
+    minority of listeners rated them as only mildly colored or clean: ~13% of votes on the
+    colored gold clips were not in the col=1..2 range (a few clips dropped to ~60% agreement),
+    and coloration on real-world "merged" recordings was harder to hear than on studio (P501)
+    references. In other words, the fixed col_ans=1 does not always match perception for every
+    style/content combination. Before using colored clips as gold, the researcher should LISTEN
+    to each colored clip and confirm the suggested rating (col_ans, and sig_ans/ovrl_ans) is
+    appropriate for that specific clip; adjust the per-clip answer or drop clips whose coloration
+    is too subtle. See _CONFIG per-degradation ratings and the study's gold-agreement report.
 
     :param signal: Audio signal as a numpy array.
     :param sr: Sample rate.
@@ -579,6 +594,7 @@ def create_gold_clips(input_dir, output_dir, method, snr_db=-5.0, clip_threshold
     used_names = set()
     rows = []
     count = 0
+    coloration_generated = False
 
     # Only use gold types that have answers defined for this method
     applicable_types = {k: v for k, v in GOLD_TYPES.items() if method in v}
@@ -593,6 +609,8 @@ def create_gold_clips(input_dir, output_dir, method, snr_db=-5.0, clip_threshold
 
         for gold_type, type_info in applicable_types.items():
             answers = type_info[method]
+            if gold_type == 'coloration':
+                coloration_generated = True
 
             if anonymize:
                 while True:
@@ -628,6 +646,13 @@ def create_gold_clips(input_dir, output_dir, method, snr_db=-5.0, clip_threshold
 
     print(f"\n{count} gold clip(s) created in {output_dir}")
     print(f"Report saved to {report_path}")
+    # Remind the researcher to verify the coloration clips (the col_ans=1 label is not
+    # always perceived; see apply_coloration REVIEW NOTE).
+    if coloration_generated:
+        print("\n[REVIEW REQUIRED] Coloration clips were generated. Coloration strength varies "
+              "by style/content and is not always perceived as 'very colored'. Please LISTEN to "
+              "each colored clip and confirm/adjust the suggested ratings (col_ans/sig_ans/ovrl_ans) "
+              "before using them as gold. See the apply_coloration() note.")
     return count
 
 
