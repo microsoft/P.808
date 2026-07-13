@@ -189,6 +189,13 @@
 		},
 		runOnlineEvalQualification: {{cfg.run_online_eval_qualification}},
 		runOnlineEvalSetup: {{cfg.run_online_eval_setup}},
+		// listening-device check: the required active playback device
+		requiredPlaybackDevice: "{{cfg.required_playback_device}}",
+		// net coupling (dB) at/above which a loudspeaker is inferred (probe rise minus
+		// control-band rise); classifies headset vs loudspeaker
+		deviceCheckThresholdDb: {{cfg.device_check_threshold_db}},
+		// probe-tone level (linear gain 0..1); kept low for hearing safety
+		deviceCheckProbeGain: {{cfg.device_check_probe_gain}},
 		cmp_correct_answers: {{ cfg.cmp_correct_answers }},
 		cmp_max_n_feedback: {{ cfg.cmp_max_n_feedback }},
 		cmp_pass_threshold: {{ cfg.cmp_pass_threshold }},
@@ -208,6 +215,13 @@
 	// how many times a feedback was given to the workers,
 	var n_cmp_feedbacks = 0;
 	var n_setup_feedback = 0;
+	// listening-device (acoustic echo) check state
+	var device_check_passed = false;
+	// audibility (beep-count) check state, used to catch a muted / silent device.
+	// dc_audibility_attempts persists across full-test re-runs (each retry is a whole
+	// new check via the Start button), so it is not reset per run.
+	var dc_beep_expected = 0;
+	var dc_audibility_attempts = 0;
 	const Hide_HIT_REASON = Object.freeze({ "MAX_ACHIVED": 1, "QUALIFICATON": 2, "GOLD_FAILED":3, "SETUP":4 })
 	/*
 	Initializing the page: generate and hide sections depending to the cookies value
@@ -243,10 +257,9 @@
 				$('.qualificationFieldset').prop("disabled", true);
 				$("#qualification").hide();
 				$("#qualification :input").removeAttr("required");
-				$("#setup").removeClass("disabled2_section");
-				$("#device_check_section").removeClass("disabled2_section");				
-				$("#training").removeClass("disabled2_section");
-				$("#rating_section").removeClass("disabled2_section");
+				// unlock the device check (which re-runs every session and gates the rest),
+				// or, when any device is accepted, skip it and open the following sections
+				unlockAfterQualification();
 				cookie_debug_status = cookie_debug_status + "ACR_LISTENER Exist*";
 			}
 
@@ -345,10 +358,18 @@
 		// just to check
 		checkScripts();
 		$("#run_qualification_check").on("click", validateQualificationAnswer);
-		$("#run_setup_check").on("click", runSetupCheck);
+				$("#run_setup_check").on("click", runSetupCheck);
+		// show which device the listening-device check requires, and adapt the
+		// instruction rule; hide the whole check when any device is accepted.
+		applyDeviceCheckTexts();
+		if (config.requiredPlaybackDevice === "any") {
+			$("#device_check_section").hide();
+		}
 		if (!config.runOnlineEvalQualification) {
-			// online qualification check is disabled -> do not gate the sections
-			$(".disabled2_section").removeClass("disabled2_section");
+			// online qualification check is disabled -> do not gate on the answers, but
+			// the objective device check stays mandatory, so unlock the device check
+			// (which unlocks the rest on pass), or skip it when any device is accepted.
+			unlockAfterQualification();
 		}
 	});
 
@@ -491,15 +512,13 @@
 		m_tongue = $("input[name='3_mother_tongue']").val().toLowerCase().trim();
 		m_tongue_check = config.qualification.mother_tongue.includes(m_tongue)
 
-		// check listening devices
-		var listening_device = [];
-		$.each($("input[name='4_ld']:checked"), function () {
-			listening_device.push($(this).val());
-		});
-		device_check = false;
-		for (var i = 0; i < listening_device.length; i++) {
-			device_check = device_check || config.qualification.ld_in.includes(listening_device[i]);
-		}
+				// check listening-device self-report against the required playback device
+		// (headset -> in-ear/over-ear, loudspeaker -> ex-ls/ib-ls). When the study accepts
+		// "any" device, any single valid selection is fine. The objective device check
+		// later verifies the actual active device.
+		device_check = (config.requiredPlaybackDevice === "any")
+			? (selfReportedDeviceClass() !== null)
+			: (selfReportedDeviceClass() === config.requiredPlaybackDevice);
 		working_area_checked = $("input[name='7_working_area']:checked").val() == "N"
 		hearing_self_report_check = $("input[name='8_hearing']:checked").val() == "normal"
 		count_correct_ht = 0;
@@ -523,12 +542,13 @@
 			// add a qualification for 'qualificationValidFor' minutes
 			createCookie(config.qualificationCookieName, passed, config.qualificationValidFor);
 			if (passed) {
-				// activate the rest and scroll to the setup section
-				$("#setup").removeClass("disabled2_section");
-				$("#device_check_section").removeClass("disabled2_section");
-				$("#training").removeClass("disabled2_section");
-				$("#rating_section").removeClass("disabled2_section");
-				document.getElementById("setup").scrollIntoView({ behavior: "smooth", block: "start" });
+				// unlock what follows qualification. With a required device this only
+				// unlocks the device check (which then gates the rest); with "any" the
+				// device check is skipped and the remaining sections open directly.
+				unlockAfterQualification();
+				var afterQual = document.getElementById(
+					config.requiredPlaybackDevice === "any" ? "setup" : "device_check_section");
+				if (afterQual) afterQual.scrollIntoView({ behavior: "smooth", block: "start" });
 			} else {
 				qualification_attempts++;
 				if (qualification_attempts < 2) {
@@ -792,7 +812,7 @@
 			// valid response in cmp
 			createCookie(config['cookieName'] + "_setup", "un_important", config['showSetupEveryMinutes']);
 			alert("Your setup looks good. You can continue with the task.");
-			var setupNext = document.getElementById("device_check_section");
+			var setupNext = document.getElementById("training");
 			if (setupNext) setupNext.scrollIntoView({ behavior: "smooth", block: "start" });
 			return;
 		}
@@ -1411,43 +1431,497 @@
 
 <script type="text/javascript" id="js_part3"  nonce="csp_nonce_token">
 
-	/*
-		functions responsible to headset check
+		/*
+		functions responsible for the objective listening-device check.
+
+		We play a short probe tone through the participant's active playback device and,
+		at the same time, record the microphone with all browser audio processing
+		(echo cancellation, automatic gain control, noise suppression) DISABLED. When a
+		loudspeaker is used, the probe leaks into the room and the microphone picks it up
+		strongly; with a headset the acoustic coupling is weak. The measured coupling (in
+		dB) and the inferred device are stored in the hidden fields for offline checking.
 	*/
-	function isHeadsetOn(webrtc_raw) {
-		keywords = ["headphone", "headset", "airpod", "usb audio device"]
-		for (var i = 0; i < keywords.length; i++) {
-			if (webrtc_raw.includes(keywords[i]))
-				return true;
-		}
-		return false;
+
+	/*
+		Return the self-reported device class from the 4_ld checkboxes:
+		"headset", "loudspeaker", or null when it is ambiguous/not answered.
+	*/
+	function selfReportedDeviceClass() {
+		var headsetVals = ["in-ear", "over-ear"];
+		var speakerVals = ["ex-ls", "ib-ls"];
+		var isHeadset = false, isSpeaker = false;
+		$("input[name='4_ld']:checked").each(function () {
+			var v = $(this).val();
+			if (headsetVals.indexOf(v) >= 0) isHeadset = true;
+			if (speakerVals.indexOf(v) >= 0) isSpeaker = true;
+		});
+		if (isHeadset && !isSpeaker) return "headset";
+		if (isSpeaker && !isHeadset) return "loudspeaker";
+		return null;
 	}
 
-	const constraints = {
-		audio: true,
-		video: false
-	};
+	function sleepMs(ms) {
+		return new Promise(function (resolve) { setTimeout(resolve, ms); });
+	}
 
 	/*
-		Async function to check the list of audio devices when the user allowed
+		Average the linear magnitude of the analyser spectrum in a few bins around each
+		target frequency in freqList, sampled repeatedly over a short window. Returns an
+		array of average magnitudes aligned with freqList (all read from the same samples,
+		so the bands are time-aligned).
 	*/
-	const startHeadsetCheck = async function () {
-		$('#status').html("waiting for allowance...")
-		await navigator.mediaDevices.getUserMedia(constraints);
-
-		navigator.mediaDevices.enumerateDevices()
-			.then(devices => {
-				var device_list = "";
-				for (var i = 0; i < devices.length; i++) {
-					if (devices[i].kind.startsWith('audio')) {
-						device_list = device_list + devices[i].kind + ":" + devices[i].label.toLowerCase() + "+";
+	async function averageBandMagnitudes(analyser, audioCtx, freqList, durationMs) {
+		var bins = new Float32Array(analyser.frequencyBinCount);
+		var binHz = audioCtx.sampleRate / analyser.fftSize;
+		var centers = freqList.map(function (f) { return Math.round(f / binHz); });
+		var acc = freqList.map(function () { return 0; });
+		var count = 0;
+		var start = performance.now();
+		while (performance.now() - start < durationMs) {
+			analyser.getFloatFrequencyData(bins);
+			for (var k = 0; k < centers.length; k++) {
+				var c = centers[k], mag = 0, n = 0;
+				for (var b = c - 1; b <= c + 1; b++) {
+					if (b >= 0 && b < bins.length) {
+						mag += Math.pow(10, bins[b] / 20);
+						n++;
 					}
 				}
-				headsetDetected = isHeadsetOn(device_list);
-				$("#webrtc_raw").val(device_list);
-				$("#use_headset").val(headsetDetected);
-				$("#status").html("Done. Please continue.");
-			});
+				acc[k] += (n > 0 ? mag / n : 0);
+			}
+			count++;
+			await sleepMs(25);
+		}
+		return acc.map(function (a) { return count > 0 ? a / count : 0; });
+	}
+
+	/*
+		Play a probe tone while recording the microphone and measure the acoustic
+		coupling. Returns { detected: "headset"|"loudspeaker", couplingDb: Number }.
+	*/
+	async function runAcousticEchoCheck() {
+		var probeHz = 1000;
+		// a control frequency (no probe energy) to gauge broadband mic-level changes
+		var refHz = 1500;
+		// disable browser audio processing: echo cancellation would otherwise remove
+		// exactly the loudspeaker leakage we are trying to detect.
+		var stream = await navigator.mediaDevices.getUserMedia({
+			audio: {
+				echoCancellation: false,
+				autoGainControl: false,
+				noiseSuppression: false
+			},
+			video: false
+		});
+		// with microphone permission granted, collect the audio device names for logging
+		// (not used for the decision) so we can review/improve the check later.
+		var deviceLabels = await collectAudioDeviceLabels();
+		var AudioCtx = window.AudioContext || window.webkitAudioContext;
+		var audioCtx = new AudioCtx();
+		if (audioCtx.state === "suspended") {
+			await audioCtx.resume();
+		}
+		var micSource = audioCtx.createMediaStreamSource(stream);
+		var analyser = audioCtx.createAnalyser();
+		analyser.fftSize = 8192;
+		analyser.smoothingTimeConstant = 0;
+		micSource.connect(analyser);
+
+		// 1. baseline energy at the probe and control frequencies (no tone playing yet)
+		var base = await averageBandMagnitudes(analyser, audioCtx, [probeHz, refHz], 300);
+		var baselineProbe = base[0];
+		var baselineRef = base[1];
+
+		// 2. play the probe tone through the active playback device and re-measure.
+		//    The level is kept low for hearing safety and is ramped in/out to avoid a
+		//    harsh click. Detection is ratio-based, so a quiet tone is enough.
+		var peakGain = Number(config.deviceCheckProbeGain);
+		if (!(peakGain > 0)) {
+			peakGain = 0.1;
+		}
+		var osc = audioCtx.createOscillator();
+		osc.type = "sine";
+		osc.frequency.value = probeHz;
+		var gain = audioCtx.createGain();
+		var tStart = audioCtx.currentTime;
+		gain.gain.setValueAtTime(0.0001, tStart);
+		gain.gain.exponentialRampToValueAtTime(peakGain, tStart + 0.06);
+		osc.connect(gain);
+		gain.connect(audioCtx.destination);
+		osc.start();
+		await sleepMs(150);
+		var withTone = await averageBandMagnitudes(analyser, audioCtx, [probeHz, refHz], 450);
+		var withProbe = withTone[0];
+		var withRef = withTone[1];
+		// fade the tone out before stopping
+		var tEnd = audioCtx.currentTime;
+		gain.gain.setValueAtTime(peakGain, tEnd);
+		gain.gain.exponentialRampToValueAtTime(0.0001, tEnd + 0.06);
+		osc.stop(tEnd + 0.08);
+
+		// rise at the probe frequency; rise at the control frequency (broadband); and the
+		// net (probe rise above the broadband rise). net_db isolates the actual tonal echo
+		// from a broadband mic-level change and separates headset from loudspeaker much
+		// more reliably than the raw probe rise, so it is the decision metric.
+		var couplingDb = 20 * Math.log10((withProbe + 1e-12) / (baselineProbe + 1e-12));
+		var refDb = 20 * Math.log10((withRef + 1e-12) / (baselineRef + 1e-12));
+		var netDb = couplingDb - refDb;
+		var threshold = Number(config.deviceCheckThresholdDb);
+		var detected = netDb >= threshold ? "loudspeaker" : "headset";
+		var sampleRate = audioCtx.sampleRate;
+		var fftSize = analyser.fftSize;
+
+		// 3. when a headset is detected (the low-coupling case that a muted / silent device
+		//    also produces), play a random number (2-4) of short beeps right after the
+		//    probe in the SAME sequence, so a single Start both measures the device and lets
+		//    the participant confirm they can hear. A loudspeaker needs no audibility check.
+		var beepCount = 0;
+		if (detected === "headset") {
+			beepCount = 2 + Math.floor(Math.random() * 3);
+			// tight gap after the probe so the beeps belong to the same sequence; a
+			// participant who mutes the long probe (to fake a headset) would also clip
+			// these beeps and fail the count.
+			var beepDur = scheduleBeeps(audioCtx, beepCount, audioCtx.currentTime + 0.2);
+			await sleepMs((0.2 + beepDur + 0.3) * 1000);
+		}
+
+		// 4. clean up (nothing is kept or transmitted)
+		stream.getTracks().forEach(function (t) { t.stop(); });
+		try { gain.disconnect(); } catch (e) { /* ignore */ }
+		try { await audioCtx.close(); } catch (e) { /* ignore */ }
+
+		var diag = {
+			detected: detected,
+			couplingDb: couplingDb,
+			refDb: refDb,
+			netDb: netDb,
+			threshold: threshold,
+			probeGain: peakGain,
+			probeHz: probeHz,
+			refHz: refHz,
+			sampleRate: sampleRate,
+			fftSize: fftSize,
+			beepCount: beepCount,
+			deviceLabels: deviceLabels,
+			baselineProbe: baselineProbe,
+			withProbe: withProbe,
+			baselineRef: baselineRef,
+			withRef: withRef
+		};
+		logDeviceCheckDiag(diag);
+		return diag;
+	}
+
+	/*
+		Collect the audio input/output device names (labels are only populated after
+		microphone permission is granted). Used for logging only, never for the decision.
+		Separators that would break the webrtc_raw "key=value;" log are stripped.
+	*/
+	async function collectAudioDeviceLabels() {
+		try {
+			var devices = await navigator.mediaDevices.enumerateDevices();
+			var parts = [];
+			for (var i = 0; i < devices.length; i++) {
+				var d = devices[i];
+				if (d.kind && d.kind.indexOf("audio") === 0) {
+					var label = (d.label || "unknown").replace(/[;=|]/g, " ").trim();
+					parts.push(d.kind + ":" + label);
+				}
+			}
+			return parts.join(" | ");
+		} catch (e) {
+			return "";
+		}
+	}
+
+	/*
+		Schedule a single tone (with short fade in/out) on ctx at startAt; returns the time
+		the tone ends (before the trailing release).
+	*/
+	function scheduleTone(ctx, startAt, durSec, freq, peak) {
+		var osc = ctx.createOscillator();
+		osc.type = "sine";
+		osc.frequency.value = freq;
+		var g = ctx.createGain();
+		g.gain.setValueAtTime(0.0001, startAt);
+		g.gain.exponentialRampToValueAtTime(peak, startAt + 0.02);
+		g.gain.setValueAtTime(peak, startAt + durSec - 0.02);
+		g.gain.exponentialRampToValueAtTime(0.0001, startAt + durSec);
+		osc.connect(g);
+		g.connect(ctx.destination);
+		osc.start(startAt);
+		osc.stop(startAt + durSec + 0.02);
+		return startAt + durSec;
+	}
+
+	/*
+		Schedule n short, gentle beeps (880 Hz) on the given AudioContext starting at
+		startAt, returning the total duration in seconds. Used both in the combined Start
+		sequence and when the participant asks to replay the sequence.
+	*/
+	function scheduleBeeps(ctx, n, startAt) {
+		var freq = 880, dur = 0.2, gap = 0.2;
+		var t = startAt;
+		for (var i = 0; i < n; i++) {
+			scheduleTone(ctx, t, dur, freq, 0.15);
+			t += dur + gap;
+		}
+		return t - startAt;
+	}
+
+	/*
+		Print device-check diagnostics to the console for calibration. Uses console.info
+		so it is visible even when console.log is silenced outside debug mode.
+	*/
+	function logDeviceCheckDiag(diag) {
+		try {
+			var line = "[device-check] detected=" + diag.detected +
+				" (decision: net_db >= " + diag.threshold + ")" +
+				" | net_db=" + diag.netDb.toFixed(2) +
+				" | coupling_db=" + diag.couplingDb.toFixed(2) +
+				" | ref_db=" + diag.refDb.toFixed(2) +
+				" | probe_gain=" + diag.probeGain +
+				" | sample_rate=" + diag.sampleRate +
+				" | devices=" + diag.deviceLabels;
+			if (window.console && console.info) {
+				console.info(line);
+				console.info("[device-check] raw", diag);
+			}
+		} catch (e) { /* ignore logging errors */ }
+	}
+
+	/*
+		Human-readable label for the required playback device.
+	*/
+	function requiredDeviceLabel() {
+		return deviceLabelFor(config.requiredPlaybackDevice);
+	}
+
+	/*
+		Run the objective device check, compare the detected device with the required
+		device, and gate the rest of the HIT. On a mismatch the participant chooses how
+		to proceed (retry / no device / dispute); see wireDeviceCheckOptions.
+	*/
+	const startDeviceCheck = async function () {
+		var startBtn = document.getElementById("start_headset_check");
+		$("#status").html("Checking your playback device, please wait&hellip;");
+		if (startBtn) startBtn.disabled = true;
+
+		var result;
+		try {
+			result = await runAcousticEchoCheck();
+		} catch (err) {
+			recordError(err.name, err.message);
+			$("#status").html("We could not access your microphone. Please allow microphone access in your browser and click <b>Start</b> again.");
+			if (startBtn) startBtn.disabled = false;
+			return;
+		}
+
+		$("#webrtc_raw").val("coupling_db=" + result.couplingDb.toFixed(2) +
+			";ref_db=" + result.refDb.toFixed(2) +
+			";net_db=" + result.netDb.toFixed(2) +
+			";probe_gain=" + result.probeGain +
+			";threshold_db=" + result.threshold +
+			";required=" + config.requiredPlaybackDevice +
+			";detected=" + result.detected +
+			";devices=" + result.deviceLabels);
+		$("#use_headset").val(result.detected === "headset");
+
+		var required = config.requiredPlaybackDevice;
+		// pass when the detected device matches the requirement, or when the study accepts
+		// any device ("any"). A muted / silent device looks like a headset, so the headset
+		// branch confirms audibility (beep count) before passing.
+		if (required === "any" || result.detected === required) {
+			if (result.detected === "headset") {
+				// a headset shows low coupling, which is also what a muted / silent device
+				// looks like; the beeps were already played as part of this Start sequence,
+				// so ask the participant to confirm how many they heard.
+				startAudibilityCheck(result.beepCount);
+			} else {
+				// a loudspeaker was detected via a strong probe echo, so audio is
+				// definitely playing (not muted) -> pass directly.
+				passDeviceCheck();
+			}
+			return;
+		}
+
+		// detected device does not match the required device: ask the participant to
+		// confirm / dispute and choose how to proceed (see wireDeviceCheckOptions).
+		if (startBtn) startBtn.disabled = false;
+		var detectedLabel = deviceLabelFor(result.detected);
+		var requiredLabel = deviceLabelFor(required);
+		$("#status").html("");
+		$("#device_check_detected").text(detectedLabel);
+		$("#device_check_required").text(requiredLabel);
+		$(".device_check_required_inline").text(requiredLabel);
+		$("input[name='device_check_choice']").prop("checked", false);
+		$("#device_check_result").show();
+		document.getElementById("device_check_result").scrollIntoView({ behavior: "smooth", block: "center" });
+	}
+
+	/*
+		Human-readable label for a device class, without the leading article.
+	*/
+	function deviceLabelFor(deviceClass) {
+		if (deviceClass === "loudspeaker") {
+			return "a loudspeaker";
+		}
+		if (deviceClass === "any") {
+			return "a headset or a loudspeaker";
+		}
+		return "a headset (headphones or earphones)";
+	}
+
+	/*
+		Set the device-dependent texts: the label in the device-check intro and the
+		playback-device rule in the instruction section, adapted to the required device.
+	*/
+	function applyDeviceCheckTexts() {
+		$("#required_device_label").text(requiredDeviceLabel());
+		var rule;
+		if (config.requiredPlaybackDevice === "loudspeaker") {
+			rule = "You must use a <b>loudspeaker</b>, not a headset: otherwise your response will be rejected";
+		} else if (config.requiredPlaybackDevice === "any") {
+			rule = "You may use <b>a headset or a loudspeaker</b> for this task";
+		} else {
+			rule = "You must use a <b>headset</b>, not a loudspeaker: otherwise your response will be rejected";
+		}
+		$("#device_rule").html(rule);
+	}
+
+	/*
+		Unlock the sections that follow qualification. When a specific playback device is
+		required, only the device check is unlocked (it then gates the rest on pass). When
+		any device is accepted, the device check is skipped (hidden) and the following
+		sections are unlocked directly.
+	*/
+	function unlockAfterQualification() {
+		if (config.requiredPlaybackDevice === "any") {
+			$("#device_check_section").hide();
+			$("#setup").removeClass("disabled2_section");
+			$("#details_instruction").removeClass("disabled2_section");
+			$("#training").removeClass("disabled2_section");
+			$("#rating_section").removeClass("disabled2_section");
+		} else {
+			$("#device_check_section").removeClass("disabled2_section");
+		}
+	}
+
+	/*
+		Passing the device check is the mandatory gate: unlock setup and the remaining
+		sections and scroll to the setup section.
+	*/
+	function passDeviceCheck() {
+		device_check_passed = true;
+		$("#device_check_result").hide();
+		$("#device_check_audibility").hide();
+		$("#status").html("Thank you, your playback device was verified. You can continue.");
+		$("#setup").removeClass("disabled2_section");
+		$("#details_instruction").removeClass("disabled2_section");
+		$("#training").removeClass("disabled2_section");
+		$("#rating_section").removeClass("disabled2_section");
+		var next = document.getElementById("setup");
+		if (next) next.scrollIntoView({ behavior: "smooth", block: "start" });
+	}
+
+	/*
+		Audibility (beep-count) check. A muted or silent device is acoustically identical
+		to a well-sealed headset (both produce almost no coupling), so when a headset is
+		detected we additionally confirm the participant can actually hear the audio by
+		asking how many of the shorter beeps (played during the Start sequence) they heard.
+		This also catches a volume that is set too low. To retry, the participant re-runs
+		the whole check with Start (there is no beeps-only replay).
+	*/
+	function startAudibilityCheck(expected) {
+		dc_beep_expected = expected;
+		$("#device_check_result").hide();
+		$("#status").html("");
+		$("input[name='dc_beep_count']").prop("checked", false);
+		$("#device_check_audibility").show();
+		document.getElementById("device_check_audibility").scrollIntoView({ behavior: "smooth", block: "center" });
+	}
+
+	/*
+		Check the reported beep count. A correct answer confirms audibility and passes the
+		device check. A wrong answer (or "no sound") sends the participant back to re-run
+		the entire check once more; a second failure screens them out because they cannot
+		hear the audio needed for the task.
+	*/
+	function dcSubmitBeepCount() {
+		var val = $("input[name='dc_beep_count']:checked").val();
+		if (val === undefined) {
+			alert("Please select how many of the shorter beeps you heard.");
+			return;
+		}
+		var answer = parseInt(val, 10);
+		var raw = $("#webrtc_raw").val();
+		if (answer === dc_beep_expected) {
+			$("#webrtc_raw").val(raw + ";audible=1");
+			passDeviceCheck();
+			return;
+		}
+		dc_audibility_attempts++;
+		$("#webrtc_raw").val(raw + ";audible_fail=" + dc_audibility_attempts);
+		if (dc_audibility_attempts < 2) {
+			// let them run the whole check again from the start
+			$("#device_check_audibility").hide();
+			$("input[name='dc_beep_count']").prop("checked", false);
+			var startBtn = document.getElementById("start_headset_check");
+			if (startBtn) startBtn.disabled = false;
+			$("#status").html("That is not what we played. Please make sure your device is <b>not muted</b> and the volume is at a comfortable level, then click <b>Start</b> to run the check again.");
+			document.getElementById("device_check_section").scrollIntoView({ behavior: "smooth", block: "start" });
+		} else {
+			// repeatedly could not report the beeps -> cannot hear the audio -> screen out
+			$("#webrtc_raw").val($("#webrtc_raw").val() + ";audible=0");
+			disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+			var rej = document.getElementById("qualification_rejected");
+			if (rej) rej.scrollIntoView({ behavior: "smooth", block: "start" });
+		}
+	}
+
+	/*
+		Wire the three options shown when the detected device does not match the required
+		one:
+		  - retry: the participant will fix their setup and run the check again;
+		  - no_device: they do not have the required device -> screen out with the
+		    qualification completion code;
+		  - dispute: they insist they are using the required device -> log the
+		    disagreement and let them continue.
+	*/
+	function wireDeviceCheckOptions() {
+		var submitBtn = document.getElementById("device_check_choice_submit");
+		if (!submitBtn) return;
+		submitBtn.onclick = function () {
+			var choice = $("input[name='device_check_choice']:checked").val();
+			if (!choice) {
+				alert("Please select one of the options.");
+				return;
+			}
+			if (choice === "retry") {
+				$("#device_check_result").hide();
+				$("#status").html("Please change your setup to the required device, then click <b>Start</b> again.");
+				var startBtn = document.getElementById("start_headset_check");
+				if (startBtn) startBtn.disabled = false;
+			} else if (choice === "no_device") {
+				// participant does not have the required device -> screen out (paid code)
+				var raw = $("#webrtc_raw").val();
+				$("#webrtc_raw").val(raw + ";user_choice=no_device");
+				disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
+				var rej = document.getElementById("qualification_rejected");
+				if (rej) rej.scrollIntoView({ behavior: "smooth", block: "start" });
+			} else if (choice === "dispute") {
+				// participant disputes the detection -> log it and let them continue
+				var raw2 = $("#webrtc_raw").val();
+				$("#webrtc_raw").val(raw2 + ";user_choice=dispute");
+				passDeviceCheck();
+			}
+		};
+
+		// audibility (beep-count) submit button
+		var beepSubmit = document.getElementById("dc_beep_submit");
+		if (beepSubmit) {
+			beepSubmit.onclick = function () { dcSubmitBeepCount(); };
+		}
 	}
 
 
@@ -1829,8 +2303,9 @@
 	function set_onclick_listeners(){
 		//document.getElementById("gold_warning_checkbox").onchange = function() { gold_warning(); };
 		document.getElementById("Math").onchange = function() { userAnsweringToSetupQuestions(); };
-		// same here: <button type="button" class="btn btn-primary center" onclick="startHeadsetCheck()">Start</button>
-		document.getElementById("start_headset_check").onclick = function() { startHeadsetCheck(); };
+		// device check runs an objective acoustic echo test (see startDeviceCheck)
+		document.getElementById("start_headset_check").onclick = function() { startDeviceCheck(); };
+		wireDeviceCheckOptions();
 
 
 		document.getElementById("showPreviousQuestionInTrainingSection").onclick = function() { showPreviousQuestionInTrainingSection(); };
@@ -1904,7 +2379,7 @@
 				<p>You should follow the below mentioned rules, otherwise your answers will be invalid.</p>
 				<p><b>Rules:</b></p>
 				<ul>
-					<li style="color:red;">You must use a <b>headset</b>, not the loudspeaker: otherwise your response will be rejected
+					<li id="device_rule" style="color:red;">You must use a <b>headset</b>, not the loudspeaker: otherwise your response will be rejected
 					</li>
 					<li>You must perform the task in a <b>quiet environment</b></li>
 					<li>Do not change the volume after modifying it in the Setup section.</li>
@@ -2287,6 +2762,72 @@
 </section>
 
 
+<!-- Device Check -->
+<section class="container disabled2_section" id="device_check_section">
+	<div class="panel panel-primary">
+		<div class="panel-heading">
+			<h3 class="panel-title">
+				<a data-target="#device_check" data-toggle="collapse">Listening device check</a>
+			</h3>
+		</div>
+		<div class="panel-collapse collapse in" id="device_check">
+			<div class="panel-body">
+				<b>Introduction</b>
+				<p>This task must be done with <b id="required_device_label">a headset</b>. We run a short automated
+					check in your Web browser to verify your active playback device. Please click on <b>Start</b>.
+					Your browser may then ask for permission to use your microphone &mdash; please click
+					<b>Allow</b> (on some smartphones there is no prompt).
+					During the check we play <b>one longer beep</b>, and then <b>a few shorter beeps</b> that you may
+					be asked to count, while we listen with your microphone <u>only to detect whether the sound
+						comes from a headset or a loudspeaker. No audio is recorded, stored, or transmitted &mdash;
+						the measurement happens locally in your browser and is discarded immediately.</u> Please keep
+					your device unmuted for the whole check and listen carefully. You must pass this check to
+					continue.
+				<p class="text-danger"><b>Before you start, set your device volume to a comfortable, moderate
+						level.</b> We play only a short, quiet test tone, but please do not turn your volume up high.</p>
+				<div class="center">
+					<button type="button" class="btn btn-primary center" id="start_headset_check">Start</button>
+					<div id="status"> </div>
+				</div>
+				<div id="device_check_result" class="alert alert-warning" style="display:none; margin-top:15px;">
+					<p>We detected <b id="device_check_detected">a loudspeaker</b>, although this study
+						requires <b id="device_check_required">a headset</b>. Please tell us which is correct:</p>
+					<div class="radio"><label>
+							<input type="radio" name="device_check_choice" value="retry">
+							Correct &mdash; let me change my setup and retry.</label></div>
+					<div class="radio"><label>
+							<input type="radio" name="device_check_choice" value="no_device">
+							Correct &mdash; I do not have <span class="device_check_required_inline">a headset</span>
+							right now.</label></div>
+					<div class="radio"><label>
+							<input type="radio" name="device_check_choice" value="dispute">
+							Wrong &mdash; I am using <span class="device_check_required_inline">a headset</span>.</label>
+					</div>
+					<button type="button" class="btn btn-primary" id="device_check_choice_submit">Continue</button>
+				</div>
+				<div id="device_check_audibility" class="alert alert-info" style="display:none; margin-top:15px;">
+					<p>You just heard <b>one longer beep</b> followed by <b>a few shorter beeps</b>.
+						<b>How many of the shorter beeps did you hear?</b> Do not count the first, longer beep.
+						If you are not sure, or heard nothing, make sure your device is not muted and the volume
+						is comfortable, then run the check again with <b>Start</b> above.</p>
+					<div id="dc_beep_answer" style="margin-top:10px;">
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="0">
+								I heard no sound</label></div>
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="1">1</label></div>
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="2">2</label></div>
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="3">3</label></div>
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="4">4</label></div>
+						<div class="radio"><label><input type="radio" name="dc_beep_count" value="5">5</label></div>
+						<button type="button" class="btn btn-primary" id="dc_beep_submit">Submit</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+	</div>
+</section>
+<!-- Device Check ends-->
+
 <!-- Setup -->
 <section class="container disabled2_section" id="setup">
 	<div class="panel panel-info">
@@ -2469,33 +3010,6 @@
 </section>
 <!-- Setup  ends-->
 
-<!-- Device Check -->
-<section class="container disabled2_section" id="device_check_section">
-	<div class="panel panel-primary">
-		<div class="panel-heading">
-			<h3 class="panel-title">
-				<a data-target="#device_check" data-toggle="collapse">Listening device check</a>
-			</h3>
-		</div>
-		<div class="panel-collapse collapse in" id="device_check">
-			<div class="panel-body">
-				<b>Introduction</b>
-				<p>We need to check your listening device. It is an automated test using your Web-browser functionality.
-					Please click on <b>Start</b>.
-					After that, you might see a popup message from your browser asking for allowance to use your
-					microphone.
-					Please click on <b>Allow</b> (on some of smartphones there will be no message). <u>We do not process
-						or record any audio with your microphone</u>.
-				<div class="center">
-					<button type="button" class="btn btn-primary center" id="start_headset_check">Start</button>
-					<div id="status"> </div>
-				</div>
-			</div>
-		</div>
-
-	</div>
-</section>
-<!-- Device Check ends-->
 
 <!-- Training section, appears once a day-->
 <section class="container disabled2_section" id="training">
