@@ -548,6 +548,13 @@
 			// check here; passing it unlocks the remaining sections.
 			$("#device_check_section").removeClass("disabled2_section");
 		}
+		// TEMPORARY (testing aid): make the listening-device check usable right away,
+		// without first passing qualification. Set to false (or remove this block)
+		// before release so the qualification gate is enforced.
+		var DEVICE_CHECK_TEST_MODE = true;
+		if (DEVICE_CHECK_TEST_MODE) {
+			$("#device_check_section").removeClass("disabled2_section");
+		}
 	});
 
 	async function generateHash(content) {
