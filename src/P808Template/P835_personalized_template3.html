@@ -509,8 +509,10 @@
 		check the qualification passed
 	*/
 	function validateQualificationAnswer() {
-		m_tongue = $("input[name='3_mother_tongue']").val().toLowerCase().trim();
-		m_tongue_check = config.qualification.mother_tongue.includes(m_tongue)
+		var mother_tongues = $("input[name='3_mother_tongue']:checked").map(function () {
+			return $(this).val().toLowerCase().trim();
+		}).get();
+		m_tongue_check = mother_tongues.some(function (v) { return config.qualification.mother_tongue.includes(v); });
 
 				// check listening-device self-report against the required playback device
 		// (headset -> in-ear/over-ear, loudspeaker -> ex-ls/ib-ls). When the study accepts
@@ -519,7 +521,6 @@
 		device_check = (config.requiredPlaybackDevice === "any")
 			? (selfReportedDeviceClass() !== null)
 			: (selfReportedDeviceClass() === config.requiredPlaybackDevice);
-		working_area_checked = $("input[name='7_working_area']:checked").val() == "N"
 		hearing_self_report_check = $("input[name='8_hearing']:checked").val() == "normal"
 		count_correct_ht = 0;
 		if (checkQualNumCorrect($("input[name='num1']").val().trim(), config.qualification.num1))
@@ -536,7 +537,7 @@
 		console.log("personalized:: result::" + personalized)
 		// bandwidth check is async (hash-based); finish the decision once it resolves
 		validate_bw_test().then(function (bw_check) {
-			passed = m_tongue_check && device_check && working_area_checked &&
+			passed = m_tongue_check && device_check &&
 				hearing_self_report_check && personalized && bw_check && count_correct_ht >= 3;
 
 			// add a qualification for 'qualificationValidFor' minutes
@@ -632,15 +633,17 @@
 		Make a checkbox group to be required
 	*/
 	function makeCheckboxBeRequired() {
-		var requiredCheckboxes = $('.4_lds :checkbox[required]');
-		requiredCheckboxes.change(function () {
-			if (requiredCheckboxes.is(':checked')) {
-				requiredCheckboxes.removeAttr('required');
+	$('.4_lds, .mts_group').each(function () {
+		var group = $(this).find(':checkbox');
+		group.on('change', function () {
+			if (group.is(':checked')) {
+				group.removeAttr('required');
 			} else {
-				requiredCheckboxes.attr('required', 'required');
+				group.attr('required', 'required');
 			}
 		});
-	}
+	});
+}
 	/*
 		Avoid space in text field
 	*/
@@ -2447,11 +2450,20 @@
 						</div>
 					</fieldset>
 
-					<fieldset class="qualificationFieldset"><label>3.&nbsp;What is your mother tongue? </label>
-						<div class="form-group">
-							<input type="text" class="form-control" name="3_mother_tongue" required="">
-						</div>
-					</fieldset>
+					<fieldset class="qualificationFieldset"><label>3.&nbsp;What is your mother tongue (native language)? Select all that apply.</label>
+		<div class="mts_group row" style="margin-left:5px;">
+			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="english" required>English</label></div></div>
+			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="mandarin" required>Mandarin Chinese</label></div></div>
+			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="hindi" required>Hindi</label></div></div>
+			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="spanish" required>Spanish</label></div></div>
+			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="arabic" required>Arabic</label></div></div>
+			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="french" required>French</label></div></div>
+			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="bengali" required>Bengali</label></div></div>
+			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="portuguese" required>Portuguese</label></div></div>
+			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="russian" required>Russian</label></div></div>
+			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="urdu" required>Urdu</label></div></div>
+		</div>
+	</fieldset>
 
 
 					<fieldset class="qualificationFieldset"><label>4.&nbsp; What type of listening devices do you have
@@ -2501,18 +2513,8 @@
 
 					
 
-					<fieldset class="qualificationFieldset"><label>5.&nbsp;Have you ever been directly involved in work
-							connected with assessment of the performance of telephone systems, or related work such as
-							speech coding?</label>
-						<div class="radio">
-							<label><input type="radio" name="7_working_area" value="Y" required="">Yes</label>
-						</div>
-						<div class="radio">
-							<label><input type="radio" name="7_working_area" value="N">No</label>
-						</div>
-					</fieldset>
 
-					<fieldset class="qualificationFieldset"><label>6.&nbsp; I believe, ...</label>
+					<fieldset class="qualificationFieldset"><label>5.&nbsp; I believe, ...</label>
 						<div class="radio">
 							<label><input type="radio" name="8_hearing" value="normal" required="">I have a normal
 								hearing ability.</label>
@@ -2536,7 +2538,7 @@
 							src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png"
 							alt="attention"> </img> <b>Please wear your headphones now.</b></div>
 
-					<fieldset class="qualificationFieldset"><label>7.&nbsp;Please adjust the volume level of your headset to a
+					<fieldset class="qualificationFieldset"><label>6.&nbsp;Please adjust the volume level of your headset to a
 							comfortable level so that you hear the following audio sample very well.</label>
 
 						<p align="center"> <span class="baudio" id="volume"
@@ -2550,7 +2552,7 @@
 
 					</fieldset>
 
-					<fieldset class="qualificationFieldset"><label>8.&nbsp;In each of the following tests, you hear
+					<fieldset class="qualificationFieldset"><label>7.&nbsp;In each of the following tests, you hear
 							combination of three digits (for example 1 5 3), spoken with noise in the background. Simply
 							enter the three numbers that you have understood on the answer box below each audio file.
 						</label>
@@ -2593,7 +2595,7 @@
 					</fieldset>
 
 
-					<fieldset class="qualificationFieldset"><label>9.&nbsp; For this HIT, you must be able to distinguish the voice of different speakers from each other. 
+					<fieldset class="qualificationFieldset"><label>8.&nbsp; For this HIT, you must be able to distinguish the voice of different speakers from each other. 
 						Listen to the following samples. Each sample has two parts separated by a "beep" sound. Does the voice in the second part belong to the speaker from the first part?
 				
 					</label>
