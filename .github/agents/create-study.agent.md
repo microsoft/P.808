@@ -1,6 +1,6 @@
 ---
 name: create-study
-description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, project building for crowdsourcing platforms, and writes a re-runnable regenerate_study.bat that re-runs master_script.py.
+description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, project building for crowdsourcing platforms, prompts for study-specific screen-out completion codes (never reused across studies), and writes a re-runnable regenerate_study.bat that re-runs master_script.py.
 ---
 
 # Create subjective test instructions
@@ -78,6 +78,11 @@ gold/trapping clips, training clips), **do not silently reuse them**. Instead:
    - If the user says they want to modify → ask about each item one by one,
      then proceed with the updated values.
 
+**Never reuse the platform screen-out completion codes** (`screenout_code_qualification`
+and `screenout_code_setup`) from a prior study or session. The crowd platform issues them
+per study, so a copied code is invalid. Always **[ASK]** for the new study's codes, or leave
+them unset to emit the HIT App Server `${...}` placeholder — never silently carry them over.
+
 ## Supported test methods
 
 | Method | `--method` flag | Gold clip generation | Trapping config | Template |
@@ -145,8 +150,12 @@ Do not guess these values if they are missing:
    See "Storage and public accessibility" below for the full check procedure.
 7. **Contact email**: the email address to show in the HIT app for worker inquiries.
    Do **not** use a hardcoded default — always ask.
-8. **Max assignments per worker** (for Prolific) or worker requirements and payment (for AMT).
-9. **Target valid votes per clip**: suggest publishing `target + BEST_PRACTICE_VALID_VOTE_BUFFER`.
+8. **Screen-out completion codes** (`screenout_code_qualification`, `screenout_code_setup`):
+   study-specific codes issued by the crowd platform for paying screened-out participants.
+   **Never copy them from a prior study** — always ask for the new study's codes, or leave
+   them unset to emit the HIT App Server `${...}` placeholder. See the config template below.
+9. **Max assignments per worker** (for Prolific) or worker requirements and payment (for AMT).
+10. **Target valid votes per clip**: suggest publishing `target + BEST_PRACTICE_VALID_VOTE_BUFFER`.
 
 ## Storage and public accessibility
 
@@ -621,9 +630,11 @@ quantity_bonus: 0.1
 quality_top_percentage: 20
 quality_bonus: 0.15
 contact_email:USER_PROVIDED_EMAIL
-# Optional screen-out completion codes, paid on the platform for the screening effort.
-# Leave unset to keep the ${screenout_code_qualification} / ${screenout_code_setup}
-# placeholder for the HIT App Server to fill; with no code the participant returns the task.
+# Screen-out completion codes, paid on the platform for the screening effort. These are
+# STUDY-SPECIFIC: the crowd platform issues them per study, so never copy them from another
+# study's cfg. Ask the requester for this study's codes, or leave unset to keep the
+# ${screenout_code_qualification} / ${screenout_code_setup} placeholder for the HIT App
+# Server to fill; with no code the participant returns the task.
 #screenout_code_qualification: XXXXXXXX
 #screenout_code_setup: XXXXXXXX
 # Online (in-HIT) grading of the qualification / setup sections (both default true).
@@ -644,7 +655,8 @@ contact_email:USER_PROVIDED_EMAIL
 - `number_of_gold_clips_per_session` = **2 for P.804**, 1 for others.
 - `bw_min` defaults to `FB`. Valid: `NB-WB`, `SWB`, `FB`.
 - `screenout_code_qualification` / `screenout_code_setup` (optional) = completion codes a
-  screened-out participant enters on the platform to be paid for the screening effort. If unset,
+  screened-out participant enters on the platform to be paid for the screening effort. They are
+  **study-specific — never copy them between studies**; ask for each new study's codes. If unset,
   the master script prints a warning and leaves a `${...}` placeholder for the HIT App Server to
   fill; when no code is provided at all, the participant is asked to return the task.
 - `run_online_eval_qualification` / `run_online_eval_setup` (optional, default `true`) = grade the
