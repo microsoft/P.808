@@ -356,10 +356,11 @@
 	var n_setup_feedback = 0;
 	// listening-device (acoustic echo) check state
 	var device_check_passed = false;
-	// audibility (beep-count) check state, used to catch a muted / silent device
+	// audibility (beep-count) check state, used to catch a muted / silent device.
+	// dc_audibility_attempts persists across full-test re-runs (each retry is a whole
+	// new check via the Start button), so it is not reset per run.
 	var dc_beep_expected = 0;
-	var dc_beep_played = false;
-	var dc_beep_attempts = 0;
+	var dc_audibility_attempts = 0;
 	const Hide_HIT_REASON = Object.freeze({ "MAX_ACHIVED": 1, "QUALIFICATON": 2, "GOLD_FAILED":3, "SETUP":4 })
 	/*
 	Initializing the page: generate and hide sections depending to the cookies value
@@ -2121,70 +2122,27 @@ function preventTabsChangeBeforeRateRating(){
 	/*
 		Audibility (beep-count) check. A muted or silent device is acoustically identical
 		to a well-sealed headset (both produce almost no coupling), so when a headset is
-		detected we additionally confirm the participant can actually hear the audio: play
-		a random number of gentle beeps and ask how many they heard. This also catches a
-		volume that is set too low.
+		detected we additionally confirm the participant can actually hear the audio by
+		asking how many of the shorter beeps (played during the Start sequence) they heard.
+		This also catches a volume that is set too low. To retry, the participant re-runs
+		the whole check with Start (there is no beeps-only replay).
 	*/
 	function startAudibilityCheck(expected) {
-		dc_beep_attempts = 0;
 		dc_beep_expected = expected;
-		// the beeps were already played as part of the Start sequence
-		dc_beep_played = true;
 		$("#device_check_result").hide();
 		$("#status").html("");
 		$("input[name='dc_beep_count']").prop("checked", false);
-		$("#dc_beep_status").html("");
-		$("#dc_beep_answer").show();
 		$("#device_check_audibility").show();
 		document.getElementById("device_check_audibility").scrollIntoView({ behavior: "smooth", block: "center" });
 	}
 
 	/*
-		Replay a fresh random number (2-4) of short, gentle beeps through the active
-		playback device (used when the participant wants to hear them again or after a
-		wrong answer). No microphone is used here.
-	*/
-	async function dcPlayBeeps() {
-		var n = 2 + Math.floor(Math.random() * 3); // 2..4
-		dc_beep_expected = n;
-		var playBtn = document.getElementById("dc_play_beeps");
-		if (playBtn) playBtn.disabled = true;
-		$("input[name='dc_beep_count']").prop("checked", false);
-		$("#dc_beep_answer").hide();
-		$("#dc_beep_status").html("Playing&hellip;");
-		try {
-			var AudioCtx = window.AudioContext || window.webkitAudioContext;
-			var ctx = new AudioCtx();
-			if (ctx.state === "suspended") {
-				await ctx.resume();
-			}
-			// replay the same structure the participant must judge: one longer beep,
-			// then the shorter beeps they have to count.
-			var t0 = ctx.currentTime + 0.1;
-			var afterLong = scheduleTone(ctx, t0, 0.6, 1000, 0.12);
-			var beepDur = scheduleBeeps(ctx, n, afterLong + 0.2);
-			var totalSec = (afterLong + 0.2 - t0) + beepDur;
-			await sleepMs((0.1 + totalSec + 0.3) * 1000);
-			try { await ctx.close(); } catch (e) { /* ignore */ }
-		} catch (err) {
-			recordError(err.name, err.message);
-		}
-		dc_beep_played = true;
-		if (playBtn) playBtn.disabled = false;
-		$("#dc_beep_status").html("");
-		$("#dc_beep_answer").show();
-	}
-
-	/*
 		Check the reported beep count. A correct answer confirms audibility and passes the
-		device check; a wrong answer (or "no sound") is retried once, then screens out
-		because the participant cannot hear the audio needed for the task.
+		device check. A wrong answer (or "no sound") sends the participant back to re-run
+		the entire check once more; a second failure screens them out because they cannot
+		hear the audio needed for the task.
 	*/
 	function dcSubmitBeepCount() {
-		if (!dc_beep_played) {
-			alert("Please click \"Play beeps again\" first.");
-			return;
-		}
 		var val = $("input[name='dc_beep_count']:checked").val();
 		if (val === undefined) {
 			alert("Please select how many of the shorter beeps you heard.");
@@ -2197,15 +2155,19 @@ function preventTabsChangeBeforeRateRating(){
 			passDeviceCheck();
 			return;
 		}
-		dc_beep_attempts++;
-		if (dc_beep_attempts < 2) {
-			dc_beep_played = false;
-			$("#dc_beep_answer").hide();
+		dc_audibility_attempts++;
+		$("#webrtc_raw").val(raw + ";audible_fail=" + dc_audibility_attempts);
+		if (dc_audibility_attempts < 2) {
+			// let them run the whole check again from the start
+			$("#device_check_audibility").hide();
 			$("input[name='dc_beep_count']").prop("checked", false);
-			$("#dc_beep_status").html("That is not what we played. Please make sure your device is <b>not muted</b> and the volume is at a comfortable level, then click <b>Play beeps again</b>.");
+			var startBtn = document.getElementById("start_headset_check");
+			if (startBtn) startBtn.disabled = false;
+			$("#status").html("That is not what we played. Please make sure your device is <b>not muted</b> and the volume is at a comfortable level, then click <b>Start</b> to run the check again.");
+			document.getElementById("device_check_section").scrollIntoView({ behavior: "smooth", block: "start" });
 		} else {
 			// repeatedly could not report the beeps -> cannot hear the audio -> screen out
-			$("#webrtc_raw").val(raw + ";audible=0");
+			$("#webrtc_raw").val($("#webrtc_raw").val() + ";audible=0");
 			disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
 			var rej = document.getElementById("qualification_rejected");
 			if (rej) rej.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2250,11 +2212,7 @@ function preventTabsChangeBeforeRateRating(){
 			}
 		};
 
-		// audibility (beep-count) check buttons
-		var playBtn = document.getElementById("dc_play_beeps");
-		if (playBtn) {
-			playBtn.onclick = function () { dcPlayBeeps(); };
-		}
+		// audibility (beep-count) submit button
 		var beepSubmit = document.getElementById("dc_beep_submit");
 		if (beepSubmit) {
 			beepSubmit.onclick = function () { dcSubmitBeepCount(); };
@@ -3615,9 +3573,7 @@ function set_onclick_listeners(){
 					<p>You just heard <b>one longer beep</b> followed by <b>a few shorter beeps</b>.
 						<b>How many of the shorter beeps did you hear?</b> Do not count the first, longer beep.
 						If you are not sure, or heard nothing, make sure your device is not muted and the volume
-						is comfortable, then click <b>Play beeps again</b>.</p>
-					<button type="button" class="btn btn-default" id="dc_play_beeps">Play beeps again</button>
-					<div id="dc_beep_status" style="margin-top:8px;"></div>
+						is comfortable, then run the check again with <b>Start</b> above.</p>
 					<div id="dc_beep_answer" style="display:none; margin-top:10px;">
 						<div class="radio"><label><input type="radio" name="dc_beep_count" value="0">
 								I heard no sound</label></div>
