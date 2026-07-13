@@ -1104,6 +1104,11 @@ async def main(cfg, test_method, args):
     # system volume is unknown. Detection is ratio-based, so a quiet tone still works.
     general_cfg['device_check_probe_gain'] = str(cfg_hit_app.get("device_check_probe_gain", "0.1")).strip()
 
+    # P.804 only: offer a per-scale "Cannot rate it" option on the Coloration,
+    # Discontinuity, Reverb and Signal-quality scales. Disabled by default; when enabled
+    # the option (value 0) is shown so raters can mark a dimension they cannot assess.
+    general_cfg['allow_cannot_rate'] = "true" if _is_true(cfg_hit_app.get("allow_cannot_rate", "false")) else "false"
+
     # create hit_app
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831_fest else f"{args.project}_{test_method}.html"       
     output_html_file = os.path.join(output_dir, output_file_name)

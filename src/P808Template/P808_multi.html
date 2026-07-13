@@ -334,6 +334,8 @@
 		deviceCheckThresholdDb: {{cfg.device_check_threshold_db}},
 		// probe-tone level (linear gain 0..1); kept low for hearing safety
 		deviceCheckProbeGain: {{cfg.device_check_probe_gain}},
+		// P.804: show a per-scale "Cannot rate it" option on col/disc/reverb/sig scales
+		allowCannotRate: {{cfg.allow_cannot_rate}},
 		cmp_correct_answers: {{ cfg.cmp_correct_answers }},
 		cmp_max_n_feedback: {{ cfg.cmp_max_n_feedback }},
 		cmp_pass_threshold: {{ cfg.cmp_pass_threshold }},
@@ -2452,6 +2454,10 @@ function preventTabsChangeBeforeRateRating(){
 						<div class="col-sm-6"></div>						
                         <div class="col-sm-3 infobox right-box">Shaky</br>Choppy</br>Uneven</div>
 					</div>									
+				
+					{% if cfg.allow_cannot_rate == "true" %}
+					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_disc" value="0">&nbsp;Cannot rate it</label></div>
+					{% endif %}
 				</div></br></br></br>
 			`;
 
@@ -2495,6 +2501,10 @@ function preventTabsChangeBeforeRateRating(){
 						<div class="col-sm-6"></div>						
                         <div class="col-sm-3 infobox right-box">Distant/Far</br>Thin</br>Muffled</div>
 					</div>									
+				
+					{% if cfg.allow_cannot_rate == "true" %}
+					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_col" value="0">&nbsp;Cannot rate it</label></div>
+					{% endif %}
 				</div></br></br></br>
 			`;
 
@@ -2587,6 +2597,10 @@ function preventTabsChangeBeforeRateRating(){
                         <div class="col-sm-3 infobox right-box">Echo</br>Sound reflection</br>Tunnel sound</div>
 					</div>				
 					
+				
+					{% if cfg.allow_cannot_rate == "true" %}
+					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_reverb" value="0">&nbsp;Cannot rate it</label></div>
+					{% endif %}
 				</div></br></br></br>`;
 
 		
@@ -2636,6 +2650,10 @@ function preventTabsChangeBeforeRateRating(){
 						</tr>
 					</tbody>
 					</table>
+				
+					{% if cfg.allow_cannot_rate == "true" %}
+					<div class="cannot-rate" style="text-align:center;margin-top:8px;"><label><input type="radio" name="t{0}_sig" value="0">&nbsp;Cannot rate it</label></div>
+					{% endif %}
 				</fieldset>
 				</div>
 				<p></p></br></br></br></div>`;

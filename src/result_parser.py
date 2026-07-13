@@ -1933,6 +1933,7 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
     # per-clip counters used to report the share of "silent / nothing to rate" cases
     file_total_cases = {}
     file_silent_cases = {}
+    file_cannot_rate_cases = {}
     global max_found_per_file
     global file_to_condition_map
     file_to_condition_map ={}
@@ -1980,6 +1981,12 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
             silent_flag = str(session.get(f"answer.is_silent_{question}", "")).strip().lower()
             if silent_flag in ("1", "true", "on", "yes"):
                 file_silent_cases[file_name] = file_silent_cases.get(file_name, 0) + 1
+                continue
+            # a "cannot rate it" case: on P.804 the rater may mark col/disc/reverb/sig as
+            # not assessable (value 0, only offered when allow_cannot_rate is enabled). It
+            # is not a 1-5 quality score, so drop it before computing the MOS.
+            if vote_value == 0:
+                file_cannot_rate_cases[file_name] = file_cannot_rate_cases.get(file_name, 0) + 1
                 continue
             try:
                 votes.append(vote_value)
@@ -2058,6 +2065,10 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
         silent_cases = file_silent_cases.get(key, 0)
         tmp['n_silent'] = silent_cases
         tmp['is_silent_percentage'] = round(100 * silent_cases / total_cases, 2) if total_cases > 0 else 0
+        # share of cases where the rater could not assess this scale ("cannot rate it")
+        cannot_rate_cases = file_cannot_rate_cases.get(key, 0)
+        tmp['n_cannot_rate'] = cannot_rate_cases
+        tmp['cannot_rate_percentage'] = round(100 * cannot_rate_cases / total_cases, 2) if total_cases > 0 else 0
         for vote in votes:
             tmp[f'vote_{vote_counter}'] = vote
             vote_counter += 1
