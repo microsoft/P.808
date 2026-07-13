@@ -631,6 +631,13 @@ contact_email:USER_PROVIDED_EMAIL
 # check button hidden).
 #run_online_eval_qualification: true
 #run_online_eval_setup: true
+# Objective listening-device check (acoustic echo test right after qualification).
+# required_playback_device: headset | loudspeaker | any (default headset; "any" skips the check).
+# device_check_threshold_db: net-coupling dB above which a loudspeaker is inferred (default 20).
+# device_check_probe_gain: probe-tone level 0..1, kept low for hearing safety (default 0.1).
+#required_playback_device: headset
+#device_check_threshold_db: 20
+#device_check_probe_gain: 0.1
 ```
 
 **Key rules:**
@@ -643,6 +650,11 @@ contact_email:USER_PROVIDED_EMAIL
 - `run_online_eval_qualification` / `run_online_eval_setup` (optional, default `true`) = grade the
   qualification / setup section in the browser. Set to `false` to hide that section's answers and
   "Check answers" button and grade it only offline in `result_parser`.
+- `required_playback_device` (optional, default `headset`) = the device the task requires:
+  `headset`, `loudspeaker`, or `any`. An objective acoustic echo test verifies it right after
+  qualification (and confirms audibility via a beep count to catch a muted device). With `any` the
+  check is skipped. Tune `device_check_threshold_db` (default `20`) and `device_check_probe_gain`
+  (default `0.1`) only if browser testing shows detection issues or the tone is too loud.
 - `contact_email` = user-provided. Never hardcode.
 - `allowed_max_hit_in_project` = `BEST_PRACTICE_ALLOWED_MAX_HITS`.
 - `quantity_hits_more_than` ≈ `floor(total_sessions / 2)`, at least 2.

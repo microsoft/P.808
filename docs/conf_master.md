@@ -81,6 +81,32 @@ it — all grading for that section is then performed **offline** by `result_par
 (the bandwidth answers and the setup pair-comparison / math answers are always recorded, so the parser can grade
 them regardless of the online setting).
 
+### Objective listening-device check
+
+A short, objective acoustic check verifies which playback device the participant is actually using. Right after
+qualification, a **longer probe tone** is played through the active playback device while the microphone is
+recorded (with browser echo cancellation / automatic gain control / noise suppression disabled). Strong
+microphone-to-playback coupling means the sound is leaking into the room (a **loudspeaker**); weak coupling means
+a **headset**. The decision uses `net_db`, the probe-band level rise minus a control-band rise, which isolates the
+tonal echo from broadband microphone-level changes. When a headset is detected the probe is immediately followed
+by a few **shorter beeps** and the participant is asked how many of the shorter beeps they heard — this confirms
+audibility and catches a **muted or too-quiet** device (a muted device is otherwise indistinguishable from a
+well-sealed headset). The check is **mandatory**: the participant cannot continue until the detected device
+matches the requirement. No audio is recorded, stored, or transmitted — the measurement happens locally in the
+browser and is discarded immediately. The measured values (`net_db`, `coupling_db`, `ref_db`, detected device and
+the audio device names) are logged to the `webrtc_raw` field for offline analysis.
+
+* (optional) `required_playback_device:`: the device the task requires — `headset`, `loudspeaker`, or `any`
+(accept either). Default: `headset`. The qualification self-report and the instruction rules are adapted to this
+value. With `any` the device check adds no value, so it is **skipped** (the section is hidden and the following
+sections are unlocked directly); a muted device is then caught by the setup section instead.
+* (optional) `device_check_threshold_db:`: the `net_db` value at/above which a **loudspeaker** is inferred.
+Default: `20`. Tune per your audio setup by browser testing (headset vs loudspeaker readings are printed to the
+browser console).
+* (optional) `device_check_probe_gain:`: probe-tone level (linear gain `0..1`). Default: `0.1`. Kept low for
+hearing safety because the check runs before the volume-adjust step; detection is ratio-based, so a quiet tone
+still works. Lower it if the tone is too loud, raise it if detection is unreliable.
+
 
 ## `[acr_html]` or `[p835_html]` _deprecated_ 
 * `cookie_name:itu_p808_sup23_exp3`: A cookie with this name will be used to store the current state of a worker in this project.

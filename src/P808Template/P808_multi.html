@@ -553,13 +553,6 @@
 			// (which unlocks the rest on pass), or skip it when any device is accepted.
 			unlockAfterQualification();
 		}
-		// TEMPORARY (testing aid): make the listening-device check usable right away,
-		// without first passing qualification. Set to false (or remove this block)
-		// before release so the qualification gate is enforced.
-		var DEVICE_CHECK_TEST_MODE = true;
-		if (DEVICE_CHECK_TEST_MODE) {
-			unlockAfterQualification();
-		}
 	});
 
 	async function generateHash(content) {
