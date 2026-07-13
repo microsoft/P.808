@@ -1940,8 +1940,11 @@ function preventTabsChangeBeforeRateRating(){
 		var beepCount = 0;
 		if (detected === "headset") {
 			beepCount = 2 + Math.floor(Math.random() * 3);
-			var beepDur = scheduleBeeps(audioCtx, beepCount, audioCtx.currentTime + 0.35);
-			await sleepMs((0.35 + beepDur + 0.3) * 1000);
+			// tight gap after the probe so the beeps belong to the same sequence; a
+			// participant who mutes the long probe (to fake a headset) would also clip
+			// these beeps and fail the count.
+			var beepDur = scheduleBeeps(audioCtx, beepCount, audioCtx.currentTime + 0.2);
+			await sleepMs((0.2 + beepDur + 0.3) * 1000);
 		}
 
 		// 4. clean up (nothing is kept or transmitted)
@@ -1971,26 +1974,35 @@ function preventTabsChangeBeforeRateRating(){
 	}
 
 	/*
+		Schedule a single tone (with short fade in/out) on ctx at startAt; returns the time
+		the tone ends (before the trailing release).
+	*/
+	function scheduleTone(ctx, startAt, durSec, freq, peak) {
+		var osc = ctx.createOscillator();
+		osc.type = "sine";
+		osc.frequency.value = freq;
+		var g = ctx.createGain();
+		g.gain.setValueAtTime(0.0001, startAt);
+		g.gain.exponentialRampToValueAtTime(peak, startAt + 0.02);
+		g.gain.setValueAtTime(peak, startAt + durSec - 0.02);
+		g.gain.exponentialRampToValueAtTime(0.0001, startAt + durSec);
+		osc.connect(g);
+		g.connect(ctx.destination);
+		osc.start(startAt);
+		osc.stop(startAt + durSec + 0.02);
+		return startAt + durSec;
+	}
+
+	/*
 		Schedule n short, gentle beeps (880 Hz) on the given AudioContext starting at
 		startAt, returning the total duration in seconds. Used both in the combined Start
-		sequence and when the participant asks to replay the beeps.
+		sequence and when the participant asks to replay the sequence.
 	*/
 	function scheduleBeeps(ctx, n, startAt) {
-		var beepGain = 0.15, freq = 880, dur = 0.2, gap = 0.2;
+		var freq = 880, dur = 0.2, gap = 0.2;
 		var t = startAt;
 		for (var i = 0; i < n; i++) {
-			var osc = ctx.createOscillator();
-			osc.type = "sine";
-			osc.frequency.value = freq;
-			var g = ctx.createGain();
-			g.gain.setValueAtTime(0.0001, t);
-			g.gain.exponentialRampToValueAtTime(beepGain, t + 0.02);
-			g.gain.setValueAtTime(beepGain, t + dur - 0.02);
-			g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-			osc.connect(g);
-			g.connect(ctx.destination);
-			osc.start(t);
-			osc.stop(t + dur + 0.02);
+			scheduleTone(ctx, t, dur, freq, 0.15);
 			t += dur + gap;
 		}
 		return t - startAt;
@@ -2146,8 +2158,13 @@ function preventTabsChangeBeforeRateRating(){
 			if (ctx.state === "suspended") {
 				await ctx.resume();
 			}
-			var beepDur = scheduleBeeps(ctx, n, ctx.currentTime + 0.1);
-			await sleepMs((0.1 + beepDur + 0.3) * 1000);
+			// replay the same structure the participant must judge: one longer beep,
+			// then the shorter beeps they have to count.
+			var t0 = ctx.currentTime + 0.1;
+			var afterLong = scheduleTone(ctx, t0, 0.6, 1000, 0.12);
+			var beepDur = scheduleBeeps(ctx, n, afterLong + 0.2);
+			var totalSec = (afterLong + 0.2 - t0) + beepDur;
+			await sleepMs((0.1 + totalSec + 0.3) * 1000);
 			try { await ctx.close(); } catch (e) { /* ignore */ }
 		} catch (err) {
 			recordError(err.name, err.message);
@@ -2170,7 +2187,7 @@ function preventTabsChangeBeforeRateRating(){
 		}
 		var val = $("input[name='dc_beep_count']:checked").val();
 		if (val === undefined) {
-			alert("Please select how many beeps you heard.");
+			alert("Please select how many of the shorter beeps you heard.");
 			return;
 		}
 		var answer = parseInt(val, 10);
@@ -3566,10 +3583,12 @@ function set_onclick_listeners(){
 					check in your Web browser to verify your active playback device. Please click on <b>Start</b>.
 					Your browser may then ask for permission to use your microphone &mdash; please click
 					<b>Allow</b> (on some smartphones there is no prompt).
-					During the check we play a brief test tone and listen with your microphone <u>only to detect
-						whether the sound comes from a headset or a loudspeaker. No audio is recorded, stored, or
-						transmitted &mdash; the measurement happens locally in your browser and is discarded
-						immediately.</u> You must pass this check to continue.
+					During the check we play <b>one longer beep</b>, and then <b>a few shorter beeps</b> that you may
+					be asked to count, while we listen with your microphone <u>only to detect whether the sound
+						comes from a headset or a loudspeaker. No audio is recorded, stored, or transmitted &mdash;
+						the measurement happens locally in your browser and is discarded immediately.</u> Please keep
+					your device unmuted for the whole check and listen carefully. You must pass this check to
+					continue.
 				<p class="text-danger"><b>Before you start, set your device volume to a comfortable, moderate
 						level.</b> We play only a short, quiet test tone, but please do not turn your volume up high.</p>
 				<div class="center">
@@ -3593,10 +3612,10 @@ function set_onclick_listeners(){
 					<button type="button" class="btn btn-primary" id="device_check_choice_submit">Continue</button>
 				</div>
 				<div id="device_check_audibility" class="alert alert-info" style="display:none; margin-top:15px;">
-					<p>We just played a short tone followed by a few short beeps.
-						<b>How many short beeps did you hear?</b> If you are not sure, or heard nothing, make
-						sure your device is not muted and the volume is comfortable, then click
-						<b>Play beeps again</b>.</p>
+					<p>You just heard <b>one longer beep</b> followed by <b>a few shorter beeps</b>.
+						<b>How many of the shorter beeps did you hear?</b> Do not count the first, longer beep.
+						If you are not sure, or heard nothing, make sure your device is not muted and the volume
+						is comfortable, then click <b>Play beeps again</b>.</p>
 					<button type="button" class="btn btn-default" id="dc_play_beeps">Play beeps again</button>
 					<div id="dc_beep_status" style="margin-top:8px;"></div>
 					<div id="dc_beep_answer" style="display:none; margin-top:10px;">
