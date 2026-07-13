@@ -42,7 +42,15 @@ created in the first step ([preparation](preparation.md)).
     
     Besides the console outputs, following files will be generated in the same directory as the `--answers` file is located in.
     All file names will start with the `--answers` file name.   
-    * `[downloaded_batch_result]_data_cleaning_report`: Data cleansing report. Each line refers to one line in answer file. 
+    * `[downloaded_batch_result]_data_cleaning_report`: Data cleansing report. Each line refers to one line in answer file.
+    It also includes the objective listening-device check log parsed from the `webrtc_raw` field: `device_detected`,
+    `device_required`, `device_net_db`, `device_coupling_db`, `device_ref_db`, `device_audible`, `device_user_choice`,
+    `device_names`, and `device_check_flag` (set to 1 for submissions worth a manual look — a disputed detection, an
+    audibility failure, or a detected device that does not match the requirement).
+    * `[downloaded_batch_result]_device_check_summary.csv`: Aggregate summary of the objective listening-device check
+    (counts of detected/required devices, disputes, no-device and audibility failures, how many were flagged, and the
+    `net_db` distribution). Useful for reviewing edge cases and calibrating `device_check_threshold_db` at scale. It is
+    only written when the answers contain the objective-check log (older studies are skipped).
     * `[downloaded_batch_result]_accept_reject_gui.csv`: A report to be used for approving and rejecting assignments. One line
     for each assignment which has a status of "submitted". 
     * `[downloaded_batch_result]_votes_per_clip.csv`: Aggregated result per clip, including MOS, standard deviations, and 95% Confidence Intervals.  

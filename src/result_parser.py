@@ -776,6 +776,85 @@ def check_math(input, output, audio_played, expected_ans=None):
             return False
     return False
 
+def parse_webrtc_raw(raw):
+    """
+    Parse the webrtc_raw listening-device-check log into a dict.
+
+    The objective echo test logs "key=value;key=value;..." with keys such as coupling_db,
+    ref_db, net_db, probe_gain, threshold_db, required, detected, devices, and optionally
+    audible / user_choice / audible_fail. Legacy or unrecognised values (e.g. the old
+    device-list string, or "-1") are returned under 'device_raw'.
+
+    :param raw: the raw value of the webrtc_raw field (may be None).
+    :return: dict of the parsed device-check fields (missing keys omitted).
+    """
+    result = {}
+    if raw is None:
+        return result
+    s = str(raw).strip()
+    if s == '' or s == '-1':
+        return result
+    if 'detected=' not in s and 'net_db=' not in s:
+        # legacy device-list string or unrecognised value
+        result['device_raw'] = s
+        return result
+    for part in s.split(';'):
+        if '=' not in part:
+            continue
+        key, value = part.split('=', 1)
+        result[key.strip()] = value.strip()
+    return result
+
+
+def write_device_check_summary(worker_list, path):
+    """
+    Write an aggregate summary of the objective listening-device check to a CSV.
+
+    Reports how many submissions carried device-check data, the distribution of detected
+    and required devices, the number of disputes / no-device / audibility failures, how
+    many submissions were flagged for review, and the net_db distribution (useful for
+    calibrating device_check_threshold_db at scale).
+
+    :param worker_list: list of per-submission dicts produced by data_cleaning.
+    :param path: output CSV path.
+    :return: the number of submissions that carried device-check data.
+    """
+    rows = [d for d in worker_list if d.get('device_detected') or d.get('device_net_db')]
+    if not rows:
+        return 0
+
+    def to_float(value):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    net_values = [to_float(d.get('device_net_db')) for d in rows]
+    net_values = [v for v in net_values if v is not None]
+    detected_counts = collections.Counter(d.get('device_detected', '') or 'unknown' for d in rows)
+    required_counts = collections.Counter(d.get('device_required', '') or 'unknown' for d in rows)
+    n_dispute = sum(1 for d in rows if d.get('device_user_choice') == 'dispute')
+    n_no_device = sum(1 for d in rows if d.get('device_user_choice') == 'no_device')
+    n_audible_fail = sum(1 for d in rows if str(d.get('device_audible')) == '0')
+    n_flag = sum(1 for d in rows if d.get('device_check_flag') == 1)
+
+    summary = [{'metric': 'submissions_with_device_check', 'value': len(rows)}]
+    for dev, cnt in detected_counts.items():
+        summary.append({'metric': f'detected[{dev}]', 'value': cnt})
+    for req, cnt in required_counts.items():
+        summary.append({'metric': f'required[{req}]', 'value': cnt})
+    summary.append({'metric': 'user_choice_dispute', 'value': n_dispute})
+    summary.append({'metric': 'user_choice_no_device', 'value': n_no_device})
+    summary.append({'metric': 'audible_fail', 'value': n_audible_fail})
+    summary.append({'metric': 'flagged_for_review', 'value': n_flag})
+    if net_values:
+        summary.append({'metric': 'net_db_min', 'value': round(min(net_values), 2)})
+        summary.append({'metric': 'net_db_mean', 'value': round(sum(net_values) / len(net_values), 2)})
+        summary.append({'metric': 'net_db_max', 'value': round(max(net_values), 2)})
+    write_dict_as_csv(summary, path)
+    return len(rows)
+
+
 def check_qualification_answer(row):
     checked = True
     # TODO hearing test - correct ans should be added in the inputs -update in master script is needed
@@ -1090,6 +1169,27 @@ def data_cleaning(filename, method, wrong_vcodes):
         d['ip'] = row['x-real-ip'] if 'x-real-ip' in row else None
         d['study_url'] = row['study_url'] if 'study_url' in row else None
 
+        # listening-device (objective echo) check log, for offline analysis / calibration.
+        # The check is a client-side gate, so a normal submission already passed it; these
+        # fields record HOW (detected device, net_db, audibility, disputes) so we can review
+        # edge cases and tune the threshold at scale.
+        dc = parse_webrtc_raw(row.get('answer.webrtc_raw'))
+        d['device_detected'] = dc.get('detected', '')
+        d['device_required'] = dc.get('required', '')
+        d['device_net_db'] = dc.get('net_db', '')
+        d['device_coupling_db'] = dc.get('coupling_db', '')
+        d['device_ref_db'] = dc.get('ref_db', '')
+        d['device_audible'] = dc.get('audible', '')
+        d['device_user_choice'] = dc.get('user_choice', '')
+        d['device_names'] = dc.get('devices', dc.get('device_raw', ''))
+        # worth a manual look: the objective test disagreed with the requirement but the
+        # participant disputed and continued, or the audibility (beep) check found no sound.
+        device_mismatch = (d['device_required'] not in ('', 'any')
+                           and d['device_detected'] not in ('', d['device_required']))
+        d['device_check_flag'] = 1 if (d['device_user_choice'] == 'dispute'
+                                       or str(d['device_audible']) == '0'
+                                       or device_mismatch) else 0
+
         # step1. check if audio of all X questions are played at least once
         d['all_audio_played'] = 1 if check_audio_played(row, method) else 0
 
@@ -1214,6 +1314,13 @@ def data_cleaning(filename, method, wrong_vcodes):
     report_rejection_breakdown(worker_list, wrong_vcodes, filename)
     save_approve_rejected_ones_for_gui(worker_list, accept_reject_gui_file, wrong_vcodes)
     save_hits_to_be_extended(worker_list, extending_hits_file)
+    # objective listening-device check: aggregate summary for offline analysis / calibration
+    device_check_file = os.path.splitext(filename)[0] + '_device_check_summary.csv'
+    n_device_check = write_device_check_summary(worker_list, device_check_file)
+    if n_device_check:
+        n_device_flag = sum(1 for d in worker_list if d.get('device_check_flag') == 1)
+        logger.info(f"   Device check: {n_device_check} submissions logged, {n_device_flag} flagged "
+                    f"for review. Summary: {rel_path(device_check_file)}")
     if len(block_list) > 0:
         save_block_list(block_list, block_list_file, wrong_v_code_freq)
     not_used_reasons_list = list(collections.Counter(not_using_further_reasons).items())
