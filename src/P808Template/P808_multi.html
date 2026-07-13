@@ -1818,29 +1818,34 @@ function preventTabsChangeBeforeRateRating(){
 	}
 
 	/*
-		Average the linear magnitude of the analyser spectrum in a few bins around a
-		target frequency, sampled repeatedly over a short window.
+		Average the linear magnitude of the analyser spectrum in a few bins around each
+		target frequency in freqList, sampled repeatedly over a short window. Returns an
+		array of average magnitudes aligned with freqList (all read from the same samples,
+		so the bands are time-aligned).
 	*/
-	async function averageBandMagnitude(analyser, audioCtx, freqHz, durationMs) {
+	async function averageBandMagnitudes(analyser, audioCtx, freqList, durationMs) {
 		var bins = new Float32Array(analyser.frequencyBinCount);
 		var binHz = audioCtx.sampleRate / analyser.fftSize;
-		var centerBin = Math.round(freqHz / binHz);
-		var acc = 0, count = 0;
+		var centers = freqList.map(function (f) { return Math.round(f / binHz); });
+		var acc = freqList.map(function () { return 0; });
+		var count = 0;
 		var start = performance.now();
 		while (performance.now() - start < durationMs) {
 			analyser.getFloatFrequencyData(bins);
-			var mag = 0, n = 0;
-			for (var b = centerBin - 1; b <= centerBin + 1; b++) {
-				if (b >= 0 && b < bins.length) {
-					mag += Math.pow(10, bins[b] / 20);
-					n++;
+			for (var k = 0; k < centers.length; k++) {
+				var c = centers[k], mag = 0, n = 0;
+				for (var b = c - 1; b <= c + 1; b++) {
+					if (b >= 0 && b < bins.length) {
+						mag += Math.pow(10, bins[b] / 20);
+						n++;
+					}
 				}
+				acc[k] += (n > 0 ? mag / n : 0);
 			}
-			acc += (n > 0 ? mag / n : 0);
 			count++;
 			await sleepMs(25);
 		}
-		return count > 0 ? acc / count : 0;
+		return acc.map(function (a) { return count > 0 ? a / count : 0; });
 	}
 
 	/*
@@ -1849,6 +1854,8 @@ function preventTabsChangeBeforeRateRating(){
 	*/
 	async function runAcousticEchoCheck() {
 		var probeHz = 1000;
+		// a control frequency (no probe energy) to gauge broadband mic-level changes
+		var refHz = 1500;
 		// disable browser audio processing: echo cancellation would otherwise remove
 		// exactly the loudspeaker leakage we are trying to detect.
 		var stream = await navigator.mediaDevices.getUserMedia({
@@ -1870,8 +1877,10 @@ function preventTabsChangeBeforeRateRating(){
 		analyser.smoothingTimeConstant = 0;
 		micSource.connect(analyser);
 
-		// 1. baseline energy at the probe frequency (no tone playing yet)
-		var baseline = await averageBandMagnitude(analyser, audioCtx, probeHz, 300);
+		// 1. baseline energy at the probe and control frequencies (no tone playing yet)
+		var base = await averageBandMagnitudes(analyser, audioCtx, [probeHz, refHz], 300);
+		var baselineProbe = base[0];
+		var baselineRef = base[1];
 
 		// 2. play the probe tone through the active playback device and re-measure.
 		//    The level is kept low for hearing safety and is ramped in/out to avoid a
@@ -1891,7 +1900,9 @@ function preventTabsChangeBeforeRateRating(){
 		gain.connect(audioCtx.destination);
 		osc.start();
 		await sleepMs(150);
-		var withProbe = await averageBandMagnitude(analyser, audioCtx, probeHz, 450);
+		var withTone = await averageBandMagnitudes(analyser, audioCtx, [probeHz, refHz], 450);
+		var withProbe = withTone[0];
+		var withRef = withTone[1];
 		// fade the tone out before stopping
 		var tEnd = audioCtx.currentTime;
 		gain.gain.setValueAtTime(peakGain, tEnd);
@@ -1903,10 +1914,52 @@ function preventTabsChangeBeforeRateRating(){
 		try { gain.disconnect(); } catch (e) { /* ignore */ }
 		try { await audioCtx.close(); } catch (e) { /* ignore */ }
 
-		var couplingDb = 20 * Math.log10((withProbe + 1e-12) / (baseline + 1e-12));
+		// rise at the probe frequency; rise at the control frequency (broadband); and the
+		// net (probe rise above the broadband rise) which should isolate the actual echo.
+		var couplingDb = 20 * Math.log10((withProbe + 1e-12) / (baselineProbe + 1e-12));
+		var refDb = 20 * Math.log10((withRef + 1e-12) / (baselineRef + 1e-12));
+		var netDb = couplingDb - refDb;
 		var threshold = Number(config.deviceCheckThresholdDb);
 		var detected = couplingDb >= threshold ? "loudspeaker" : "headset";
-		return { detected: detected, couplingDb: couplingDb };
+
+		var diag = {
+			detected: detected,
+			couplingDb: couplingDb,
+			refDb: refDb,
+			netDb: netDb,
+			threshold: threshold,
+			probeGain: peakGain,
+			probeHz: probeHz,
+			refHz: refHz,
+			sampleRate: audioCtx.sampleRate,
+			fftSize: analyser.fftSize,
+			baselineProbe: baselineProbe,
+			withProbe: withProbe,
+			baselineRef: baselineRef,
+			withRef: withRef
+		};
+		logDeviceCheckDiag(diag);
+		return diag;
+	}
+
+	/*
+		Print device-check diagnostics to the console for calibration. Uses console.info
+		so it is visible even when console.log is silenced outside debug mode.
+	*/
+	function logDeviceCheckDiag(diag) {
+		try {
+			var line = "[device-check] detected=" + diag.detected +
+				" | coupling_db=" + diag.couplingDb.toFixed(2) +
+				" | ref_db=" + diag.refDb.toFixed(2) +
+				" | net_db=" + diag.netDb.toFixed(2) +
+				" | threshold_db=" + diag.threshold +
+				" | probe_gain=" + diag.probeGain +
+				" | sample_rate=" + diag.sampleRate;
+			if (window.console && console.info) {
+				console.info(line);
+				console.info("[device-check] raw", diag);
+			}
+		} catch (e) { /* ignore logging errors */ }
 	}
 
 	/*
@@ -1936,7 +1989,12 @@ function preventTabsChangeBeforeRateRating(){
 			return;
 		}
 
-		$("#webrtc_raw").val("coupling_db=" + result.couplingDb.toFixed(2) + ";detected=" + result.detected);
+		$("#webrtc_raw").val("coupling_db=" + result.couplingDb.toFixed(2) +
+			";ref_db=" + result.refDb.toFixed(2) +
+			";net_db=" + result.netDb.toFixed(2) +
+			";probe_gain=" + result.probeGain +
+			";threshold_db=" + result.threshold +
+			";detected=" + result.detected);
 		$("#use_headset").val(result.detected === "headset");
 
 		var required = config.requiredPlaybackDevice;
