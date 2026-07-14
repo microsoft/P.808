@@ -2384,8 +2384,14 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     # check if there are submission without conuter part key in hitapp servers
     #not_in_hitapp = prolific_ans[~prolific_ans['Answer.v_code'].isin(hitapp_ans.v_code)]
     not_in_hitapp = prolific_ans[~prolific_ans['prolific_submission_id'].isin(hitapp_ans.hitapp_assignmentid)].copy()
-    # print the lenght
-    logger.info(f"   - {len(not_in_hitapp)} submissions are not found in the HITAPP server.")
+    # print how many submissions have no HIT App counterpart, and how many of those were
+    # legitimately screened out on Prolific (they are separated out and explained below)
+    not_found_msg = f"   - {len(not_in_hitapp)} submissions are not found in the HITAPP server."
+    if 'prolific_status' in not_in_hitapp.columns:
+        n_screened_out_not_found = int((not_in_hitapp['prolific_status'].astype(str).str.strip()
+                                        .str.upper().str.replace('_', ' ', regex=False) == 'SCREENED OUT').sum())
+        not_found_msg += f" From them {n_screened_out_not_found} were SCREENED OUT on Prolific."
+    logger.info(not_found_msg)
     # Todo check if it can be adapted
     #recover_submission_withoiut_matching_vcode(hitapp_ans, amt_ans, not_in_hitapp)
 
