@@ -411,9 +411,6 @@
 			if (config['showQualification'] === false) {
 				qual_passed = "true";
 			}
-			//-------------			
-			is_test = false;
-			//------------
 
 			if (qual_passed !== null && qual_passed == "true") {
 				$('.qualificationFieldset').prop("disabled", true);
@@ -432,13 +429,13 @@
 			let force_re_training = false;
 
 			// detailed instruction
-			if (is_test || readCookie(config['cookieName'] + "_instra")) {				
+			if (readCookie(config['cookieName'] + "_instra")) {				
 				$("#details_instruction").hide();				
 				$("#training").removeClass("disabled_section");				
 			}
 
 			// given cookie availability disable the training			
-			if (is_test || readCookie(config['cookieName'] + "_training") && !force_re_training) {
+			if (readCookie(config['cookieName'] + "_training") && !force_re_training) {
 				$('.trainingFieldset').prop("disabled", true);
 				$("#training").hide();
 				$("#training :input").removeAttr("required");
@@ -448,7 +445,7 @@
 			}
 			
 			// given cookie availability disable the setup
-			if (is_test ||  readCookie(config['cookieName'] + "_setup")) {
+			if (readCookie(config['cookieName'] + "_setup")) {
 				$('.setupFieldset').prop("disabled", true);
 				$("#setup").hide();
 				$("#setup :input").removeAttr("required");
