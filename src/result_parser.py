@@ -1816,7 +1816,7 @@ def write_dict_as_csv(dic_to_write, file_name, *args, **kwargs):
     :return:
     """
     headers = kwargs.get('headers', None)
-    with open(file_name, 'w', newline='') as output_file:
+    with open(file_name, 'w', newline='', encoding='utf-8') as output_file:
         if headers is None:
             if len(dic_to_write) > 0:
                 # union of keys across all rows so per-submission extra keys
