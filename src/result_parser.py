@@ -2437,7 +2437,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
         screened_out = not_in_hitapp[status_norm == 'SCREENED OUT'].copy()
         not_in_hitapp = not_in_hitapp[status_norm != 'SCREENED OUT'].copy()
         if len(screened_out) > 0:
-            logger.info(f"   - {len(screened_out)} participants were SCREENED OUT on Prolific "
+            logger.info(f"   - {len(screened_out)} submissions were SCREENED OUT on Prolific "
                         f"(failed the in-HIT screening); reported separately, excluded from "
                         f"rejection and blocking.")
             save_csv(screened_out, os.path.splitext(hitapp_ans_path)[0] + '_screened_out.csv', index=False)
