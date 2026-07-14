@@ -2134,7 +2134,8 @@ def create_headers_for_per_file_report(test_method, condition_keys):
     mos_name = method_to_mos[f"{test_method}{question_name_suffix}"]
     if test_method in ["p835", "echo_impairment_test", p835_personalized, 'p804']:
         header = ['file_url', 'n', mos_name, f'std{question_name_suffix}', f'95%CI{question_name_suffix}',
-                  'short_file_name', 'n_silent', 'is_silent_percentage'] + condition_keys
+                  'short_file_name', 'n_silent', 'is_silent_percentage',
+                  'n_cannot_rate', 'cannot_rate_percentage'] + condition_keys
     else:
         header = ['file_url', 'n', mos_name, 'std', '95%CI', 'short_file_name'] + condition_keys
     max_votes = max_found_per_file
