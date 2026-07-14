@@ -632,6 +632,7 @@ async function validateCMPSectionAfterMath(cmp_answers){
 	if (correct_ans >= config["cmp_pass_threshold"]){
 		// valid response in cmp
 		createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
+		unlockAfterSetup();
 		alert("Your setup looks good. You can continue with the task.");
 		var setupNext = document.getElementById("training");
 		if (setupNext) setupNext.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1328,7 +1329,6 @@ function playedAudioQ(id){
 	(i.e. q2. math question). Here the cookie will be added/updated
 */
 function userAnsweringToSetupQuestions(){
-	createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
 	$('input[name="math"]').off('change');
 }
 
@@ -1715,12 +1715,25 @@ function set_onclick_listeners(){
 		if (config.requiredPlaybackDevice === "any") {
 			$("#device_check_section").hide();
 			$("#setup").removeClass("disabled2_section");
-			$("#details_instruction").removeClass("disabled2_section");
-			$("#training").removeClass("disabled2_section");
-			$("#rating_section").removeClass("disabled2_section");
+			// keep the sections after setup locked until the setup is passed (or
+			// was already passed within the setup-cookie window)
+			if (readCookie(config['cookieName'] + "_setup")) {
+				unlockAfterSetup();
+			}
 		} else {
 			$("#device_check_section").removeClass("disabled2_section");
 		}
+	}
+
+	/*
+		Unlock the sections that follow the setup (detailed instruction, training and
+		rating). Called once the setup has been passed (or was already passed within the
+		setup-cookie window), so a participant cannot continue without a correct setup answer.
+	*/
+	function unlockAfterSetup() {
+		$("#details_instruction").removeClass("disabled2_section");
+		$("#training").removeClass("disabled2_section");
+		$("#rating_section").removeClass("disabled2_section");
 	}
 
 	/*
@@ -1733,9 +1746,11 @@ function set_onclick_listeners(){
 		$("#device_check_audibility").hide();
 		$("#status").html("Thank you, your playback device was verified. You can continue.");
 		$("#setup").removeClass("disabled2_section");
-		$("#details_instruction").removeClass("disabled2_section");
-		$("#training").removeClass("disabled2_section");
-		$("#rating_section").removeClass("disabled2_section");
+		// keep the sections after setup locked until the setup is passed (or
+		// was already passed within the setup-cookie window)
+		if (readCookie(config['cookieName'] + "_setup")) {
+			unlockAfterSetup();
+		}
 		var next = document.getElementById("setup");
 		if (next) next.scrollIntoView({ behavior: "smooth", block: "start" });
 	}
