@@ -1,6 +1,6 @@
 ---
 name: create-study
-description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, project building for crowdsourcing platforms, prompts for study-specific screen-out completion codes (never reused across studies), and writes a re-runnable regenerate_study.bat that re-runs master_script.py.
+description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, project building for crowdsourcing platforms, prompts for study-specific screen-out completion codes (never reused across studies) and for the internal-vs-general master-script assets, and writes a re-runnable regenerate_study.bat that re-runs master_script.py.
 ---
 
 # Create subjective test instructions
@@ -156,6 +156,13 @@ Do not guess these values if they are missing:
    them unset to emit the HIT App Server `${...}` placeholder. See the config template below.
 9. **Max assignments per worker** (for Prolific) or worker requirements and payment (for AMT).
 10. **Target valid votes per clip**: suggest publishing `target + BEST_PRACTICE_VALID_VOTE_BUFFER`.
+11. **Master-script general assets** (`--general_assets`): the shared reference material for the
+    setup section — the math questions, comparison (CMP) pairs, hearing test and bandwidth-check
+    clips with their answers/hashes. **[ASK]** whether the requester will provide/point to the
+    **internal** assets (`src/assets_master_script/general_assets_internal.csv`, the larger
+    internal set) or use the default **general** set (`src/assets_master_script/general.csv`,
+    applied automatically when `--general_assets` is omitted). Pass `--general_assets` only when
+    using the internal set.
 
 ## Storage and public accessibility
 
@@ -716,6 +723,10 @@ python REPO_ROOT\src\master_script.py `
 
 Note: when `--training_gold_clips` is used, the `--training_clips` flag is **not**
 needed — training clips are embedded in the training gold CSV.
+
+Add `--general_assets REPO_ROOT\src\assets_master_script\general_assets_internal.csv` when
+the requester chose the internal assets (input 11). Omit the flag to use the default general
+set (`assets_master_script/general.csv`).
 
 **Notes:**
 
