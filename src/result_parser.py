@@ -2063,11 +2063,9 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
         # share of cases where the clip was marked silent (nothing to rate)
         total_cases = file_total_cases.get(key, 0)
         silent_cases = file_silent_cases.get(key, 0)
-        tmp['n_silent'] = silent_cases
         tmp['is_silent_percentage'] = round(100 * silent_cases / total_cases, 2) if total_cases > 0 else 0
         # share of cases where the rater could not assess this scale ("cannot rate it")
         cannot_rate_cases = file_cannot_rate_cases.get(key, 0)
-        tmp['n_cannot_rate'] = cannot_rate_cases
         tmp['cannot_rate_percentage'] = round(100 * cannot_rate_cases / total_cases, 2) if total_cases > 0 else 0
         for vote in votes:
             tmp[f'vote_{vote_counter}'] = vote
@@ -2133,9 +2131,12 @@ def create_headers_for_per_file_report(test_method, condition_keys):
     """
     mos_name = method_to_mos[f"{test_method}{question_name_suffix}"]
     if test_method in ["p835", "echo_impairment_test", p835_personalized, 'p804']:
-        header = ['file_url', 'n', mos_name, f'std{question_name_suffix}', f'95%CI{question_name_suffix}',
-                  'short_file_name', 'n_silent', 'is_silent_percentage',
-                  'n_cannot_rate', 'cannot_rate_percentage'] + condition_keys
+        # the silent share sits next to n (it is per-clip); the cannot-rate share sits next
+        # to the scale's MOS (it is per-scale). Only the percentages are reported (n covers
+        # the count of valid votes).
+        header = ['file_url', 'n', 'is_silent_percentage', mos_name, 'cannot_rate_percentage',
+                  f'std{question_name_suffix}', f'95%CI{question_name_suffix}',
+                  'short_file_name'] + condition_keys
     else:
         header = ['file_url', 'n', mos_name, 'std', '95%CI', 'short_file_name'] + condition_keys
     max_votes = max_found_per_file
@@ -2624,14 +2625,22 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
             for item in suffixes:
                 votes_per_file_path = (os.path.splitext(answer_path)[0]+ f"_votes_per_clip{item}.csv")
                 df = pd.read_csv(votes_per_file_path)
-                base_cols = ['file_url','n' ,f'MOS{item.upper()}', f'std{item}', f'95%CI{item}']
-                if merged is None:
-                    # the silent share is per-clip (identical across scales); keep it once
-                    extra_cols = [c for c in ['n_silent', 'is_silent_percentage'] if c in df.columns]
-                    merged = df[base_cols + extra_cols].copy()
+                # keep each scale's cannot-rate share next to that scale's MOS; rename it
+                # per scale so the merged file has one column per dimension
+                if 'cannot_rate_percentage' in df.columns:
+                    df = df.rename(columns={'cannot_rate_percentage': f'cannot_rate_percentage{item}'})
+                    scale_cols = [f'MOS{item.upper()}', f'cannot_rate_percentage{item}',
+                                  f'std{item}', f'95%CI{item}']
                 else:
-                    df = df[base_cols].drop(['n'], axis=1)
-                    merged =  pd.merge(merged, df, on='file_url')   
+                    scale_cols = [f'MOS{item.upper()}', f'std{item}', f'95%CI{item}']
+                if merged is None:
+                    # the silent share is per-clip (identical across scales); keep it once, by n
+                    lead = ['file_url', 'n']
+                    if 'is_silent_percentage' in df.columns:
+                        lead.append('is_silent_percentage')
+                    merged = df[lead + scale_cols].copy()
+                else:
+                    merged = pd.merge(merged, df[['file_url'] + scale_cols], on='file_url')
                 if use_condition_level:
                     votes_per_cond_path = (os.path.splitext(answer_path)[0]+ f"_votes_per_cond{item}.csv")
                     df = pd.read_csv(votes_per_cond_path)
