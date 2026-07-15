@@ -696,7 +696,7 @@ function disableTheHIT(c){
 /*
 	Decide which screen-out message to show. If a completion code was provided (either
 	baked in from the config or filled by the HIT app server), ask the participant to
-	submit the form and enter the code to be paid for the screening effort. Otherwise,
+	enter the code (and close the window) to be paid for the screening effort. Otherwise,
 	no code is available, so ask them to return the task.
 */
 function applyScreenoutMessage(sectionId, codeVar) {
@@ -2303,8 +2303,8 @@ function generate_rating_section(){
 		this study.</p>
 
 	<div class="screenout_paid_block" hidden>
-		<p>To be paid for your effort in the screening part, please <b>submit this form</b> and enter the following
-			completion code on Prolific:</p>
+		<p>To be paid for your effort in the screening part, please enter the following
+			completion code on Prolific and close this window:</p>
 
 		<div class="alert alert-info" role="alert" style="font-size: 1.3em; text-align: center;">
 			<b class="screenout_code_value">{{ cfg.screenout_code_qualification }}</b>
@@ -2327,8 +2327,8 @@ function generate_rating_section(){
 		environment or device does not meet the requirements for this study.</p>
 
 	<div class="screenout_paid_block" hidden>
-		<p>To be paid for your effort in the setup part, please <b>submit this form</b> and enter the following
-			completion code on Prolific:</p>
+		<p>To be paid for your effort in the setup part, please enter the following
+			completion code on Prolific and close this window:</p>
 
 		<div class="alert alert-info" role="alert" style="font-size: 1.3em; text-align: center;">
 			<b class="screenout_code_value">{{ cfg.screenout_code_setup }}</b>
