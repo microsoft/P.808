@@ -78,6 +78,23 @@ def _norm_status(value):
     return str(value).strip().upper().replace("_", " ")
 
 
+def _is_no_task_reason(reason):
+    """
+    Check whether a reject reason means the participant has no completed HIT App task.
+
+    Such submissions (submitted on Prolific with a missing/blank/invalid verification
+    code and no rating work on the HIT App server) have nothing to grade, so they are
+    asked to return the submission rather than being rejected.
+
+    :param reason: The reject reason/feedback string (may be None).
+    :return: True if the reason indicates no completed HIT App task.
+    """
+    if reason is None:
+        return False
+    text = str(reason)
+    return "no completed HIT App task" in text or "wrong verification code" in text
+
+
 def get_study_id_for_submission(assignment_id):
     """
     Look up the parent study id for a single submission.
@@ -476,7 +493,8 @@ def send_reviews_for_study(csv_data_path, detailed_data_cleaning_report=None, bl
     if submission_to_approve:
         approve_failures = bulk_approve_submission(submission_to_approve)
 
-    n_actioned = 0
+    n_rejected = 0
+    n_returned = 0
     n_skipped = 0
     for index, row in df_rejected.iterrows():
         # WorkerId	assignmentId	HITId	Approve	Reject
@@ -486,19 +504,27 @@ def send_reviews_for_study(csv_data_path, detailed_data_cleaning_report=None, bl
 
         if row['Approve'] is not None and not pd.isna(row['Approve']) and row['Approve'].strip() != "":
             continue # already handled in bulk approve
-        # Only submissions still AWAITING REVIEW can be rejected or asked to return; skip the
-        # rest (e.g. already RETURNED/REJECTED/APPROVED from a previous review run).
-        if _status_of(row) != "AWAITING REVIEW":
-            logger.info(f"Submission {assignment_id} skipped (status: {row.get('prolific_status') if has_status else 'n/a'}); "
+        reason = row['Reject']
+        # Only submissions still AWAITING REVIEW can be rejected or asked to return. The
+        # review file has no Prolific status for "no completed HIT App task" submissions
+        # (result_parser adds them without one), so resolve the live status via the API
+        # rather than skipping them; otherwise these are silently left unactioned.
+        status = _status_of(row)
+        if status is None:
+            status = _norm_status(get_submission_status(assignment_id))
+        if status != "AWAITING REVIEW":
+            logger.info(f"Submission {assignment_id} skipped (status: {status or 'unknown'}); "
                         f"only AWAITING REVIEW submissions are rejected/asked to return.")
             n_skipped += 1
             continue
-        reason = row['Reject']
-        if args.force_reject:
+        # A submission with no completed HIT App task has no work to judge, so ask the
+        # participant to return it rather than rejecting it, even under --force_reject.
+        if args.force_reject and not _is_no_task_reason(reason):
             accept_reject_submission(worker_id, assignment_id, reason)
+            n_rejected += 1
         else:
             ask_return(assignment_id, reason)
-        n_actioned += 1
+            n_returned += 1
 
     if manual_payment_rows:
         stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -512,7 +538,7 @@ def send_reviews_for_study(csv_data_path, detailed_data_cleaning_report=None, bl
                 f"{len(approve_failures)} could not be approved, "
                 f"{n_already_approved} already approved, "
                 f"{len(manual_payment_rows)} need manual payment, "
-                f"{n_actioned} {'rejected' if args.force_reject else 'asked to return'}, "
+                f"{n_rejected} rejected, {n_returned} asked to return, "
                 f"{n_skipped} reject/return-skipped (not awaiting review).")
     if approve_failures:
         stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
