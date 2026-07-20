@@ -106,10 +106,10 @@ browser console).
 * (optional) `device_check_probe_gain:`: probe-tone level (linear gain `0..1`). Default: `0.1`. Kept low for
 hearing safety because the check runs before the volume-adjust step; detection is ratio-based, so a quiet tone
 still works. Lower it if the tone is too loud, raise it if detection is unreliable.
-* (optional) `allow_cannot_rate:`: **P.804 only.** When `true`, a per-scale **"Cannot rate it"** option (value
+* (optional) `allow_cannot_rate:`: **P.804 only.** When `true`, a per-scale **"Cannot tell"** option (value
 `0`) is shown on the Coloration, Discontinuity, Reverb and Signal-quality scales so raters can mark a dimension
 they cannot assess. Default: `false`. These votes are **excluded from the per-scale MOS** by `result_parser.py`
-and reported per clip as `n_cannot_rate` / `cannot_rate_percentage`.
+and reported per clip as `cannot_rate_percentage`.
 
 
 ## `[acr_html]` or `[p835_html]` _deprecated_ 

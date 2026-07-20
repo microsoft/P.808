@@ -79,8 +79,8 @@ degradation, so `bak` is set to 4 rather than 5 for that type.
 
 ### P.804
 
-For P.804, gold clips target multiple quality dimensions. Only dimensions with an expected answer
-of 1 are listed in the CSV; empty cells mean the dimension is not targeted (implicitly 5).
+For P.804, gold clips target multiple quality dimensions. Only targeted dimensions are listed in the CSV
+(with their expected answer); empty cells mean the dimension is not targeted (implicitly 5).
 
 | Type | Description | col | disc | loud | noise | sig | ovrl |
 |------|-------------|-----|------|------|-------|-----|------|
@@ -89,7 +89,7 @@ of 1 are listed in the CSV; empty cells mean the dimension is not targeted (impl
 | Signal distortion | Hard clipping | | | | | 1 | 1 |
 | Discontinuity | Random segment dropouts (choppy) | | 1 | | | 1 | 1 |
 | Discontinuity + noise | Choppy + noise | | | | 1 | | 1 |
-| Coloration | Resonant/muffled/telephone filter | 1 | | | | 1 | 1 |
+| Coloration | Resonant/muffled/telephone filter | 1 | | | | 2 | 2 |
 | Coloration + noise | Coloration + noise | | | | 1 | | 1 |
 | Distortion + noise | Clipping + noise | | | | 1 | | 1 |
 | Loudness (too loud) | Gain raised so speech is too loud | | | 1 | | | |
@@ -108,6 +108,13 @@ these cases the `ovrl` flag is retained, driven by the noise or loudness/distort
 **Note:** Loudness alone does not flag `ovrl`. A level offset by itself is not treated as an overall
 quality degradation, so only the `loud` dimension is targeted. When loudness is combined with another
 artifact (distortion or noise), that other artifact drives the `ovrl` flag.
+
+**Note:** For the standalone **Coloration** type the `sig` and `ovrl` answers default to **2** (not 1):
+listeners tend to perceive coloration as milder on signal quality and overall than a "1". These are
+still suggested defaults — **listen to each colored clip and confirm/adjust** the answers, since some
+clips' coloration is subtle enough that even `col=1` may not hold. You can correct per-clip gold answers
+after collection with `result_parser.py --gold_overrides` (a CSV of `url` plus per-scale answer/variance;
+a listed clip is authoritative, and a blank scale for it is skipped).
 
 **Note:** The loudness and coloration degradations keep the first few seconds of audio as a clean
 reference (`GOLD_CLEAN_PREFIX_SEC`, default 2 seconds) and only apply the degradation afterwards, so a

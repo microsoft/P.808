@@ -26,7 +26,7 @@ column named `training_clips` (see [training_gold_clips.csv](../src/test_inputs/
     They should approximately cover the range from worst to best quality to be expected in the test. In P.804, it is possible
     to add the correct answer, variance, and a message to be shown if the given answer is out of expected range per dimension. 
 
-1. Upload your **gold standard clips** in a cloud server and create `gold_clips_p804.csv` file which contains all URLs in a 
+1. Upload your **gold standard clips** in a cloud server and create `gold_clips.csv` file which contains all URLs in a 
 column named `gold_url` and expected answer to each clip/dimension in corresponding column e.g. `col_ans`, `disc_ans`, etc.
 There should be a column name `ver` with value either 1 or 2. Each session will include two gold clips, one from each version.
 (see [gold_clips_p804.csv](../src/test_inputs/gold_clips.csv) as an example). When a correct answer for a dimension is not provided, 
@@ -79,7 +79,7 @@ a column named `trapping_clips` and expected answer to each clip in a column nam
             --method p804 ^
             --cfg your_configuration_file.cfg ^
             --clips rating_clips.csv ^
-            --training_gold_clips training_clips.csv ^
+            --training_gold_clips training_gold_clips.csv ^
             --gold_clips gold_clips.csv ^
             --trapping_clips trapping_clips.csv 
         ```
@@ -94,6 +94,6 @@ a column named `trapping_clips` and expected answer to each clip in a column nam
     directory which contains: 
     * `YOUR_PROJECT_NAME_p804.html`: Customized HIT app to be used in Amazon Mechanical Turk (AMT).
     * `YOUR_PROJECT_NAME_publish_batch.csv`: List of dynamic content to be used during publishing batch in AMT.
-    * `YOUR_PROJECT_NAME_acr_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script
+    * `YOUR_PROJECT_NAME_p804_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script
         
 Now, you are ready for running the test on [Prolific](running_test_prolific.md) or [Amazon Mechanical Turk](running_test_mturk.md).

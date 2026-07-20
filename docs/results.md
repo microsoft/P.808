@@ -35,7 +35,7 @@ created in the first step ([preparation](preparation.md)).
         --quality_bonus
     ```
     * `--cfg` use the configuration file generated for your project in the [preparation](preparation.md) step here (i.e.`YOUR_PROJECT_NAME_ccr_result_parser.cfg`).
-    * `--method` could be either `acr`, `dcr`, `ccr`, `p835`, `pp835` or `p804`.
+    * `--method` could be either `acr`, `dcr`, `ccr`, `p835`, `pp835`, `p804`, or `echo_impairment_test`.
     * if using Prolific, provide the csv file you downloaded from that platform as `--prolific_answers`. The answer you downloaded from HITAppServer should be provided as `--answers`
     * `--quantity_bonus` could be `all`, or `submitted`. It specify which assignments should be considered when calculating
     the amount of quantity bonus (everything i.e. `all` or just the assignments with status submitted i.e. `submitted`).
@@ -59,6 +59,10 @@ created in the first step ([preparation](preparation.md)).
     * `[downloaded_batch_result]_quantity_bonus_report.csv`: List of workers who are eligible for quantity bonus with the amount of bonus (to be used with the utils/mturk_utils.py).
     * `[downloaded_batch_result]_quality_bonus_report.csv`: List of workers who are eligible for quality bonus with the amount of bonus (to be used with the utils/mturk_utils.py).
     * `[downloaded_batch_result]_extending.csv`: List of HITIds with number of assignment per each which are needed to reach a specific number of votes per clip. 
+    * `[downloaded_batch_result]_gold_summary.csv`: Per gold clip, the expected answer, mean rating and wrong-vote percentage for each scale, plus `max_wrong_pct`. Useful for spotting mis-set gold answers.
+    * `[downloaded_batch_result]_detailed_gold_question_performance.csv`: One row per (submission, gold clip) with the per-scale given answer and wrong flags.
+    * `[downloaded_batch_result]_rejection_reason_matrix.csv` and `[downloaded_batch_result]_rejection_reason_combinations.csv`: Breakdown of why submissions were rejected (per reason, and per reason-combination).
+    * `[downloaded_batch_result]_screened_out.csv` (Prolific only): Participants Prolific marked as SCREENED OUT (failed the in-HIT screening). They are reported separately and excluded from rejection and blocking.
     
     
     
@@ -76,6 +80,10 @@ created in the first step ([preparation](preparation.md)).
         * `[downloaded_batch_result]_votes_per_cond_[postfix].csv`: Aggregated result per condition.
     
     * In addition a summary in the condition level will be provided for all three scales in `[downloaded_batch_result]_votes_per_cond_all`.
+
+    Note for **P804** method:
+    * For each scale (`noise`, `col`, `loud`, `disc`, `reverb`, `sig`, `ovrl`) an aggregated `[downloaded_batch_result]_votes_per_clip_[scale].csv` is written (MOS, std, 95% CI), plus a combined `[downloaded_batch_result]_votes_per_clip_all-scales.csv`.
+    * Each per-clip file also reports `is_silent_percentage` (share of ratings where the clip was marked silent, next to `n`) and, for the scales that offer the **"Cannot tell"** option, `cannot_rate_percentage` (share of ratings where the rater could not assess that scale, next to the scale's MOS). Silent and "Cannot tell" votes are excluded from the MOS.
 
 ## Approve/Reject submissions - Prolific
   - Get your API token from the Prolific website and add it to your [Prolific config file](../src/configurations/prolific.cfg).
