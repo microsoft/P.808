@@ -113,6 +113,9 @@ var config ={
 		deviceCheckThresholdDb: {{cfg.device_check_threshold_db}},
 		// probe-tone level (linear gain 0..1); kept low for hearing safety
 		deviceCheckProbeGain: {{cfg.device_check_probe_gain}},
+		// gray-zone dispute: a loudspeaker detection may only be disputed when net_db is
+		// below this value (near the threshold); a clearly-loudspeaker reading cannot be disputed
+		deviceCheckDisputeMaxNetDb: {{cfg.device_check_dispute_max_net_db}},
 	cmp_correct_answers: {{cfg.cmp_correct_answers}},
 	cmp_max_n_feedback : {{cfg.cmp_max_n_feedback}},
 	cmp_pass_threshold: {{cfg.cmp_pass_threshold}},
@@ -1441,6 +1444,7 @@ function userAnsweringToSetupQuestions(){
 			";net_db=" + result.netDb.toFixed(2) +
 			";probe_gain=" + result.probeGain +
 			";threshold_db=" + result.threshold +
+			";dispute_max=" + config.deviceCheckDisputeMaxNetDb +
 			";required=" + config.requiredPlaybackDevice +
 			";detected=" + result.detected +
 			";devices=" + result.deviceLabels);
@@ -1471,9 +1475,29 @@ function userAnsweringToSetupQuestions(){
 		var requiredLabel = deviceLabelFor(required);
 		$("#status").html("");
 		$("#device_check_detected").text(detectedLabel);
+		$("#device_check_detected_note").text(detectedLabel);
 		$("#device_check_required").text(requiredLabel);
 		$(".device_check_required_inline").text(requiredLabel);
 		$("input[name='device_check_choice']").prop("checked", false);
+		// Gray-zone dispute: only let the participant dispute the detection when the reading
+		// is near the threshold (a plausible false positive). A confident detection (net_db
+		// well past the threshold) cannot be disputed - they must switch device or screen out.
+		var disputeMax = config.deviceCheckDisputeMaxNetDb;
+		var allowDispute;
+		if (result.detected === "loudspeaker") {
+			// confidence of a loudspeaker grows as net_db rises above the threshold
+			allowDispute = result.netDb < disputeMax;
+		} else {
+			// confidence of a headset grows as net_db falls below the threshold (symmetric band)
+			allowDispute = result.netDb > (2 * config.deviceCheckThresholdDb - disputeMax);
+		}
+		if (allowDispute) {
+			$("#device_check_choice_dispute_row").show();
+			$("#device_check_no_dispute_note").hide();
+		} else {
+			$("#device_check_choice_dispute_row").hide();
+			$("#device_check_no_dispute_note").show();
+		}
 		$("#device_check_result").show();
 		document.getElementById("device_check_result").scrollIntoView({ behavior: "smooth", block: "center" });
 	}
@@ -1644,6 +1668,13 @@ function userAnsweringToSetupQuestions(){
 				var rej = document.getElementById("qualification_rejected");
 				if (rej) rej.scrollIntoView({ behavior: "smooth", block: "start" });
 			} else if (choice === "dispute") {
+				// defensive: the dispute option is hidden for a confident detection, so a
+				// selected-but-hidden dispute should not slip through
+				if ($("#device_check_choice_dispute_row").is(":hidden")) {
+					alert("Please switch to the required device and click Start to retry, or select that "
+						+ "you do not have it.");
+					return;
+				}
 				// participant disputes the detection -> log it and let them continue
 				var raw2 = $("#webrtc_raw").val();
 				$("#webrtc_raw").val(raw2 + ";user_choice=dispute");
@@ -2108,10 +2139,14 @@ function set_onclick_listeners(){
 							<input type="radio" name="device_check_choice" value="no_device">
 							Correct &mdash; I do not have <span class="device_check_required_inline">a headset</span>
 							right now.</label></div>
-					<div class="radio"><label>
+					<div class="radio" id="device_check_choice_dispute_row"><label>
 							<input type="radio" name="device_check_choice" value="dispute">
 							Wrong &mdash; I am using <span class="device_check_required_inline">a headset</span>.</label>
 					</div>
+					<p id="device_check_no_dispute_note" style="display:none;">
+						We measured strong output from <span id="device_check_detected_note">a loudspeaker</span>, so this
+						cannot be corrected by disputing. Please switch to <span class="device_check_required_inline">a
+						headset</span> and click <b>Start</b> to retry, or select that you do not have one above.</p>
 					<button type="button" class="btn btn-primary" id="device_check_choice_submit">Continue</button>
 				</div>
 				<div id="device_check_audibility" class="alert alert-info" style="display:none; margin-top:15px;">

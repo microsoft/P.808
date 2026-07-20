@@ -1103,6 +1103,12 @@ async def main(cfg, test_method, args):
     # hearing safety: the check runs before the volume-adjust step, so the participant's
     # system volume is unknown. Detection is ratio-based, so a quiet tone still works.
     general_cfg['device_check_probe_gain'] = str(cfg_hit_app.get("device_check_probe_gain", "0.1")).strip()
+    # Gray-zone dispute policy: a participant may only dispute a loudspeaker detection when
+    # the measured net_db is below this value (i.e. close to the threshold, where a false
+    # positive is plausible). A clearly-loudspeaker reading (net_db at/above this) cannot be
+    # disputed away - the participant must switch to the required device and retry, or
+    # declare they do not have it (screen-out). Default 30 (threshold 20 + a 10 dB band).
+    general_cfg['device_check_dispute_max_net_db'] = str(cfg_hit_app.get("device_check_dispute_max_net_db", "30")).strip()
 
     # P.804 only: offer a per-scale "Cannot rate it" option on the Coloration,
     # Discontinuity, Reverb and Signal-quality scales. Disabled by default; when enabled

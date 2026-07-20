@@ -106,6 +106,12 @@ browser console).
 * (optional) `device_check_probe_gain:`: probe-tone level (linear gain `0..1`). Default: `0.1`. Kept low for
 hearing safety because the check runs before the volume-adjust step; detection is ratio-based, so a quiet tone
 still works. Lower it if the tone is too loud, raise it if detection is unreliable.
+* (optional) `device_check_dispute_max_net_db:`: gray-zone dispute policy. When the detected device does not
+match the requirement, the participant may **dispute** the detection ("wrong — I am using the required device")
+only when `net_db` is within this value of the threshold (a plausible false positive). A **confident** detection
+(`net_db` at/beyond this) **cannot be disputed** — the participant must switch to the required device and retry,
+or declare they do not have it (screen-out). Default: `30` (threshold `20` + a 10 dB band). Raise it to allow
+disputes further from the threshold, lower it to enforce the requirement more strictly.
 * (optional) `allow_cannot_rate:`: **P.804 only.** When `true`, a per-scale **"Cannot tell"** option (value
 `0`) is shown on the Coloration, Discontinuity, Reverb and Signal-quality scales so raters can mark a dimension
 they cannot assess. Default: `false`. These votes are **excluded from the per-scale MOS** by `result_parser.py`
