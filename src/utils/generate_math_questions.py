@@ -262,7 +262,7 @@ def load_wav_mono(path):
     :param path: Path to the WAV file.
     :return: Tuple of (*samples* as float32 ndarray, *sample_rate* as int).
     """
-    with wave.open(path, "r") as w:
+    with wave.open(path, "rb") as w:
         sample_rate = w.getframerate()
         n_channels = w.getnchannels()
         sampwidth = w.getsampwidth()
@@ -312,7 +312,7 @@ def save_stereo_wav(path, stereo, sample_rate=16000):
     """
     stereo = np.clip(stereo, -1.0, 1.0)
     int_data = (stereo * 32767).astype(np.int16)
-    with wave.open(path, "w") as w:
+    with wave.open(path, "wb") as w:
         w.setnchannels(2)
         w.setsampwidth(2)
         w.setframerate(sample_rate)
