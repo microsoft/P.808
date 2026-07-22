@@ -60,16 +60,16 @@ eligible for quantity bonus).
 * `bw_max: FB `: maximum bandwidth that participants playback should support, can be "NB-WB", "SWB", "FB"
 * (optional) `show_qualification: true`: Whether the in-HIT qualification section is shown (`true`/`false`).
 Set to `false` when the qualification is run as a separate study (e.g. a Prolific screener). Default: `true`.
-* (optional) `screenout_code_qualification:`: Study-level completion code shown to a participant who fails the
-in-HIT **qualification** (bandwidth/hearing) check on their final attempt. They enter it on the crowdsourcing
-platform (e.g. Prolific) to be paid for their screening effort.
-* (optional) `screenout_code_setup:`: Same as `screenout_code_qualification`, but shown when a participant fails
-the **setup** (listening environment/attention) check after the allowed number of attempts.
+* (optional) `screenout_code:`: Study-level completion code shown to a participant who is screened out of the
+in-HIT **qualification** (bandwidth/hearing) check or the **setup** (listening environment/attention) check on
+their final attempt. They enter it on the crowdsourcing platform (e.g. Prolific) to be paid for their screening
+effort. A single code is used for both screen-outs, because platforms such as Prolific support only one
+screen-out completion code per study.
 
 If a screen-out code is not set, `master_script.py` prints a warning at generation time and leaves the
-`${screenout_code_qualification}` / `${screenout_code_setup}` placeholder in the generated HIT so the HIT App
-Server can fill it at run time. When neither the configuration nor the server provides a code, the participant is
-asked to **return the task** instead of being paid for the screening.
+`${screenout_code}` placeholder in the generated HIT so the HIT App Server can fill it at run time. When neither
+the configuration nor the server provides a code, the participant is asked to **return the task** instead of
+being paid for the screening.
 * (optional) `run_online_eval_qualification: true`: Whether the **qualification** section (bandwidth/hearing)
 is graded in the browser (`true`/`false`). Default: `true`.
 * (optional) `run_online_eval_setup: true`: Whether the **setup** section (listening environment/attention)

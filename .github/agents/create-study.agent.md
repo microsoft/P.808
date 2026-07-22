@@ -78,10 +78,10 @@ gold/trapping clips, training clips), **do not silently reuse them**. Instead:
    - If the user says they want to modify → ask about each item one by one,
      then proceed with the updated values.
 
-**Never reuse the platform screen-out completion codes** (`screenout_code_qualification`
-and `screenout_code_setup`) from a prior study or session. The crowd platform issues them
-per study, so a copied code is invalid. Always **[ASK]** for the new study's codes, or leave
-them unset to emit the HIT App Server `${...}` placeholder — never silently carry them over.
+**Never reuse the platform screen-out completion code** (`screenout_code`) from a prior
+study or session. The crowd platform issues it per study, so a copied code is invalid.
+Always **[ASK]** for the new study's code, or leave it unset to emit the HIT App Server
+`${...}` placeholder — never silently carry it over.
 
 ## Supported test methods
 
@@ -150,10 +150,11 @@ Do not guess these values if they are missing:
    See "Storage and public accessibility" below for the full check procedure.
 7. **Contact email**: the email address to show in the HIT app for worker inquiries.
    Do **not** use a hardcoded default — always ask.
-8. **Screen-out completion codes** (`screenout_code_qualification`, `screenout_code_setup`):
-   study-specific codes issued by the crowd platform for paying screened-out participants.
-   **Never copy them from a prior study** — always ask for the new study's codes, or leave
-   them unset to emit the HIT App Server `${...}` placeholder. See the config template below.
+8. **Screen-out completion code** (`screenout_code`): a study-specific code issued by the
+   crowd platform for paying screened-out participants. A single code covers both the
+   qualification and setup screen-out (platforms such as Prolific support only one code
+   per study). **Never copy it from a prior study** — always ask for the new study's code,
+   or leave it unset to emit the HIT App Server `${...}` placeholder. See the config template below.
 9. **Max assignments per worker** (for Prolific) or worker requirements and payment (for AMT).
 10. **Target valid votes per clip**: suggest publishing `target + BEST_PRACTICE_VALID_VOTE_BUFFER`.
 11. **Master-script general assets** (`--general_assets`): the shared reference material for the
@@ -637,13 +638,13 @@ quantity_bonus: 0.1
 quality_top_percentage: 20
 quality_bonus: 0.15
 contact_email:USER_PROVIDED_EMAIL
-# Screen-out completion codes, paid on the platform for the screening effort. These are
-# STUDY-SPECIFIC: the crowd platform issues them per study, so never copy them from another
-# study's cfg. Ask the requester for this study's codes, or leave unset to keep the
-# ${screenout_code_qualification} / ${screenout_code_setup} placeholder for the HIT App
-# Server to fill; with no code the participant returns the task.
-#screenout_code_qualification: XXXXXXXX
-#screenout_code_setup: XXXXXXXX
+# Screen-out completion code, paid on the platform for the screening effort. A single
+# code covers both the qualification and setup screen-out (platforms such as Prolific
+# support only one code per study). It is STUDY-SPECIFIC: the crowd platform issues it
+# per study, so never copy it from another study's cfg. Ask the requester for this study's
+# code, or leave unset to keep the ${screenout_code} placeholder for the HIT App Server to
+# fill; with no code the participant returns the task.
+#screenout_code: XXXXXXXX
 # Online (in-HIT) grading of the qualification / setup sections (both default true).
 # Set to false to grade that section only offline in result_parser (answers not embedded,
 # check button hidden).
@@ -661,11 +662,12 @@ contact_email:USER_PROVIDED_EMAIL
 **Key rules:**
 - `number_of_gold_clips_per_session` = **2 for P.804**, 1 for others.
 - `bw_min` defaults to `FB`. Valid: `NB-WB`, `SWB`, `FB`.
-- `screenout_code_qualification` / `screenout_code_setup` (optional) = completion codes a
-  screened-out participant enters on the platform to be paid for the screening effort. They are
-  **study-specific — never copy them between studies**; ask for each new study's codes. If unset,
-  the master script prints a warning and leaves a `${...}` placeholder for the HIT App Server to
-  fill; when no code is provided at all, the participant is asked to return the task.
+- `screenout_code` (optional) = completion code a screened-out participant enters on the
+  platform to be paid for the screening effort (one code for both qualification and setup
+  screen-out). It is **study-specific — never copy it between studies**; ask for each new
+  study's code. If unset, the master script prints a warning and leaves a `${...}` placeholder
+  for the HIT App Server to fill; when no code is provided at all, the participant is asked to
+  return the task.
 - `run_online_eval_qualification` / `run_online_eval_setup` (optional, default `true`) = grade the
   qualification / setup section in the browser. Set to `false` to hide that section's answers and
   "Check answers" button and grade it only offline in `result_parser`.

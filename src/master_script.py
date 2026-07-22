@@ -961,11 +961,15 @@ def extend_general_cfg_bw(general, hitapp):
 
 def _get_screenout_code(hitapp, key):
     """
-    Resolve a study-level screen-out completion code from the HIT app config section.
+    Resolve the study-level screen-out completion code from the HIT app config section.
+
+    A single completion code is used for both the qualification and the setup screen-out
+    (crowdsourcing platforms such as Prolific support only one screen-out code per study).
+    For backward compatibility, the older split keys ``screenout_code_qualification`` /
+    ``screenout_code_setup`` are accepted as a fallback when ``key`` is not set.
 
     :param hitapp: Config section (SectionProxy) holding the HIT app settings.
-    :param key: Config key holding the code (e.g. 'screenout_code_qualification' or
-        'screenout_code_setup').
+    :param key: Config key holding the code (e.g. 'screenout_code').
     :return: The configured code, or the literal '${<key>}' placeholder when it is not
         set, so the HIT app server can fill it at runtime. A warning is printed when the
         code is missing so the user knows to provide it when uploading to the HIT App Server.
@@ -973,6 +977,10 @@ def _get_screenout_code(hitapp, key):
     code = (hitapp.get(key, '') or '').strip()
     if code:
         return code
+    for legacy_key in ('screenout_code_qualification', 'screenout_code_setup'):
+        legacy_code = (hitapp.get(legacy_key, '') or '').strip()
+        if legacy_code:
+            return legacy_code
     print(f"WARNING: '{key}' is not set in the configuration. The screen-out code will be "
           f"left as the ${{{key}}} placeholder; please provide it when uploading the study "
           f"to the HIT App Server.")
@@ -1064,11 +1072,11 @@ async def main(cfg, test_method, args):
     general_cfg = prepare_basic_cfg(df)
     # add BW check config
     general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app)
-    # optional study-level screen-out completion codes (paid for the screening effort).
-    # Left as ${screenout_code_*} placeholders for the HIT app server to fill when not set
-    # in the config; a warning is printed for each missing code.
-    general_cfg['screenout_code_qualification'] = _get_screenout_code(cfg_hit_app, 'screenout_code_qualification')
-    general_cfg['screenout_code_setup'] = _get_screenout_code(cfg_hit_app, 'screenout_code_setup')
+    # optional study-level screen-out completion code (paid for the screening effort),
+    # shown when a participant fails the qualification or setup screening. Left as the
+    # ${screenout_code} placeholder for the HIT app server to fill when not set in the
+    # config; a warning is printed when it is missing.
+    general_cfg['screenout_code'] = _get_screenout_code(cfg_hit_app, 'screenout_code')
 
     # Online (in-HIT) evaluation toggles for the qualification and setup sections
     # (both default true). When a flag is false, the section's correct answers are not

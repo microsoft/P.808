@@ -342,6 +342,20 @@ function isQualificationDone(){
 	check the qualification passed
 */
 function validateQualificationAnswer(){
+	// Require every qualification question to be answered before evaluating (and
+	// possibly screening out) the participant. If anything is missing, ask them to
+	// complete the section first instead of counting blanks as wrong.
+	var qualComplete = $("input[name='3_mother_tongue']:checked").length > 0 &&
+		$("input[name='4_ld']:checked").length > 0 &&
+		!!$("input[name='8_hearing']:checked").val();
+	for (var qi = 1; qi <= 5 && qualComplete; qi++) {
+		if (!$("input[name='num" + qi + "']").val().trim()) qualComplete = false;
+		if (!$("input[name='comb_bw" + qi + "']:checked").val()) qualComplete = false;
+	}
+	if (!qualComplete) {
+		alert("Please answer all questions in the qualification section before checking your answers.");
+		return;
+	}
 	var mother_tongues = $("input[name='3_mother_tongue']:checked").map(function () {
 			return $(this).val().toLowerCase().trim();
 		}).get();
@@ -702,11 +716,11 @@ function disableTheHIT(c){
 	if (c == Hide_HIT_REASON.MAX_ACHIVED)
 		$("#max_allowed_HITs_reached").show();
 	if (c == Hide_HIT_REASON.QUALIFICATON) {
-		applyScreenoutMessage("qualification_rejected", "screenout_code_qualification");
+		applyScreenoutMessage("qualification_rejected", "screenout_code");
 		$("#qualification_rejected").show();
 	}
 	if (c == Hide_HIT_REASON.SETUP) {
-		applyScreenoutMessage("setup_rejected", "screenout_code_setup");
+		applyScreenoutMessage("setup_rejected", "screenout_code");
 		$("#setup_rejected").show();
 	}
 }
@@ -2650,7 +2664,7 @@ function generate_rating_section(){
 			completion code on Prolific and close this window:</p>
 
 		<div class="alert alert-info" role="alert" style="font-size: 1.3em; text-align: center;">
-			<b class="screenout_code_value">{{ cfg.screenout_code_qualification }}</b>
+			<b class="screenout_code_value">{{ cfg.screenout_code }}</b>
 		</div>
 	</div>
 
@@ -2674,7 +2688,7 @@ function generate_rating_section(){
 			completion code on Prolific and close this window:</p>
 
 		<div class="alert alert-info" role="alert" style="font-size: 1.3em; text-align: center;">
-			<b class="screenout_code_value">{{ cfg.screenout_code_setup }}</b>
+			<b class="screenout_code_value">{{ cfg.screenout_code }}</b>
 		</div>
 	</div>
 
