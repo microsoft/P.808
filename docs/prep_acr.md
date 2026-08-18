@@ -81,6 +81,7 @@ a column named `trapping_clips` and expected answer to each clip in a column nam
         Optionally:
          - Add `--check_urls` to validate that all links in the CSV files are accessible before creating the project. 
          - Add `--create_local_test` to generate a local preview HTML file for testing. See [preview_html](preview_html.md) for details.
+         - Add `--general_assets path/to/general.csv` to use a custom general assets CSV instead of the default `assets_master_script/general.csv`.
 
         Note: file paths are expected to be relative to the current working directory.
     

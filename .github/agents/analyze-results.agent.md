@@ -1,6 +1,6 @@
 ---
 name: analyze-results
-description: Analyzes crowdsourced subjective test results — runs result_parser.py for data cleaning, quality checks, and per-clip/per-worker MOS aggregation.
+description: Analyzes crowdsourced subjective test results — runs result_parser.py for data cleaning, quality checks, and per-clip/per-worker MOS aggregation, and writes a re-runnable rerun_result_parser.bat that re-runs result_parser.py.
 ---
 
 # Analyze subjective test results
@@ -45,6 +45,12 @@ Do not guess these values if they are missing:
    (AMT) or HIT App server. Contains worker responses.
 4. **Prolific demographic CSV** (optional): `prolific_demographic_export_*.csv`
    — only needed if the study was run on Prolific via HIT App server.
+5. **Payment per session** (Prolific only): the reward paid to a participant per
+   session/HIT (e.g. `2.10`). Prolific does not include the reward in its export,
+   so the parser cannot compute payment-per-hour statistics without it. Ask the
+   user for this value whenever the study was run on Prolific; pass it to the
+   parser as `--payment_per_session`. Not needed for AMT (the reward is already a
+   column in the AMT batch).
 
 ## Execution workflow
 
@@ -54,6 +60,8 @@ Do not guess these values if they are missing:
 - The path to the project directory (where the `*_result_parser.cfg` is).
 - The test method used.
 - Whether they used Prolific or AMT.
+- **If Prolific**: the payment per session (reward per HIT, e.g. `2.10`) — this is
+  not in the Prolific export and is required for payment-per-hour statistics.
 
 Then instruct: "Please download the answers file (`Batch_XXX.csv`) and, if using
 Prolific, the demographic export (`prolific_demographic_export_*.csv`) and place
@@ -94,13 +102,17 @@ python REPO_ROOT\src\result_parser.py `
 
 **With Prolific demographic data:**
 
+Also pass `--payment_per_session` (the reward per HIT, e.g. `2.10`) so payment-per-hour
+statistics are computed — Prolific does not include the reward in its export.
+
 ```powershell
 Set-Location PROJECT_DIR
 python REPO_ROOT\src\result_parser.py `
 	--cfg RESULT_PARSER_CFG `
 	--method METHOD `
 	--answers Batch_XXX.csv `
-	--prolific_answers prolific_demographic_export_XXX.csv
+	--prolific_answers prolific_demographic_export_XXX.csv `
+	--payment_per_session 2.10
 ```
 
 **Notes:**
@@ -108,6 +120,39 @@ python REPO_ROOT\src\result_parser.py `
   issues.
 - The working directory should be the project directory so output files are
   written there.
+
+### 3b. Write a re-run batch file (rerun_result_parser.bat)
+
+Always write a `rerun_result_parser.bat` in the results directory so the requester can
+re-run the analysis later (e.g. after a config change or with an updated answers export)
+without re-deriving the command. It must reproduce the exact `result_parser.py` invocation
+from step 3, using `%BASE%` (the folder the `.bat` lives in) for the input files and the
+absolute repo path for the script. Include the `--prolific_answers` and
+`--payment_per_session` lines only if Prolific was used.
+
+```bat
+@echo off
+REM Re-run the result parser for PROJECT (METHOD).
+REM Rebuilds the data-cleaning report and per-clip / per-worker MOS outputs from the
+REM batch answers CSV using the existing result-parser config.
+
+setlocal
+set "BASE=%~dp0"
+set "REPO=REPO_ROOT"
+
+cd /d "%BASE%"
+
+python "%REPO%\src\result_parser.py" ^
+	--cfg "%BASE%RESULT_PARSER_CFG" ^
+	--method METHOD ^
+	--answers "%BASE%Batch_XXX.csv" ^
+	--prolific_answers "%BASE%prolific_demographic_export_XXX.csv" ^
+	--payment_per_session 2.10
+
+endlocal
+```
+
+Save as `rerun_result_parser.bat` in the results directory.
 
 ### 4. Analyze the output and summarize
 
@@ -124,21 +169,50 @@ Calculate: `rejection_percentage = XXXX / YYYY * 100`
 **⚠️ If rejection rate > 35%**: flag as alarming. Ask the user to investigate
 the rejection reasons in the data cleaning report.
 
+**Rejection reason breakdown**: because a submission can fail several checks at
+once, a flat per-reason count over-counts. Use the parser's "Rejection breakdown"
+log and the two files it writes to report the marginal count per reason, how many
+were rejected by a single reason ("only-this-reason", e.g. removed *only* because
+of performance), and the most common reason combinations:
+- `Batch_XXX_rejection_reason_matrix.csv` — reason co-occurrence matrix (diagonal /
+  `total` = submissions failing that reason; `only_this_reason` = failed that reason
+  alone; off-diagonal = failed both).
+- `Batch_XXX_rejection_reason_combinations.csv` — each distinct reason combination
+  with its count and percentage.
+
 #### 4b. Gold question performance
 
-Read `detailed_gold_question_performance.csv` from the working directory.
+Read `Batch_XXX_detailed_gold_question_performance.csv` (next to the answers file).
 
-- Look for columns matching `wrong*` — these indicate how many times each gold
-  clip received a wrong answer.
-- Look for columns matching `url*` — these identify the gold clip URLs.
-- **Any row where the sum of `wrong*` columns > 0** means that gold clip received
-  at least one wrong answer.
-- Calculate the rejection rate per gold clip:
-  `gold_rejection_rate = wrong_count / total_times_shown * 100`
+The report has **one row per gold question** (so a P.804 submission with two gold
+clips contributes two rows). Key columns:
+- `gold_url` — the gold clip evaluated on that row (exactly one per row).
+- `wrong` / `correct` — number of dimensions answered wrong / correct for that gold
+  on that submission; per-dimension detail is in `<dim>_wrong` (e.g. `sig_wrong`).
+- `worker_id`, `HITID` — the submission the row belongs to.
+
+To assess gold clips, **group by `gold_url`**:
+- A row counts as a failed presentation when `wrong > 0`.
+- `gold_rejection_rate = (rows with wrong > 0 for that gold_url) / (total rows for that gold_url) * 100`.
 
 **⚠️ If any gold clip is rejected > 20% of the time**: flag as alarming. Ask the
 user to check that clip and verify the expected answer is correct. It may
 indicate a bad gold clip rather than bad workers.
+
+For P.804, `Batch_XXX_gold_summary.csv` gives this directly: one row per gold clip with
+`url`, `n_submission`, `max_wrong_pct` (worst scale wrong rate for that clip), and
+per scale `<scale>_expected` (correct answer, blank if not targeted),
+`<scale>_mean` (mean rating participants gave), and `<scale>_wrong_pct`. Sort by
+`max_wrong_pct`; when the mean rating is far from the expected answer with a high
+wrong rate, the gold clip is likely mis-keyed or too hard on that scale.
+
+**Correcting gold answers**: to override mis-keyed gold clips, build a CSV with a
+`url` column plus, per scale, `<scale>` (correct answer) and optional `<scale>_var`
+(variance), and pass it as `--gold_overrides`. A listed clip is authoritative: the
+scales you fill are checked with those values and blank scales are skipped (not
+checked); clips not listed keep the encoded answers. A good starting point per
+scale is the rounded `<scale>_mean` for scales with a high `<scale>_wrong_pct`;
+review before re-running.
 
 #### 4c. Summary to present
 
@@ -166,8 +240,11 @@ After analysis, direct the user to the key output files:
 | `Batch_XXX_votes_per_worker_[SCALE].csv` | Per-worker rating statistics |
 | `Batch_XXX_all_votes_per_clip.csv` | All individual votes per clip (key: `all_votes` in name) |
 | `Batch_XXX_data_cleaning_report.csv` | Detailed per-submission data cleaning report |
-| `detailed_gold_question_performance.csv` | Per-gold-clip acceptance/rejection statistics |
-| `Batch_XXX_quantity_bonus_report.csv` | Quantity bonus calculations |
+| `Batch_XXX_rejection_reason_matrix.csv` | Reason co-occurrence matrix (total, only-this-reason, and pairwise counts) |
+| `Batch_XXX_rejection_reason_combinations.csv` | Count/percentage of each distinct reason combination |
+| `Batch_XXX_detailed_gold_question_performance.csv` | One row per gold question per submission (single `gold_url` per row) |
+| `Batch_XXX_gold_summary.csv` | Per-gold-clip summary (P.804): `url`, `n_submission`, `max_wrong_pct`, and per scale `<scale>_expected` + `<scale>_mean` + `<scale>_wrong_pct` |
+| `Batch_XXX_quantity_bonus_report.csv` | Quantity bonus calculations (MTurk only; not generated when the platform is Prolific) |
 
 **Scale suffixes by method:**
 

@@ -56,13 +56,15 @@ function randomizeHearingtestItems(){
 }
 
 function makeCheckboxBeRequired(){
-    var requiredCheckboxes = $('.4_lds :checkbox[required]');
-    requiredCheckboxes.change(function(){
-        if(requiredCheckboxes.is(':checked')) {
-            requiredCheckboxes.removeAttr('required');
-        } else {
-            requiredCheckboxes.attr('required', 'required');
-        }
+    $('.4_lds, .mts_group').each(function(){
+        var group = $(this).find(':checkbox');
+        group.on('change', function(){
+            if(group.is(':checked')) {
+                group.removeAttr('required');
+            } else {
+                group.attr('required', 'required');
+            }
+        });
     });
 }
 function forceNoSpaceInInput(){
@@ -286,33 +288,27 @@ $(function() {
 <section >
 <div class="row col-xs-12 col-md-12">
 	<div class="panel panel-primary">
-		<div class="panel-heading"><h3 class="panel-title">Instructions for speech quality assessment (Part 1 - Qualification)</h3></div>
+		<div class="panel-heading"><h3 class="panel-title">Speech quality assessment &mdash; Qualification</h3></div>
 		<div class="panel-body">
 			<b>Introduction</b>
 
-			<p class="increase_indent">We are looking for crowdworkers who are willing to participate in a <b>speech quality assessment</b> experiment. During that test you will listen to <b>11 audio files</b>, each 6-8 seconds long (two sentences), via your listening device and you will be asked to indicate your opinion quality of each on the following scale:</p>
+			<p class="increase_indent">Welcome! This is a <b>generic qualification task</b> for the <b>speech quality assessment</b> studies run with this account. By completing it <b>once</b>, you become eligible to take part in the speech quality assessment studies (for example ITU-T P.804 / P.808) published under this account.</p>
 
-			<img src="https://p808.s3.amazonaws.com/assets/img/scale.png" alt="scale" class="center" width="100px"></img>
-			
-			<p class="increase_indent">Each of those HITs can be completed in about <b>5 minutes</b>. There will be a total of <b>60 HITs</b> available for each crowdworker. It results to <b>$ 48 </b>payout including bonuses. Bonuses will be granted based on 1)number of tasks you perform, 2)quality of your work.</p>
-			
-			<b>Procedure:</b>			
+			<p class="increase_indent">In those studies you listen to short speech samples (a few seconds each) through your listening device and give <b>your opinion about the quality of the speech</b> you hear, on one or more rating scales.</p>
+
+			<b>How it works:</b>
 			<ol type="1">
-				<li>To get access to the above mentioned <b>rating job</b>, you should first complete this <b>qualification job</b>. </li>
-				<li>Selected group of crowdworkers will be invited to perform the <b>training job (2 minutes)</b> in which you will listen to 6 sample audio files.</li>
-				<li>Then, they get access to the <b>rating job</b> and can perform up to 57 tasks.</li>
+				<li>Complete this <b>qualification task</b>. If you pass, you will be added to a <b>participant group</b> that gets access to our further speech quality assessment studies.</li>
+				<li>Your eligibility <b>expires automatically after 30 days</b>. To renew it, simply take this qualification task again.</li>
 			</ol>
-			
-			
-			<img src="https://p808.s3.amazonaws.com/assets/img/process_2.png" alt="scale" class="center" width="70px"></img>
-			
-			<b>Conditions:</b>			
+
+			<b>Conditions:</b>
 			<ul>
-				<li>You must perform the task in a <b>quiet environment</b> like at home.</li>
-				<li>You must use <b>headphones</b>. Note that, <u>loudspeakers</u> are <b>not acceptable</b>.</li>
+				<li style="color:red;">You must use a <b>headset</b> (headphones). <u>Loudspeakers are not acceptable.</u></li>
+				<li>You must perform the task in a <b>quiet environment</b>, for example at home.</li>
 			</ul>
-			
-			<p>Thank you for <b>your help</b> in this experiment.</p>
+
+			<p>Please answer the following questions carefully. Thank you for your participation.</p>
 		</div>
 	</div>
 </div>
@@ -349,9 +345,18 @@ $(function() {
 				</div>
 		</fieldset>
 		
-		<fieldset><label>3.&nbsp;What is your mother tongue? </label>
-				<div class="form-group">
-				  <input type="text" class="form-control" name="3_mother_tongue" required="">
+		<fieldset><label>3.&nbsp;What is your mother tongue (native language)? Select all that apply.</label>
+				<div class="mts_group row" style="margin-left:5px;">
+					<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="english" required>English</label></div></div>
+					<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="mandarin" required>Mandarin Chinese</label></div></div>
+					<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="hindi" required>Hindi</label></div></div>
+					<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="spanish" required>Spanish</label></div></div>
+					<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="arabic" required>Arabic</label></div></div>
+					<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="french" required>French</label></div></div>
+					<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="bengali" required>Bengali</label></div></div>
+					<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="portuguese" required>Portuguese</label></div></div>
+					<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="russian" required>Russian</label></div></div>
+					<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="urdu" required>Urdu</label></div></div>
 				</div>
 		</fieldset>
 	
@@ -362,10 +367,10 @@ $(function() {
 			  <table class="table" border="0" cellpadding="0" cellspacing="0" >
 				<tbody>
 					<tr>
-						<td style="width:25%"> <img src="https://p808.s3.amazonaws.com/assets/img/inear.png" alt="in-ear headphones" width="100px"> </td>
-						<td style="width:25%"> <img src="https://p808.s3.amazonaws.com/assets/img/overear.png" alt="Over-the-ear headphones" width="100px"> </td>
-						<td style="width:25%"> <img src="https://p808.s3.amazonaws.com/assets/img/loudspeaker.png" alt="loudspeaker" width="100px"> </td>
-						<td style="width:25%"> <img src="https://p808.s3.amazonaws.com/assets/img/inbuild.png" alt="built-in speakers" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/inear.png" alt="in-ear headphones" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/overear.png" alt="Over-the-ear headphones" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/loudspeaker.png" alt="loudspeaker" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/inbuild.png" alt="built-in speakers" width="100px"> </td>
 					</tr>
 					<tr>
 						<td><div class="checkbox"><label><input type="checkbox" value="in-ear" name="4_ld" required>In-ear headphones</label></div></td>
@@ -451,41 +456,93 @@ $(function() {
 			<div class="row" style="margin: 30px;">
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n1" title="" data-src="https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s0.wav" >&nbsp;</span>
+						<span class="baudio" id="n1" title="" data-src="${q_num1}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num1" required="" class="nospace">
 				</div>
 
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n2" title="" data-src="https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s1.wav" >&nbsp;</span>
+						<span class="baudio" id="n2" title="" data-src="${q_num2}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num2" required="" class="nospace">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row"style="text-align:center;">
-						<span class="baudio" id="n3" title="" data-src="https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s2.wav" >&nbsp;</span>
+						<span class="baudio" id="n3" title="" data-src="${q_num3}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num3" required="" class="nospace">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row"style="text-align:center;">
-						<span class="baudio" id="n4" title="" data-src="https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s3.wav" >&nbsp;</span>
+						<span class="baudio" id="n4" title="" data-src="${q_num4}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num4" required="" class="nospace">
 				</div>
 				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd">
 					<div class="row" style="text-align:center;">
-						<span class="baudio" id="n5" title="" data-src="https://p808.s3.amazonaws.com/assets/clips/sample_hearing_test/s4.wav" >&nbsp;</span>
+						<span class="baudio" id="n5" title="" data-src="${q_num5}" >&nbsp;</span>
 					</div>
 					<input type="text" name="num5" required="" class="nospace">
 				</div>
 			</div>
 			
 		</fieldset>
-		
 
-		<h5> Thank you for your participation. The qualifications will be assigned to a selected group of participants within the next 3 days.</h5>
+		<fieldset><label>11.&nbsp;For this task, your hardware should be able to produce different audio details, and you should be able to hear them. Listen to the following samples. Each sample has two parts separated by a "beep". For each sample, please select whether the quality of both parts is the same or different.</label>
+
+			<div class="row" style="margin: 30px;">
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="comb_bw1" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g1_cmb.wav" >&nbsp;</span>
+					</div>
+					<div class="row" style="margin-left:20px" >
+						<div class="radio"><label><input type="radio" name="comb_bw1" value="sq" required="">Same quality</label></div>
+						<div class="radio"><label><input type="radio" name="comb_bw1" value="dq">Different quality</label></div>
+					</div>
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="comb_bw2" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g2_cmb.wav">&nbsp;</span>
+					</div>
+					<div class="row" style="margin-left:20px" >
+						<div class="radio"><label><input type="radio" name="comb_bw2" value="sq" required="">Same quality</label></div>
+						<div class="radio"><label><input type="radio" name="comb_bw2" value="dq">Different quality</label></div>
+					</div>
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="comb_bw3" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g3_cmb.wav">&nbsp;</span>
+					</div>
+					<div class="row" style="margin-left:20px" >
+						<div class="radio"><label><input type="radio" name="comb_bw3" value="sq" required="">Same quality</label></div>
+						<div class="radio"><label><input type="radio" name="comb_bw3" value="dq">Different quality</label></div>
+					</div>
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="comb_bw4" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g4_cmb.wav">&nbsp;</span>
+					</div>
+					<div class="row" style="margin-left:20px" >
+						<div class="radio"><label><input type="radio" name="comb_bw4" value="sq" required="">Same quality</label></div>
+						<div class="radio"><label><input type="radio" name="comb_bw4" value="dq">Different quality</label></div>
+					</div>
+				</div>
+				<div class="col-xs-12 col-sm-4 col-md-2 col-lg-2 rnd4">
+					<div class="row" style="text-align:center;">
+						<span class="baudio" id="comb_bw5" title="" data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test/d_g5_cmb.wav">&nbsp;</span>
+					</div>
+					<div class="row" style="margin-left:20px" >
+						<div class="radio"><label><input type="radio" name="comb_bw5" value="sq" required="">Same quality</label></div>
+						<div class="radio"><label><input type="radio" name="comb_bw5" value="dq">Different quality</label></div>
+					</div>
+				</div>
+			</div>
+
+		</fieldset>
+
+
+		<h5> Thank you for your participation. If you pass, you will be assigned to a participant group that gets access to further studies. Your eligibility expires automatically after 30 days, after which you need to take this qualification task again to renew it.</h5>
 		
 	  </div>
   </div>

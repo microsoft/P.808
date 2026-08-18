@@ -79,8 +79,8 @@ degradation, so `bak` is set to 4 rather than 5 for that type.
 
 ### P.804
 
-For P.804, gold clips target multiple quality dimensions. Only dimensions with an expected answer
-of 1 are listed in the CSV; empty cells mean the dimension is not targeted (implicitly 5).
+For P.804, gold clips target multiple quality dimensions. Only targeted dimensions are listed in the CSV
+(with their expected answer); empty cells mean the dimension is not targeted (implicitly 5).
 
 | Type | Description | col | disc | loud | noise | sig | ovrl |
 |------|-------------|-----|------|------|-------|-----|------|
@@ -88,16 +88,39 @@ of 1 are listed in the CSV; empty cells mean the dimension is not targeted (impl
 | Background noise | Pink noise | | | | 1 | | 1 |
 | Signal distortion | Hard clipping | | | | | 1 | 1 |
 | Discontinuity | Random segment dropouts (choppy) | | 1 | | | 1 | 1 |
-| Discontinuity + noise | Choppy + noise | | | | 1 | 1 | 1 |
-| Coloration | Resonant/muffled/telephone filter | 1 | | | | 1 | 1 |
-| Coloration + noise | Coloration + noise | | | | 1 | 1 | 1 |
-| Distortion + noise | Clipping + noise | | | | 1 | 1 | 1 |
-| Loudness | Too loud (+25 dB) or too quiet (-25 dB) | | | 1 | | | 1 |
-| Loudness + distortion | Loudness + clipping | | | 1 | | 1 | 1 |
-| Loudness + noise | Loudness + noise | | | 1 | 1 | | 1 |
+| Discontinuity + noise | Choppy + noise | | | | 1 | | 1 |
+| Coloration | Resonant/muffled/telephone filter | 1 | | | | 2 | 2 |
+| Coloration + noise | Coloration + noise | | | | 1 | | 1 |
+| Distortion + noise | Clipping + noise | | | | 1 | | 1 |
+| Loudness (too loud) | Gain raised so speech is too loud | | | 1 | | | |
+| Loudness (too quiet) | Gain lowered so speech is too quiet | | | 1 | | | |
+| Loudness (too loud) + distortion | Too loud + clipping | | | 1 | | 1 | 1 |
+| Loudness (too quiet) + distortion | Too quiet + clipping | | | 1 | | | 1 |
+| Loudness (too loud) + noise | Too loud + noise | | | 1 | 1 | | 1 |
+| Loudness (too quiet) + noise | Too quiet + noise | | | 1 | 1 | | 1 |
 
-**Note:** When distortion is combined with noise, only `sig` and `noise` are flagged because the
-specific type of underlying distortion is not clearly distinguishable to raters.
+**Note:** The `sig` dimension cannot be judged reliably when the signal is masked or hidden, so it is not
+flagged for: the noise-combined types (discontinuity/coloration/distortion + noise, where noise masks the
+signal) and the **too-quiet** loudness + distortion case (a very low-gain clip hides signal detail). The
+**too-loud** loudness + distortion case still flags `sig`, since the distortion remains audible. In all
+these cases the `ovrl` flag is retained, driven by the noise or loudness/distortion degradation.
+
+**Note:** Loudness alone does not flag `ovrl`. A level offset by itself is not treated as an overall
+quality degradation, so only the `loud` dimension is targeted. When loudness is combined with another
+artifact (distortion or noise), that other artifact drives the `ovrl` flag.
+
+**Note:** For the standalone **Coloration** type the `sig` and `ovrl` answers default to **2** (not 1):
+listeners tend to perceive coloration as milder on signal quality and overall than a "1". These are
+still suggested defaults — **listen to each colored clip and confirm/adjust** the answers, since some
+clips' coloration is subtle enough that even `col=1` may not hold. You can correct per-clip gold answers
+after collection with `result_parser.py --gold_overrides` (a CSV of `url` plus per-scale answer/variance;
+a listed clip is authoritative, and a blank scale for it is skipped).
+
+**Note:** The loudness and coloration degradations keep the first few seconds of audio as a clean
+reference (`GOLD_CLEAN_PREFIX_SEC`, default 2 seconds) and only apply the degradation afterwards, so a
+rater can perceive the change relative to the clean start. Other artifacts (noise, distortion,
+discontinuity) are applied from the beginning of the clip; when combined with loudness or coloration,
+the other artifact is present throughout while the loudness/coloration change appears after the prefix.
 
 **Output CSV columns:** `gold_clips`, `col_ans`, `disc_ans`, `loud_ans`, `noise_ans`, `reverb_ans`, `sig_ans`, `ovrl_ans`
 

@@ -10,7 +10,9 @@ import argparse
 import os
 import asyncio
 import base64
+import hashlib
 import random
+import re
 import string
 
 import configparser as CP
@@ -31,6 +33,19 @@ from utils.preview_html import generate_previews
 
 #p835_personalized = "p835_personalized"
 p835_personalized = "pp835"
+
+
+def _strip_author_lines(text):
+    """
+    Remove any line containing an ``@author`` tag from a template's text.
+
+    Generated HIT-app HTML files are published to crowd workers, so personal author
+    attribution carried over from the templates is stripped out during generation.
+
+    :param text: The template file content.
+    :return: The content with any line containing ``@author`` removed.
+    """
+    return re.sub(r'(?m)^.*@author.*\r?\n?', '', text)
 
 
 def _get_cookie_value(cfg, key):
@@ -71,6 +86,7 @@ def create_analyzer_cfg_acr(cfg, template_path, out_path):
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     cfg_file = t.render(cfg=config)
 
@@ -107,6 +123,8 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path, gener
     default_keys = 'condition_num'
     config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
     config['condition_keys'] = cfg['create_input'].get("condition_keys", default_keys)
+    # target crowdsourcing platform (mturk or prolific); Prolific skips bonus reports
+    config['platform'] = cfg['create_input'].get("platform", "prolific")
 
     # BW check
     config['bw_min'] = general_cfg['bw_min']
@@ -115,6 +133,7 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path, gener
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     cfg_file = t.render(cfg=config)
 
@@ -148,6 +167,8 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     default_keys = 'condition_num'
     config['condition_pattern'] = cfg['create_input'].get("condition_pattern", default_condition)
     config['condition_keys'] = cfg['create_input'].get("condition_keys", default_keys)
+    # target crowdsourcing platform (mturk or prolific); Prolific skips bonus reports
+    config['platform'] = cfg['create_input'].get("platform", "prolific")
 
     # BW check
     config['bw_min'] = general_cfg['bw_min']
@@ -156,6 +177,7 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     cfg_file = t.render(cfg=config)
 
@@ -221,6 +243,7 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     html = t.render(cfg=config)
 
@@ -301,6 +324,7 @@ async def create_hit_app_acr(cfg, template_path, out_path, training_path, trap_p
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     html = t.render(cfg=config)
 
@@ -386,6 +410,7 @@ async def create_hit_app_p835(cfg, template_path, out_path, training_path, trap_
     with open(template_path, 'r') as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     html = t.render(cfg=config)
 
@@ -437,6 +462,13 @@ async def create_hit_app_pp835_p804(
     config["test_instructions_flavor"] = cfg.get("test_instructions_flavor") or "default"
     config["contact_email"] = (
         cfg["contact_email"] if "contact_email" in cfg else "ic3ai@outlook.com"
+    )
+    # whether the in-HIT qualification section is shown. Default: shown.
+    config["show_qualification"] = (
+        "false"
+        if str(cfg.get("show_qualification", "true")).strip().lower()
+        in ("false", "0", "no", "off")
+        else "true"
     )
 
     config["hit_base_payment"] = cfg["hit_base_payment"]
@@ -507,6 +539,7 @@ async def create_hit_app_pp835_p804(
     with open(template_path, "r", encoding="utf-8") as file:
         content = file.read()
         file.seek(0)
+    content = _strip_author_lines(content)
     t = Template(content)
     html = t.render(cfg=config)
 
@@ -668,16 +701,39 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
     return result
 
 
+def _correct_pair_url(row):
+    """
+    Return the correct (better-quality) clip URL of a JND setup pair.
+
+    Prefer the explicit ``pair_ans`` answer (the URL of the correct/cleaner clip) when
+    it is present; this is required for anonymized clips whose file names do not encode
+    the SNR. Otherwise fall back to the legacy convention where the higher-SNR clip -
+    the one whose file name starts with the larger 2-digit SNR prefix - is correct.
+
+    :param row: A dataframe row (Series) with ``pair_a`` / ``pair_b`` and optionally
+        ``pair_ans``.
+    :return: The correct clip URL as a string.
+    """
+    ans = row.get("pair_ans") if "pair_ans" in row.index else None
+    if isinstance(ans, str) and ans.strip():
+        return ans.strip()
+    a = int((row["pair_a"].rsplit("/", 1)[-1])[:2])
+    b = int((row["pair_b"].rsplit("/", 1)[-1])[:2])
+    return row["pair_a"] if a > b else row["pair_b"]
+
+
 def prepare_basic_cfg(df):
     config = {}
-    only_cfgs = df[["pair_a", "pair_b"]].copy()
+    pair_cols = ["pair_a", "pair_b"] + (["pair_ans"] if "pair_ans" in df.columns else [])
+    only_cfgs = df[pair_cols].copy()
     only_cfgs.dropna(subset=["pair_a"], inplace=True)
-    base64_urls = []
+    cmp_correct_hashes = []
     for index, row in only_cfgs.iterrows():
-        a = int((row["pair_a"].rsplit("/", 1)[-1])[:2])
-        b = int((row["pair_b"].rsplit("/", 1)[-1])[:2])
-        url = row["pair_a"] if a > b else row["pair_b"]
-        base64_urls.append(base64.b64encode(url.encode("ascii")).decode("ascii"))
+        # SHA-256 hex of the correct clip URL, so the plain answer is not exposed in the
+        # page (mirrors the bandwidth-check hashing). The client verifies a selected clip
+        # by hashing its URL and matching against this list.
+        url = _correct_pair_url(row)
+        cmp_correct_hashes.append(hashlib.sha256(url.encode("utf-8")).hexdigest())
 
     # randomly select numbers for hearing test
     clear_sample_url = "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s0.wav"
@@ -703,10 +759,112 @@ def prepare_basic_cfg(df):
         )
 
     # set environment test
-    config["cmp_correct_answers"] = base64_urls
+    config["cmp_correct_answers"] = cmp_correct_hashes
     config["cmp_max_n_feedback"] = 4
     config["cmp_pass_threshold"] = 2
     return config
+
+
+def create_qualification_only(args):
+    """
+    Generate the standalone qualification page (Qualification.html) for a project.
+
+    Writes the qualification HTML (the hearing-test number clips are ${q_numN}
+    placeholders, filled per row by the HIT app server) plus an answers CSV with
+    one row per qualification instance (args.n_samples rows). Each row holds the
+    question audio URLs (q_*) and correct answers (ans_*) for server-side
+    validation; no answers are embedded in the HTML. Optionally generates a local
+    preview from the first row when args.create_local_test is set.
+
+    :param args: Parsed command-line arguments (project, general_assets, n_samples,
+        create_local_test).
+    :return: Path to the generated qualification HTML file.
+    """
+    # Static bandwidth/quality-discrimination clips and their correct answers.
+    # These must match the comb_bw* clips in P808Template/Qualification.html.
+    bw_base = "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/bw-test"
+    bandwidth_tests = [
+        ("comb_bw1", f"{bw_base}/d_g1_cmb.wav", "dq"),
+        ("comb_bw2", f"{bw_base}/d_g2_cmb.wav", "dq"),
+        ("comb_bw3", f"{bw_base}/d_g3_cmb.wav", "dq"),
+        ("comb_bw4", f"{bw_base}/d_g4_cmb.wav", "sq"),
+        ("comb_bw5", f"{bw_base}/d_g5_cmb.wav", "sq"),
+    ]
+    # Non-audio criteria questions 3-8 and their expected answer(s) ("|"-separated
+    # when several are acceptable). Questions 5 and 6 are recency screeners with no
+    # fixed correct answer.
+    criteria = {
+        "ans_3_mother_tongue": "english|en",
+        "ans_4_ld": "in-ear|over-ear",
+        "ans_5_last_subjective": "",
+        "ans_6_audio_test": "",
+        "ans_7_working_area": "N",
+        "ans_8_hearing": "normal",
+    }
+
+    n_samples = max(1, int(getattr(args, "n_samples", 1) or 1))
+    general_path = args.general_assets or os.path.join(
+        os.path.dirname(__file__), "assets_master_script/general.csv"
+    )
+    assert os.path.exists(general_path), f"No general assets csv in {general_path}"
+    df_general = pd.read_csv(general_path)
+
+    # write the qualification HTML (placeholders are filled by the HIT app server)
+    template_path = os.path.join(os.path.dirname(__file__), "P808Template/Qualification.html")
+    with open(template_path, "r", encoding="utf-8") as file:
+        html = file.read()
+    html = _strip_author_lines(html)
+
+    os.makedirs(args.project, exist_ok=True)
+    out_path = os.path.join(args.project, f"{args.project}_qualification.html")
+    with open(out_path, "w", encoding="utf-8") as file:
+        file.write(html)
+    print(f"  [{out_path}] is created")
+
+    # answers CSV: one row per instance, q_* (audio URL) and ans_* (correct answer)
+    columns = []
+    for i in range(1, 6):
+        columns += [f"q_num{i}", f"ans_num{i}"]
+    for name, _url, _ans in bandwidth_tests:
+        columns += [f"q_{name}", f"ans_{name}"]
+    columns += list(criteria.keys())
+
+    rows = []
+    for _ in range(n_samples):
+        # a fresh random sampling of the hearing-test number clips per instance
+        sample_cfg = prepare_basic_cfg(df_general)
+        row = {}
+        for i in range(1, 6):
+            encoded = sample_cfg.get(f"num{i}_ans")
+            row[f"q_num{i}"] = sample_cfg.get(f"num{i}_url", "")
+            row[f"ans_num{i}"] = base64.b64decode(encoded).decode("ascii") if encoded else ""
+        for name, url, answer in bandwidth_tests:
+            row[f"q_{name}"] = url
+            row[f"ans_{name}"] = answer
+        row.update(criteria)
+        rows.append(row)
+
+    answers_df = pd.DataFrame(rows, columns=columns)
+    answers_path = os.path.join(args.project, f"{args.project}_qualification_answers.csv")
+    answers_df.to_csv(answers_path, index=False)
+    print(f"  [{answers_path}] ({n_samples} instance(s)) is created")
+
+    # optional local preview built from the first instance
+    if getattr(args, "create_local_test", False):
+        from utils.preview_html import (
+            replace_placeholders,
+            replace_with_public_urls,
+            _disable_fetch_for_local,
+        )
+        preview_html = _disable_fetch_for_local(
+            replace_placeholders(replace_with_public_urls(html), answers_df.iloc[0])
+        )
+        preview_path = os.path.join(args.project, f"{args.project}_qualification_row-1.html")
+        with open(preview_path, "w", encoding="utf-8") as file:
+            file.write(preview_html)
+        print(f"  [{preview_path}] is created")
+
+    return out_path
 
 
 def get_path(test_method, is_p831_fest):
@@ -801,9 +959,51 @@ def extend_general_cfg_bw(general, hitapp):
     return general
 
 
+def _get_screenout_code(hitapp, key):
+    """
+    Resolve the study-level screen-out completion code from the HIT app config section.
+
+    A single completion code is used for both the qualification and the setup screen-out
+    (crowdsourcing platforms such as Prolific support only one screen-out code per study).
+    For backward compatibility, the older split keys ``screenout_code_qualification`` /
+    ``screenout_code_setup`` are accepted as a fallback when ``key`` is not set.
+
+    :param hitapp: Config section (SectionProxy) holding the HIT app settings.
+    :param key: Config key holding the code (e.g. 'screenout_code').
+    :return: The configured code, or the literal '${<key>}' placeholder when it is not
+        set, so the HIT app server can fill it at runtime. A warning is printed when the
+        code is missing so the user knows to provide it when uploading to the HIT App Server.
+    """
+    code = (hitapp.get(key, '') or '').strip()
+    if code:
+        return code
+    for legacy_key in ('screenout_code_qualification', 'screenout_code_setup'):
+        legacy_code = (hitapp.get(legacy_key, '') or '').strip()
+        if legacy_code:
+            return legacy_code
+    print(f"WARNING: '{key}' is not set in the configuration. The screen-out code will be "
+          f"left as the ${{{key}}} placeholder; please provide it when uploading the study "
+          f"to the HIT App Server.")
+    return '${' + key + '}'
+
+
+def _is_true(value):
+    """
+    Interpret a config value as a boolean flag, defaulting to True.
+
+    :param value: Raw config value (string or None).
+    :return: False when the value is one of false/0/no/off (case-insensitive),
+        otherwise True.
+    """
+    return str(value).strip().lower() not in ("false", "0", "no", "off")
+
+
 async def main(cfg, test_method, args):
     # check assets
-    general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
+    if args.general_assets:
+        general_path = args.general_assets
+    else:
+        general_path = os.path.join(os.path.dirname(__file__), 'assets_master_script/general.csv')
     is_p831_fest = args.p831_fest
 
     assert os.path.exists(general_path), f"No csv file containing general infos in {general_path}"
@@ -872,6 +1072,56 @@ async def main(cfg, test_method, args):
     general_cfg = prepare_basic_cfg(df)
     # add BW check config
     general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app)
+    # optional study-level screen-out completion code (paid for the screening effort),
+    # shown when a participant fails the qualification or setup screening. Left as the
+    # ${screenout_code} placeholder for the HIT app server to fill when not set in the
+    # config; a warning is printed when it is missing.
+    general_cfg['screenout_code'] = _get_screenout_code(cfg_hit_app, 'screenout_code')
+
+    # Online (in-HIT) evaluation toggles for the qualification and setup sections
+    # (both default true). When a flag is false, the section's correct answers are not
+    # embedded in the HTML, the client-side check and its "Check answers" button are
+    # hidden, and grading is left entirely to result_parser.
+    run_online_eval_qual = _is_true(cfg_hit_app.get("run_online_eval_qualification", "true"))
+    run_online_eval_setup = _is_true(cfg_hit_app.get("run_online_eval_setup", "true"))
+    general_cfg['run_online_eval_qualification'] = "true" if run_online_eval_qual else "false"
+    general_cfg['run_online_eval_setup'] = "true" if run_online_eval_setup else "false"
+    if not run_online_eval_setup:
+        # do not embed the setup (CMP) correct answers in the page
+        general_cfg['cmp_correct_answers'] = []
+    if not run_online_eval_qual:
+        # do not embed the hearing-test answers in the page
+        for i in range(1, 6):
+            general_cfg[f'num{i}_ans'] = ""
+
+    # Listening-device check: the required active playback device that the objective
+    # (acoustic echo) check must confirm - "headset", "loudspeaker", or "any" (accept
+    # either). The net coupling threshold in dB (probe-band rise minus control-band rise)
+    # is the value at/above which the microphone is judged to hear the loudspeaker. The
+    # check is mandatory; the participant cannot continue until the detected device
+    # matches this requirement.
+    required_device = str(cfg_hit_app.get("required_playback_device", "headset")).strip().lower()
+    if required_device not in ("headset", "loudspeaker", "any"):
+        print(f"WARNING: 'required_playback_device' should be 'headset', 'loudspeaker' or "
+              f"'any', got '{required_device}'; defaulting to 'headset'.")
+        required_device = "headset"
+    general_cfg['required_playback_device'] = required_device
+    general_cfg['device_check_threshold_db'] = str(cfg_hit_app.get("device_check_threshold_db", "20")).strip()
+    # Probe-tone level (linear gain, 0..1) for the acoustic echo check. Kept low for
+    # hearing safety: the check runs before the volume-adjust step, so the participant's
+    # system volume is unknown. Detection is ratio-based, so a quiet tone still works.
+    general_cfg['device_check_probe_gain'] = str(cfg_hit_app.get("device_check_probe_gain", "0.1")).strip()
+    # Gray-zone dispute policy: a participant may only dispute a loudspeaker detection when
+    # the measured net_db is below this value (i.e. close to the threshold, where a false
+    # positive is plausible). A clearly-loudspeaker reading (net_db at/above this) cannot be
+    # disputed away - the participant must switch to the required device and retry, or
+    # declare they do not have it (screen-out). Default 30 (threshold 20 + a 10 dB band).
+    general_cfg['device_check_dispute_max_net_db'] = str(cfg_hit_app.get("device_check_dispute_max_net_db", "30")).strip()
+
+    # P.804 only: offer a per-scale "Cannot rate it" option on the Coloration,
+    # Discontinuity, Reverb and Signal-quality scales. Disabled by default; when enabled
+    # the option (value 0) is shown so raters can mark a dimension they cannot assess.
+    general_cfg['allow_cannot_rate'] = "true" if _is_true(cfg_hit_app.get("allow_cannot_rate", "false")) else "false"
 
     # create hit_app
     output_file_name = f"{args.project}_p831_{test_method}.html" if is_p831_fest else f"{args.project}_{test_method}.html"       
@@ -988,8 +1238,8 @@ if __name__ == '__main__':
     print("Welcome to the Master script for P808 Toolkit.")
     parser = argparse.ArgumentParser(description='Master script to prepare the P.808 subjective test')
     parser.add_argument("--project", help="Name of the project", required=True)
-    parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=True)
-    parser.add_argument("--method", required=True,
+    parser.add_argument("--cfg", help="Configuration file, see master.cfg", required=False)
+    parser.add_argument("--method", required=False,
                         help=f"one of the test methods: 'acr', 'dcr', 'ccr', 'p835','{p835_personalized}', p804, or 'echo_impairment_test'")
     parser.add_argument("--p831_fest", action='store_true', help="Use the question set of P.831 for FEST")
     parser.add_argument("--clips", help="A csv containing urls of all clips to be rated in column 'rating_clips', in "
@@ -1009,12 +1259,38 @@ if __name__ == '__main__':
     # check links default to False
     parser.add_argument("--check_urls", action='store_true', help="Check if all links in the csv files are valid. "
                                                                     "Default is False")
+    parser.add_argument("--check_silence", action='store_true',
+                        help="Run a Voice Activity Detector (Silero VAD) over the rating clips and report clips "
+                             "with little or no speech. Optional, like --check_urls. Default is False.")
     parser.add_argument("--create_local_test", action='store_true',
                         help="Generate a local preview HTML file after the project is created.")
+    parser.add_argument(
+        "--general_assets",
+        default=None,
+        help="Path to the general assets CSV (default: assets_master_script/general.csv). "
+             "Use assets_master_script/general_assets_internal.csv for internal assets."
+    )
+    parser.add_argument(
+        "--qualification_only", action='store_true',
+        help="Only generate the standalone qualification page (Qualification.html) for this "
+             "project, e.g. to publish a separate qualification screener. Skips clip/session generation."
+    )
+    parser.add_argument(
+        "--n_samples", type=int, default=1,
+        help="Number of qualification instances (rows) to generate in the answers CSV "
+             "when using --qualification_only. Default: 1."
+    )
     
     # check input arguments
     args = parser.parse_args()
 
+    if args.qualification_only:
+        # only generate the standalone qualification page; this mode needs just
+        # --project (and optionally --general_assets), not --method or --cfg.
+        create_qualification_only(args)
+        raise SystemExit(0)
+
+    assert args.method, "--method is required (except with --qualification_only)"
     methods = ["acr", "dcr", "ccr", "p835", "echo_impairment_test", p835_personalized, 'p804']
     test_method = args.method.lower()
     assert (
@@ -1025,6 +1301,7 @@ if __name__ == '__main__':
     if args.p831_fest:
         assert test_method in p831_methods, f"This method is not supported with p831, please choose one of {p831_methods}"
 
+    assert args.cfg, "--cfg is required (except with --qualification_only)"
     assert os.path.exists(args.cfg), f"No config file in {args.cfg}"
     if args.training_clips:
         assert os.path.exists(
@@ -1079,6 +1356,21 @@ if __name__ == '__main__':
             check_urls_in_files_exist(args.trapping_clips, expected_columns_double_stimuli['trapping'])
         else:
             raise SystemExit(f"Error: No such a method supported for checking links: {test_method}")
+
+    if args.check_silence:
+        # optional VAD pre-screen of rating clips for silent / no-speech content.
+        # Rating clips passed to the master script must always be publicly accessible.
+        print("Running VAD silence pre-screen over the rating clips ...")
+        if not args.clips:
+            raise SystemExit("Error: --check_silence requires a rating clips csv (--clips).")
+        from utils.detect_silence_vad import prescreen_clips
+        rating_column = (
+            expected_columns_double_stimuli["clips"][0]
+            if test_method in ["dcr", "ccr"]
+            else expected_columns_single_stimuli["clips"][0]
+        )
+        prescreen_clips(args.clips, column=rating_column)
+
     asyncio.run(main(cfg, test_method, args))
 
     if args.create_local_test:

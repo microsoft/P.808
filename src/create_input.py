@@ -226,6 +226,32 @@ def add_clips_random_ccr(clips, refs, n_clips_per_session, output_df):
         output_df[f'Q{q}_R'] = refs_sessions[:, q]
 
 
+def _assign_cmp_answers(df, output_df, new_4):
+    """
+    Record the correct answer of each setup (CMP) pair for offline grading.
+
+    When the general resource provides an explicit correct answer (``pair_ans``, the
+    URL of the better-quality clip - required for anonymized clips whose file names do
+    not encode the SNR), this adds ``ans_cmp1``..``ans_cmp4`` columns holding ``"a"`` or
+    ``"b"`` to say which slot of each shown pair is the correct one. The result parser
+    reads these to grade the setup without relying on the file name. When ``pair_ans``
+    is absent the columns are not added and the parser falls back to the legacy
+    higher-SNR-file-name heuristic.
+
+    :param df: The general/clip dataframe (may contain a ``pair_ans`` column).
+    :param output_df: The per-session output dataframe to add the columns to.
+    :param new_4: Array of shape ``(n_sessions, 8)`` with the CMP clip URLs, ordered
+        ``CMP1_A, CMP1_B, ... CMP4_A, CMP4_B``.
+    :return: None. ``output_df`` is modified in place.
+    """
+    if 'pair_ans' not in df.columns or not df['pair_ans'].notna().any():
+        return
+    correct_urls = set(df['pair_ans'].dropna())
+    for k in range(4):
+        col_a = new_4[:, 2 * k]
+        output_df[f'ans_cmp{k + 1}'] = ['a' if u in correct_urls else 'b' for u in col_a]
+
+
 def create_input_for_acr(cfg, df, output_path, method):
     """
     create the input for the acr methods
@@ -273,6 +299,34 @@ def create_input_for_acr(cfg, df, output_path, method):
     # add math
     output_df['math'] = math_output
 
+    # add math_ans and math_hash if available (for client-side hash verification)
+    if 'math_ans' in df.columns:
+        math_ans_source = df['math_ans'].dropna()
+        math_ans_output = np.tile(math_ans_source.to_numpy(),
+                                  (n_sessions // math_ans_source.count()) + 1)[:n_sessions]
+        output_df['math_ans'] = math_ans_output
+    if 'math_hash' in df.columns:
+        math_hash_source = df['math_hash'].dropna()
+        math_hash_output = np.tile(math_hash_source.to_numpy(),
+                                   (n_sessions // math_hash_source.count()) + 1)[:n_sessions]
+        output_df['math_hash'] = math_hash_output
+
+    # bandwidth-check sets: sample a whole 5-clip set per session so each session's
+    # clips (comb_bw*), per-position roles (ans_comb_bw*, checked server-side) and
+    # per-position hashes (comb_bw_hash*, used client-side) stay row-aligned.
+    bw_clip_cols = [f'comb_bw{i}' for i in range(1, 6)]
+    if all(c in df.columns for c in bw_clip_cols):
+        bw_set_cols = [c for c in df.columns
+                       if c.startswith('comb_bw') or c.startswith('ans_comb_bw')]
+        bw_sets = df[bw_set_cols].dropna(subset=bw_clip_cols).reset_index(drop=True)
+        if len(bw_sets) > 0:
+            bw_idx = np.tile(np.arange(len(bw_sets)),
+                             (n_sessions // len(bw_sets)) + 1)[:n_sessions]
+            np.random.shuffle(bw_idx)
+            bw_selected = bw_sets.iloc[bw_idx].reset_index(drop=True)
+            for c in bw_set_cols:
+                output_df[c] = bw_selected[c].to_numpy()
+
     # CMPs: 4 pairs are needed for 1 session
     nPairs = 4 * n_sessions
     pair_a = df['pair_a'].dropna()
@@ -297,6 +351,7 @@ def create_input_for_acr(cfg, df, output_path, method):
                                     'CMP2_A': new_4[:, 2], 'CMP2_B': new_4[:, 3],
                                     'CMP3_A': new_4[:, 4], 'CMP3_B': new_4[:, 5],
                                     'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
+    _assign_cmp_answers(df, output_df, new_4)
 
     # trappings
     if int(cfg['number_of_trapping_per_session']) > 0:
@@ -458,6 +513,18 @@ def create_input_for_dcrccr(cfg, df, output_path):
     math_source = df['math'].dropna()
     math_output = np.tile(math_source.to_numpy(), (n_sessions // math_source.count()) + 1)[:n_sessions]
 
+    # add math_ans and math_hash if available (for client-side hash verification)
+    math_ans_output = None
+    math_hash_output = None
+    if 'math_ans' in df.columns:
+        math_ans_source = df['math_ans'].dropna()
+        math_ans_output = np.tile(math_ans_source.to_numpy(),
+                                  (n_sessions // math_ans_source.count()) + 1)[:n_sessions]
+    if 'math_hash' in df.columns:
+        math_hash_source = df['math_hash'].dropna()
+        math_hash_output = np.tile(math_hash_source.to_numpy(),
+                                   (n_sessions // math_hash_source.count()) + 1)[:n_sessions]
+
     # CMPs: 4 pairs are needed for 1 session
     nPairs = 4 * n_sessions
     pair_a = df['pair_a'].dropna()
@@ -480,8 +547,13 @@ def create_input_for_dcrccr(cfg, df, output_path):
                                     'CMP2_A': new_4[:, 2], 'CMP2_B': new_4[:, 3],
                                     'CMP3_A': new_4[:, 4], 'CMP3_B': new_4[:, 5],
                                     'CMP4_A': new_4[:, 6], 'CMP4_B': new_4[:, 7]})
+    _assign_cmp_answers(df, output_df, new_4)
     # add math
     output_df['math'] = math_output
+    if math_ans_output is not None:
+        output_df['math_ans'] = math_ans_output
+    if math_hash_output is not None:
+        output_df['math_hash'] = math_hash_output
     # rating_clips
     #   repeat some clips to have a full design
     n_questions = int(cfg['number_of_clips_per_session'])

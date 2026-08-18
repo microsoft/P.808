@@ -96,7 +96,7 @@ You can use an AI coding agent (e.g. GitHub Copilot, Claude) to create and run s
 automatically. The agent will generate gold clips, trapping clips, training clips, upload
 them to Azure storage, and build the complete project — all from a single prompt.
 
-**Setup**: This experince is trilored to use Azure Storage, if you use any other cloud provider for serving your clips, adapt the code accordingly.Otherwise, make sure you have `az login` configured with write access to your Azure Blob
+**Setup**: This experience is tailored to use Azure Storage; if you use any other cloud provider for serving your clips, adapt the code accordingly. Otherwise, make sure you have `az login` configured with write access to your Azure Blob
 Storage account.
 
 **Usage**: Open the repository in your IDE with an AI agent and ask it to create a study:

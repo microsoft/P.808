@@ -35,22 +35,34 @@ created in the first step ([preparation](preparation.md)).
         --quality_bonus
     ```
     * `--cfg` use the configuration file generated for your project in the [preparation](preparation.md) step here (i.e.`YOUR_PROJECT_NAME_ccr_result_parser.cfg`).
-    * `--method` could be either `acr`, `dcr`, `ccr`, `p835`, `pp835` or `p804`.
+    * `--method` could be either `acr`, `dcr`, `ccr`, `p835`, `pp835`, `p804`, or `echo_impairment_test`.
     * if using Prolific, provide the csv file you downloaded from that platform as `--prolific_answers`. The answer you downloaded from HITAppServer should be provided as `--answers`
     * `--quantity_bonus` could be `all`, or `submitted`. It specify which assignments should be considered when calculating
     the amount of quantity bonus (everything i.e. `all` or just the assignments with status submitted i.e. `submitted`).
     
     Besides the console outputs, following files will be generated in the same directory as the `--answers` file is located in.
     All file names will start with the `--answers` file name.   
-    * `[downloaded_batch_result]_data_cleaning_report`: Data cleansing report. Each line refers to one line in answer file. 
+    * `[downloaded_batch_result]_data_cleaning_report`: Data cleansing report. Each line refers to one line in answer file.
+    It also includes the objective listening-device check log parsed from the `webrtc_raw` field: `device_detected`,
+    `device_required`, `device_net_db`, `device_coupling_db`, `device_ref_db`, `device_audible`, `device_user_choice`,
+    `device_names`, and `device_check_flag` (set to 1 for submissions worth a manual look — a disputed detection, an
+    audibility failure, or a detected device that does not match the requirement).
+    * `[downloaded_batch_result]_device_check_summary.csv`: Aggregate summary of the objective listening-device check
+    (counts of detected/required devices, disputes, no-device and audibility failures, how many were flagged, and the
+    `net_db` distribution). Useful for reviewing edge cases and calibrating `device_check_threshold_db` at scale. It is
+    only written when the answers contain the objective-check log (older studies are skipped).
     * `[downloaded_batch_result]_accept_reject_gui.csv`: A report to be used for approving and rejecting assignments. One line
     for each assignment which has a status of "submitted". 
     * `[downloaded_batch_result]_votes_per_clip.csv`: Aggregated result per clip, including MOS, standard deviations, and 95% Confidence Intervals.  
     * `[downloaded_batch_result]_votes_per_cond.csv`: Aggregated result per condition.
     * `[downloaded_batch_result]_votes_per_worker.csv`: Long format of rating per clip, includes: HITId, workerid, file, vote and condition.
-    * `[downloaded_batch_result]_quantity_bonus_report.csv`: List of workers who are eligible for quantity bonus with the amount of bonus (to be used with the mturk_utils.py).
-    * `[downloaded_batch_result]_quality_bonus_report.csv`: List of workers who are eligible for quality bonus with the amount of bonus (to be used with the mturk_utils.py).
+    * `[downloaded_batch_result]_quantity_bonus_report.csv`: List of workers who are eligible for quantity bonus with the amount of bonus (to be used with the utils/mturk_utils.py).
+    * `[downloaded_batch_result]_quality_bonus_report.csv`: List of workers who are eligible for quality bonus with the amount of bonus (to be used with the utils/mturk_utils.py).
     * `[downloaded_batch_result]_extending.csv`: List of HITIds with number of assignment per each which are needed to reach a specific number of votes per clip. 
+    * `[downloaded_batch_result]_gold_summary.csv`: Per gold clip, the expected answer, mean rating and wrong-vote percentage for each scale, plus `max_wrong_pct`. Useful for spotting mis-set gold answers.
+    * `[downloaded_batch_result]_detailed_gold_question_performance.csv`: One row per (submission, gold clip) with the per-scale given answer and wrong flags.
+    * `[downloaded_batch_result]_rejection_reason_matrix.csv` and `[downloaded_batch_result]_rejection_reason_combinations.csv`: Breakdown of why submissions were rejected (per reason, and per reason-combination).
+    * `[downloaded_batch_result]_screened_out.csv` (Prolific only): Participants Prolific marked as SCREENED OUT (failed the in-HIT screening). They are reported separately and excluded from rejection and blocking.
     
     
     
@@ -69,6 +81,10 @@ created in the first step ([preparation](preparation.md)).
     
     * In addition a summary in the condition level will be provided for all three scales in `[downloaded_batch_result]_votes_per_cond_all`.
 
+    Note for **P804** method:
+    * For each scale (`noise`, `col`, `loud`, `disc`, `reverb`, `sig`, `ovrl`) an aggregated `[downloaded_batch_result]_votes_per_clip_[scale].csv` is written (MOS, std, 95% CI), plus a combined `[downloaded_batch_result]_votes_per_clip_all-scales.csv`.
+    * Each per-clip file also reports `is_silent_percentage` (share of ratings where the clip was marked silent, next to `n`) and, for the scales that offer the **"Cannot tell"** option, `cannot_rate_percentage` (share of ratings where the rater could not assess that scale, next to the scale's MOS). Silent and "Cannot tell" votes are excluded from the MOS.
+
 ## Approve/Reject submissions - Prolific
   - Get your API token from the Prolific website and add it to your [Prolific config file](../src/configurations/prolific.cfg).
   
@@ -76,7 +92,7 @@ created in the first step ([preparation](preparation.md)).
 
   ``` bash
     cd src
-    python prolific_utils.py ^
+    python utils/prolific_utils.py ^
         --cfg your_prolific_configuration_file.cfg ^ 
         --review [path to you project's root directory] ^
   ```
@@ -98,7 +114,7 @@ submission.
  
     ```bash
     cd src
-    python mturk_utils.py ^
+    python utils/mturk_utils.py ^
         --cfg mturk.cfg ^
         --approve_reject [downloaded_batch_result]_accept_reject_gui.csv  
     ```
@@ -111,7 +127,7 @@ submission.
  
     ```bash
     cd src
-    python mturk_utils.py ^
+    python utils/mturk_utils.py ^
         --cfg mturk.cfg ^
         --send_bonus [downloaded_batch_result]_*_bonus_report.csv
     ```
@@ -124,7 +140,7 @@ submission.
  
      ```bash
     cd src
-    python mturk_utils.py ^
+    python utils/mturk_utils.py ^
         --cfg mturk.cfg ^
         --extend_hits [downloaded_batch_result]_extending.csv
     ```
@@ -138,7 +154,7 @@ submission.
     
         ```bash
         cd src
-        python mturk_utils.py ^
+        python utils/mturk_utils.py ^
             --cfg mturk.cfg ^
             --extended_hits_status [downloaded_batch_result]_extending.csv
         ```  

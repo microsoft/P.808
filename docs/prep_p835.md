@@ -86,6 +86,7 @@ a column named `trapping_clips` and expected answer to each clip in a column nam
         Optionally:
          - Add `--check_urls` to validate that all links in the CSV files are accessible before creating the project. 
          - Add `--create_local_test` to generate a local preview HTML file for testing. See [preview_html](preview_html.md) for details.
+         - Add `--general_assets path/to/general.csv` to use a custom general assets CSV instead of the default `assets_master_script/general.csv`.
 
         Note: file paths are expected to be relative to the current working directory.
     
@@ -93,6 +94,6 @@ a column named `trapping_clips` and expected answer to each clip in a column nam
     directory which contains: 
     * `YOUR_PROJECT_NAME_p835.html`: Customized HIT app to be used in Amazon Mechanical Turk (AMT).
     * `YOUR_PROJECT_NAME_publish_batch.csv`: List of dynamic content to be used during publishing batch in AMT.
-    * `YOUR_PROJECT_NAME_acr_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script
+    * `YOUR_PROJECT_NAME_p835_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script
         
 Now, you are ready for running the test on [Prolific](running_test_prolific.md) or [Amazon Mechanical Turk](running_test_mturk.md).

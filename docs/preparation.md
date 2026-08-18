@@ -35,4 +35,6 @@ URLs associated to them as described in [General Resources](general_res.md)
 ## Utility Scripts
 
 - [Gold Standard Clips](gold_clips.md) — Generate gold clips for quality control.
+- [Bandwidth Check Clips](bandwidth_check_clips.md) — Generate the bandwidth-discrimination clips for the P.80x qualification test.
+- [Setup (JND) Clips](setup_jnd_clips.md) — Generate the just-noticeable-difference A/B pairs for the P.80x setup/environment check.
 - [Upload Clips to Storage](upload_clips.md) — Upload local clips or copy from private to public Azure storage.

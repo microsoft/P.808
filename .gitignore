@@ -5,3 +5,6 @@ desktop.ini
 .idea/
 .env
 .vscode
+
+# internal-only math assets (keep local, do not commit)
+src/assets_master_script/general_assets_internal.csv

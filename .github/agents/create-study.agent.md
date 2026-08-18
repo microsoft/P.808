@@ -1,6 +1,6 @@
 ---
 name: create-study
-description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, and project building for crowdsourcing platforms.
+description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, project building for crowdsourcing platforms, prompts for study-specific screen-out completion codes (never reused across studies) and for the internal-vs-general master-script assets, and writes a re-runnable regenerate_study.bat that re-runs master_script.py.
 ---
 
 # Create subjective test instructions
@@ -78,6 +78,11 @@ gold/trapping clips, training clips), **do not silently reuse them**. Instead:
    - If the user says they want to modify → ask about each item one by one,
      then proceed with the updated values.
 
+**Never reuse the platform screen-out completion code** (`screenout_code`) from a prior
+study or session. The crowd platform issues it per study, so a copied code is invalid.
+Always **[ASK]** for the new study's code, or leave it unset to emit the HIT App Server
+`${...}` placeholder — never silently carry it over.
+
 ## Supported test methods
 
 | Method | `--method` flag | Gold clip generation | Trapping config | Template |
@@ -132,6 +137,9 @@ Do not guess these values if they are missing:
      - Can they identify clean clips by a URL pattern (e.g. `*/clean/*`, `*/reference/*`)?
      - Would they like the agent to download a small subset of rating clips for the user to
        **listen to and manually remove any clips with distortion** before gold generation?
+     **Mandatory**: however the candidate clean clips are obtained, they **must** go through
+     the user review in section 5a (keep only clips the user would rate 5 on all scales)
+     before gold generation. This step is required and must not be skipped.
      **Important**: never use the sample clips bundled in this repository (`src\test_inputs\`).
      Source clips must come from the same dataset as the rating clips.
    - **Trapping clips**: if `trapping_clips.csv` is not provided, the quality of source
@@ -142,8 +150,20 @@ Do not guess these values if they are missing:
    See "Storage and public accessibility" below for the full check procedure.
 7. **Contact email**: the email address to show in the HIT app for worker inquiries.
    Do **not** use a hardcoded default — always ask.
-8. **Max assignments per worker** (for Prolific) or worker requirements and payment (for AMT).
-9. **Target valid votes per clip**: suggest publishing `target + BEST_PRACTICE_VALID_VOTE_BUFFER`.
+8. **Screen-out completion code** (`screenout_code`): a study-specific code issued by the
+   crowd platform for paying screened-out participants. A single code covers both the
+   qualification and setup screen-out (platforms such as Prolific support only one code
+   per study). **Never copy it from a prior study** — always ask for the new study's code,
+   or leave it unset to emit the HIT App Server `${...}` placeholder. See the config template below.
+9. **Max assignments per worker** (for Prolific) or worker requirements and payment (for AMT).
+10. **Target valid votes per clip**: suggest publishing `target + BEST_PRACTICE_VALID_VOTE_BUFFER`.
+11. **Master-script general assets** (`--general_assets`): the shared reference material for the
+    setup section — the math questions, comparison (CMP) pairs, hearing test and bandwidth-check
+    clips with their answers/hashes. **[ASK]** whether the requester will provide/point to the
+    **internal** assets (`src/assets_master_script/general_assets_internal.csv`, the larger
+    internal set) or use the default **general** set (`src/assets_master_script/general.csv`,
+    applied automatically when `--general_assets` is omitted). Pass `--general_assets` only when
+    using the internal set.
 
 ## Storage and public accessibility
 
@@ -439,6 +459,31 @@ If downloading clips from Azure private storage, either:
 **How many source clips?** Use `BEST_PRACTICE_GOLD_SOURCE_COUNT` capped at
 `BEST_PRACTICE_MAX_GOLD_SOURCE_CLIPS`.
 
+#### 5a. MANDATORY — user review of clean reference clips before generation
+
+The clean reference clips are the foundation of every gold question: the generator assumes
+each source clip is **perfect** and would be rated **5 on all scales**. If a reference clip
+has any audible flaw, every gold clip derived from it will have a wrong expected answer and
+will wrongly fail workers. Therefore this review step is **required** and must not be skipped,
+regardless of how the candidate clips were obtained.
+
+**You must:**
+
+1. Copy the candidate clean/reference clips into a temporary review directory, e.g.
+   `RATING_CLIPS_PATH\gold_source_review`.
+2. **[ASK]** Instruct the user, in these exact terms, to review them:
+   - "Please listen to every clip in `gold_source_review`."
+   - "**Keep only the clips you would personally rate 5 on ALL scales**
+     (coloration, discontinuity, loudness, noise, reverb, signal, and overall)."
+   - "If a clip is not a perfect 5 on every scale, **delete that file** from the folder."
+   - "Do not edit the clips — only keep or delete them."
+3. **Wait for the user to explicitly confirm** they have finished reviewing and deleting.
+   Do not proceed on assumption.
+4. After confirmation, use **only the clips that remain** in the review directory as the
+   gold source (copy the survivors into `RATING_CLIPS_PATH\gold_source`). If the user
+   deleted everything, or too few remain, ask for more candidate clips and repeat — do not
+   fall back to unreviewed clips.
+
 Generate gold clips (filenames are **anonymized** by default — do **not** use
 `--no_anonymize`):
 
@@ -581,6 +626,7 @@ number_of_clips_per_session:10
 number_of_trapping_per_session:1
 number_of_gold_clips_per_session:GOLD_PER_SESSION
 clip_packing_strategy: random
+platform: PLATFORM
 
 [hit_app_html]
 allowed_max_hit_in_project:COMPUTED_VALUE
@@ -592,14 +638,51 @@ quantity_bonus: 0.1
 quality_top_percentage: 20
 quality_bonus: 0.15
 contact_email:USER_PROVIDED_EMAIL
+# Screen-out completion code, paid on the platform for the screening effort. A single
+# code covers both the qualification and setup screen-out (platforms such as Prolific
+# support only one code per study). It is STUDY-SPECIFIC: the crowd platform issues it
+# per study, so never copy it from another study's cfg. Ask the requester for this study's
+# code, or leave unset to keep the ${screenout_code} placeholder for the HIT App Server to
+# fill; with no code the participant returns the task.
+#screenout_code: XXXXXXXX
+# Online (in-HIT) grading of the qualification / setup sections (both default true).
+# Set to false to grade that section only offline in result_parser (answers not embedded,
+# check button hidden).
+#run_online_eval_qualification: true
+#run_online_eval_setup: true
+# Objective listening-device check (acoustic echo test right after qualification).
+# required_playback_device: headset | loudspeaker | any (default headset; "any" skips the check).
+# device_check_threshold_db: net-coupling dB above which a loudspeaker is inferred (default 20).
+# device_check_probe_gain: probe-tone level 0..1, kept low for hearing safety (default 0.1).
+#required_playback_device: headset
+#device_check_threshold_db: 20
+#device_check_probe_gain: 0.1
 ```
 
 **Key rules:**
 - `number_of_gold_clips_per_session` = **2 for P.804**, 1 for others.
 - `bw_min` defaults to `FB`. Valid: `NB-WB`, `SWB`, `FB`.
+- `screenout_code` (optional) = completion code a screened-out participant enters on the
+  platform to be paid for the screening effort (one code for both qualification and setup
+  screen-out). It is **study-specific — never copy it between studies**; ask for each new
+  study's code. If unset, the master script prints a warning and leaves a `${...}` placeholder
+  for the HIT App Server to fill; when no code is provided at all, the participant is asked to
+  return the task.
+- `run_online_eval_qualification` / `run_online_eval_setup` (optional, default `true`) = grade the
+  qualification / setup section in the browser. Set to `false` to hide that section's answers and
+  "Check answers" button and grade it only offline in `result_parser`.
+- `required_playback_device` (optional, default `headset`) = the device the task requires:
+  `headset`, `loudspeaker`, or `any`. An objective acoustic echo test verifies it right after
+  qualification (and confirms audibility via a beep count to catch a muted device). With `any` the
+  check is skipped. Tune `device_check_threshold_db` (default `20`) and `device_check_probe_gain`
+  (default `0.1`) only if browser testing shows detection issues or the tone is too loud.
 - `contact_email` = user-provided. Never hardcode.
 - `allowed_max_hit_in_project` = `BEST_PRACTICE_ALLOWED_MAX_HITS`.
 - `quantity_hits_more_than` ≈ `floor(total_sessions / 2)`, at least 2.
+- `platform` = the crowd platform (`prolific` or `mturk`), from the requester's answer
+  (defaults to `prolific`). It is written into the generated `*_result_parser.cfg` so the
+  result parser knows the platform; for `prolific` no bonus report is generated (bonuses are
+  handled on Prolific).
 
 ### 8. Run the master script
 
@@ -643,6 +726,10 @@ python REPO_ROOT\src\master_script.py `
 Note: when `--training_gold_clips` is used, the `--training_clips` flag is **not**
 needed — training clips are embedded in the training gold CSV.
 
+Add `--general_assets REPO_ROOT\src\assets_master_script\general_assets_internal.csv` when
+the requester chose the internal assets (input 11). Omit the flag to use the default general
+set (`assets_master_script/general.csv`).
+
 **Notes:**
 
 - Use **full absolute paths** for all arguments to avoid path resolution issues.
@@ -652,6 +739,45 @@ needed — training clips are embedded in the training gold CSV.
   `pp835`, `p804`.
 - If `quantity_hits_more_than` triggers a warning, update the config file with the
   suggested value and re-run.
+
+### 8b. Write a re-run batch file (regenerate_study.bat)
+
+Always write a `regenerate_study.bat` next to the input CSVs so the requester can rebuild
+the study later (e.g. after a config tweak) without re-deriving the command. It must
+reproduce the exact `master_script.py` invocation from step 8, using `%BASE%` (the folder
+the `.bat` lives in) for all input paths and the absolute repo path for the script.
+
+Include only the flags that were actually used: `--training_gold_clips` (P.804/pp835) or
+`--training_clips` (other methods), and `--general_assets` if an internal assets CSV was
+passed. Omit `--check_urls` (URLs were already validated on first run); keep
+`--create_local_test` so a preview is regenerated.
+
+```bat
+@echo off
+REM Regenerate the METHOD study PROJECT_NAME from existing input CSVs.
+REM Clips (rating, gold, trapping) are already uploaded to public storage; this
+REM only rebuilds the HIT app, publish batch, result-parser cfg, and preview.
+
+setlocal
+set "BASE=%~dp0"
+set "REPO=REPO_ROOT"
+set "PROJECT=PROJECT_NAME"
+
+cd /d "%BASE%"
+
+python "%REPO%\src\master_script.py" ^
+	--project %PROJECT% ^
+	--method METHOD ^
+	--cfg "%BASE%PROJECT_CONFIG.cfg" ^
+	--clips "%BASE%rating_clips.csv" ^
+	--gold_clips "%BASE%gold_clips.csv" ^
+	--trapping_clips "%BASE%trapping_clips.csv" ^
+	--create_local_test
+
+endlocal
+```
+
+Save as `regenerate_study.bat` next to the input CSVs and confirm it runs.
 
 ### 9. Verify the generated project artifacts
 
@@ -703,10 +829,11 @@ remind the requester to run the azcopy commands before publishing the study.
 
 1. The project directory with all three artifacts.
 2. The config file used (saved next to input CSVs for future re-runs).
-3. The azcopy commands for uploading generated clips (if applicable).
-4. The method and scale used.
-5. Any warnings or deviations from the documented flow.
-6. Instructions for the requester to publish on their chosen platform:
+3. The `regenerate_study.bat` (next to the input CSVs) for one-command re-runs.
+4. The azcopy commands for uploading generated clips (if applicable).
+5. The method and scale used.
+6. Any warnings or deviations from the documented flow.
+7. Instructions for the requester to publish on their chosen platform:
 	- **Prolific**: follow the team's Prolific workflow or `docs\running_test_prolific.md`.
 	- **AMT**: follow `docs\running_test_mturk.md`.
 

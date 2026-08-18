@@ -13,6 +13,11 @@ import os
 import requests
 import datetime
 import copy
+import sys
+
+# This script lives in src/utils/ but imports modules from src/ (create_input,
+# azure_clip_storage); make the parent (src) directory importable when run directly.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import configparser as CP
 import pandas as pd
