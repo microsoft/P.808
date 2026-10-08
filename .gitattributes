@@ -1,0 +1,8 @@
+* text=auto eol=crlf
+
+# Preserve CRLF bytes for files covered by the repository's line-ending review policy.
+.gitattributes -text
+.github/workflows/*.yml -text
+pytest.ini -text
+requirements-test.txt -text
+tests/*.py -text
