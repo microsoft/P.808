@@ -23,12 +23,14 @@ def test_outliers_z_score_preserves_constant_votes():
     assert outliers_z_score(votes) == votes
 
 
-def test_outliers_z_score_uses_configured_threshold():
+def test_outliers_z_score_uses_threshold():
     """
-    Verify that values below the configured z-score threshold remain.
+    Verify that the z-score cutoff distinguishes values around the threshold.
 
     :return: None.
     """
-    votes = [10, 10, 10, 1000]
+    below_threshold = [10] * 10 + [1000]
+    above_threshold = [10] * 11 + [1000]
 
-    assert outliers_z_score(votes) == votes
+    assert outliers_z_score(below_threshold) == below_threshold
+    assert outliers_z_score(above_threshold) == [10] * 11
