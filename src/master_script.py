@@ -460,6 +460,7 @@ async def create_hit_app_pp835_p804(
     config["training_trap_urls"] = trap_url
     config["training_trap_ans"] = trap_ans
     config["test_instructions_flavor"] = cfg.get("test_instructions_flavor") or "default"
+    config["show_loudness_alert"] = "true" if _is_true(cfg.get("show_loudness_alert", "false")) else "false"
     config["contact_email"] = (
         cfg["contact_email"] if "contact_email" in cfg else "ic3ai@outlook.com"
     )
@@ -1106,6 +1107,18 @@ async def main(cfg, test_method, args):
               f"'any', got '{required_device}'; defaulting to 'headset'.")
         required_device = "headset"
     general_cfg['required_playback_device'] = required_device
+    if (
+        test_method == "p804"
+        and _is_true(cfg_hit_app.get("show_loudness_alert", "false"))
+        and required_device == "headset"
+    ):
+        print(
+            "WARNING: 'show_loudness_alert: true' recommends loudspeaker playback for ratings, "
+            "which may conflict with 'required_playback_device: headset' (also the default when omitted). "
+            "Set 'required_playback_device: any' in [hit_app_html] so participants can use a headset "
+            "for qualification and setup, which can be difficult to pass without one, "
+            "and switch to loudspeakers for the rating section."
+        )
     general_cfg['device_check_threshold_db'] = str(cfg_hit_app.get("device_check_threshold_db", "20")).strip()
     # Probe-tone level (linear gain, 0..1) for the acoustic echo check. Kept low for
     # hearing safety: the check runs before the volume-adjust step, so the participant's
