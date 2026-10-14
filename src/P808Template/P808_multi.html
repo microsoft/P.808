@@ -4249,7 +4249,7 @@ function set_onclick_listeners(){
 			
 			<div class="row text-right" style="margin:10px"><button type="button" class="btn btn-success" id="show_detailed_instruction">Show the Detailed instruction again</button></div>	
 
-			<div>Please adjust the volume level of your {{ "loudspeakers" if cfg.show_loudness_alert == "true" else "headset" }} to a <b>comfortable level</b> so that you hear the following audio sample very well. It is a very important step for this task and will directly influence your judgment.</label>
+			<div>Please adjust the volume level of your {{ "loudspeakers" if cfg.show_loudness_alert == "true" or cfg.required_playback_device == "loudspeaker" else "headset" }} to a <b>comfortable level</b> so that you hear the following audio sample very well. It is a very important step for this task and will directly influence your judgment.</label>
 				<p align="center"> <span class="baudio" id="volume4"
 						data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/signal_level.wav">&nbsp;</span>
 				</p>
