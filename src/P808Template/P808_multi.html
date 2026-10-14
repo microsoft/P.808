@@ -4123,6 +4123,9 @@ function set_onclick_listeners(){
 				<p> <b>Silent clips:</b></p>
 				<p style="margin-bottom: 20px;">A few clips may be completely silent and contain <b>no voice at all</b>. For such a clip, tick the checkbox <b>"The clip is silent &mdash; no voice to rate"</b> shown under the audio player instead of rating the seven scales. <u>Only use it when you hear no speech whatsoever</u>; using it on a clip that does contain speech is a misuse and <u>will lead to rejection</u>.</p>
 
+                <p><b>Cannot tell:</b></p>
+                <p style="margin-bottom: 20px;">In some studies, a <b>"Cannot tell"</b> option may appear below certain rating scales. Use this option only when high background noise makes the speech so hard to hear that you cannot assess the speech component or the specific speech property being rated.</p>
+
 				<div class="alert alert-warning" role="alert">
 					<h4>Attention:</h4>
 					<p>You may hear an specific instruction in the speech sample starting by <b>"This is an interruption"</b> asking you to select the scores
@@ -4236,10 +4239,17 @@ function set_onclick_listeners(){
 			<h3 class="panel-title">Ratings</h3>
 		</div>
 		<div class="panel-body">
+            {% if cfg.show_loudness_alert == "true" %}
+            <div class="alert alert-warning" role="alert" id="loudness_alert">
+                <strong>Warning:</strong> Audio clips in this section may be very loud.
+                To reduce the risk of hearing damage, we recommend using loudspeaker playback
+                rather than headphones for this section.
+            </div>
+            {% endif %}
 			
 			<div class="row text-right" style="margin:10px"><button type="button" class="btn btn-success" id="show_detailed_instruction">Show the Detailed instruction again</button></div>	
 
-			<div>Please adjust the volume level of your headset to a <b>comfortable level</b> so that you hear the following audio sample very well. It is a very important step for this task and will directly influence your judgment.</label>
+			<div>Please adjust the volume level of your {{ "loudspeakers" if cfg.show_loudness_alert == "true" or cfg.required_playback_device == "loudspeaker" else "headset" }} to a <b>comfortable level</b> so that you hear the following audio sample very well. It is a very important step for this task and will directly influence your judgment.</label>
 				<p align="center"> <span class="baudio" id="volume4"
 						data-src="https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/signal_level.wav">&nbsp;</span>
 				</p>
@@ -4320,6 +4330,8 @@ function set_onclick_listeners(){
 		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
 		<b>NOTE:</b> Any try to perform the rest of the assignment and neglecting this message is forbidden and
 		leads to rejection of all of your submissions.
+        <p>You are not allowed to submit any more HITs from this project.
+            Any additional screen-out submissions from this project will be rejected.</p>
 	</div>
 </section>
 
@@ -4344,6 +4356,8 @@ function set_onclick_listeners(){
 		<img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/attention.png" alt="attention">
 		<b>NOTE:</b> Any try to perform the rest of the assignment and neglecting this message is forbidden and
 		leads to rejection of all of your submissions.
+        <p>You are not allowed to submit any more HITs from this project.
+            Any additional screen-out submissions from this project will be rejected.</p>
 	</div>
 </section>
 

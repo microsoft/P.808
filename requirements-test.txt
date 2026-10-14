@@ -2,3 +2,6 @@ numpy
 pandas
 pytest
 scipy
+azure-storage-blob
+jinja2
+requests

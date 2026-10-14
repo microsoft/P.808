@@ -1,6 +1,6 @@
 ---
 name: create-study
-description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, project building for crowdsourcing platforms, prompts for study-specific screen-out completion codes (never reused across studies) and for the internal-vs-general master-script assets, and writes a re-runnable regenerate_study.bat that re-runs master_script.py.
+description: Creates subjective speech quality tests using the P.808 toolkit — handles study setup, gold/trapping clip generation, storage upload, project building for crowdsourcing platforms, prompts for study-specific screen-out completion codes (never reused across studies), internal-vs-general master-script assets, required_playback_device, and P.804 allow_cannot_rate/show_loudness_alert settings, and writes a re-runnable regenerate_study.bat that re-runs master_script.py. Quantity and quality bonuses apply to AMT only, not Prolific.
 ---
 
 # Create subjective test instructions
@@ -21,6 +21,11 @@ Replace `REPO_ROOT` with the actual absolute path of this repository.
 These are best-practice defaults. Confirm or override them with the requester before first use.
 After confirmation, save a `.cfg` file next to the input files so future runs can reuse it.
 When asked to re-run a test or "go yolo", look for an existing config file first.
+
+For **Prolific**, ignore the quantity and quality bonus defaults: these bonuses are not
+applied. Do not ask the requester to confirm bonus amounts or thresholds, include them in
+payment estimates, or flag bonus-threshold warnings as publishing issues. Base payment
+still applies.
 
 ```text
 BEST_PRACTICE_PLATFORM             = Prolific
@@ -164,6 +169,22 @@ Do not guess these values if they are missing:
     internal set) or use the default **general** set (`src/assets_master_script/general.csv`,
     applied automatically when `--general_assets` is omitted). Pass `--general_assets` only when
     using the internal set.
+12. **Required playback device** (`required_playback_device`): **[ASK]** during study-details
+	collection whether to require `headset`, `loudspeaker`, or `any`. Explain that `headset`
+	is the toolkit default and `any` skips the playback-device check. Save the confirmed
+	value explicitly in `[hit_app_html]`; do not silently assume the default.
+13. **P.804 "Cannot rate it" option** (`allow_cannot_rate`): **[ASK]** for P.804 studies
+	whether to enable this option on the Coloration, Discontinuity, Reverb, and
+	Signal-quality scales. Suggest `false` as the default and save the confirmed boolean
+	in `[hit_app_html]`. Do not ask for this P.804-only setting for other methods.
+14. **P.804 loudness warning** (`show_loudness_alert`): **[ASK]** for P.804 studies whether
+	to display the rating-section warning that clips may be very loud and recommend
+	loudspeaker playback. Suggest `false` as the default and save the confirmed boolean
+	in `[hit_app_html]`. If enabled, recommend `required_playback_device: any` so workers
+	can use headsets for qualification/setup, which can be difficult without them, and
+	loudspeakers for ratings. Explain the possible conflict with `headset` and ask the
+	requester to confirm the device choice; never silently change it. Do not ask for this
+	P.804-only setting for other methods.
 
 ## Storage and public accessibility
 
@@ -677,12 +698,19 @@ contact_email:USER_PROVIDED_EMAIL
   check is skipped. Tune `device_check_threshold_db` (default `20`) and `device_check_probe_gain`
   (default `0.1`) only if browser testing shows detection issues or the tone is too loud.
 - `contact_email` = user-provided. Never hardcode.
+- `allow_cannot_rate` / `show_loudness_alert` = requester-confirmed booleans for P.804,
+  both defaulting to `false` in the toolkit. Include the confirmed values explicitly
+  in `[hit_app_html]`, together with `required_playback_device`.
 - `allowed_max_hit_in_project` = `BEST_PRACTICE_ALLOWED_MAX_HITS`.
-- `quantity_hits_more_than` ≈ `floor(total_sessions / 2)`, at least 2.
+- For **AMT only**, `quantity_hits_more_than` ≈ `floor(total_sessions / 2)`, at least 2;
+  use the quantity and quality bonus defaults in the template.
+- For **Prolific**, set `quantity_bonus` and `quality_bonus` to `0` when creating a new
+  config. Retain any bonus-threshold fields required by the toolkit for compatibility,
+  but ignore them; do not adjust or warn about their relationship to the worker cap.
 - `platform` = the crowd platform (`prolific` or `mturk`), from the requester's answer
   (defaults to `prolific`). It is written into the generated `*_result_parser.cfg` so the
-  result parser knows the platform; for `prolific` no bonus report is generated (bonuses are
-  handled on Prolific).
+  result parser knows the platform; for `prolific` no bonus report is generated and the
+  toolkit's quantity and quality bonuses do not apply.
 
 ### 8. Run the master script
 
@@ -737,8 +765,8 @@ set (`assets_master_script/general.csv`).
   project output directory is created there.
 - Supported `--method` values: `acr`, `dcr`, `ccr`, `p835`, `echo_impairment_test`,
   `pp835`, `p804`.
-- If `quantity_hits_more_than` triggers a warning, update the config file with the
-  suggested value and re-run.
+- For **AMT only**, if `quantity_hits_more_than` triggers a warning, update the config
+  file with the suggested value and re-run. Ignore this bonus warning for **Prolific**.
 
 ### 8b. Write a re-run batch file (regenerate_study.bat)
 
