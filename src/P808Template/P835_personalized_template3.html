@@ -326,7 +326,9 @@
 	
 	**/
 	function initializeActivePageMonitoring() {
-		sessionId = Math.random().toString(36).substr(2, 9);
+		var randomValues = new Uint32Array(4);
+		window.crypto.getRandomValues(randomValues);
+		sessionId = randomValues.join("-");
 		sessionIdVariableName = config.qualificationCookieName + "_sid";
 		createCookie(sessionIdVariableName, sessionId, 70);
 
