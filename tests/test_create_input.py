@@ -15,6 +15,39 @@ ACR_COLUMNS = [
     "trapping_ans",
 ]
 
+COMPARISON_CONDITIONS = [f"C{index:02d}" for index in range(1, 11)]
+COMPARISON_SOURCES = [f"S{index:02d}" for index in range(1, 5)]
+
+
+def _create_comparison_input_data():
+    """
+    Create a minimal dataframe for DCR/CCR input-generation tests.
+
+    :return: Tuple containing the dataframe, rating clips, and references.
+    """
+    clips = [
+        f"{source}_{condition}.wav"
+        for source in COMPARISON_SOURCES
+        for condition in COMPARISON_CONDITIONS
+    ]
+    references = [
+        f"reference-{source}.wav"
+        for source in COMPARISON_SOURCES
+        for _ in COMPARISON_CONDITIONS
+    ]
+    clip_count = len(clips)
+    data = pd.DataFrame(
+        {
+            "rating_clips": clips,
+            "references": references,
+            "math": ["math.wav"] * clip_count,
+            "pair_a": [f"pair-a-{index}.wav" for index in range(clip_count)],
+            "pair_b": [f"pair-b-{index}.wav" for index in range(clip_count)],
+            "trapping_clips": [None] * clip_count,
+        }
+    )
+    return data, clips, references
+
 
 @pytest.fixture(autouse=True)
 def clear_condition_cache():
@@ -128,3 +161,75 @@ def test_create_input_for_mturk_dispatches_comparison_method(monkeypatch):
 
     assert result == 2
     create_comparison.assert_called_once_with(cfg, data, output_path)
+
+
+def test_create_input_for_mturk_preserves_balanced_ccr_blocks(tmp_path, monkeypatch):
+    """
+    Verify that CCR generation preserves balanced blocks and reference pairing.
+
+    :param tmp_path: Pytest-provided temporary output directory.
+    :param monkeypatch: Pytest fixture used to make list shuffling deterministic.
+    :return: None.
+    """
+    data, clips, references = _create_comparison_input_data()
+    cfg = {
+        "number_of_clips_per_session": "10",
+        "number_of_trapping_per_session": "0",
+        "clip_packing_strategy": "balanced_block",
+        "condition_pattern": r"(?P<source>S\d{2})_(?P<condition>C\d{2})\.wav",
+        "block_keys": "condition, source",
+    }
+    output_path = tmp_path / "balanced.csv"
+    monkeypatch.setattr(create_input.random, "shuffle", Mock())
+
+    session_count = create_input.create_input_for_mturk(cfg, data, "ccr", output_path)
+    output = pd.read_csv(output_path)
+    reference_by_clip = dict(zip(clips, references))
+
+    assert session_count == 4
+    assert len(output) == 4
+    observed_sources = set()
+    for _, row in output.iterrows():
+        presented_clips = [row[f"Q{index}_P"] for index in range(10)]
+        presented_conditions = {clip.split("_")[1].removesuffix(".wav") for clip in presented_clips}
+        presented_sources = {clip.split("_")[0] for clip in presented_clips}
+        assert presented_conditions == set(COMPARISON_CONDITIONS)
+        assert len(presented_sources) == 1
+        observed_sources.update(presented_sources)
+        for index, clip in enumerate(presented_clips):
+            assert row[f"Q{index}_R"] == reference_by_clip[clip]
+    assert observed_sources == set(COMPARISON_SOURCES)
+
+
+def test_create_input_for_mturk_preserves_random_ccr_reference_pairs(tmp_path, monkeypatch):
+    """
+    Verify that random CCR generation retains each processed/reference pair.
+
+    :param tmp_path: Pytest-provided temporary output directory.
+    :param monkeypatch: Pytest fixture used to make list shuffling deterministic.
+    :return: None.
+    """
+    data, clips, references = _create_comparison_input_data()
+    cfg = {
+        "number_of_clips_per_session": "10",
+        "number_of_trapping_per_session": "0",
+        "clip_packing_strategy": "random",
+    }
+    output_path = tmp_path / "random.csv"
+    seeded_random = create_input.random.Random(5)
+    monkeypatch.setattr(create_input.random, "shuffle", seeded_random.shuffle)
+
+    session_count = create_input.create_input_for_mturk(cfg, data, "ccr", output_path)
+    output = pd.read_csv(output_path)
+    reference_by_clip = dict(zip(clips, references))
+
+    assert session_count == 4
+    assert len(output) == 4
+    unique_condition_counts = []
+    for _, row in output.iterrows():
+        presented_clips = [row[f"Q{index}_P"] for index in range(10)]
+        presented_conditions = {clip.split("_")[1].removesuffix(".wav") for clip in presented_clips}
+        unique_condition_counts.append(len(presented_conditions))
+        for index, clip in enumerate(presented_clips):
+            assert row[f"Q{index}_R"] == reference_by_clip[clip]
+    assert any(count < len(COMPARISON_CONDITIONS) for count in unique_condition_counts)

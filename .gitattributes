@@ -6,4 +6,6 @@
 pytest.ini -text
 requirements-test.txt -text
 src/P808Template/*.html -text
+src/*.py -text
+src/**/*.py -text
 tests/*.py -text
