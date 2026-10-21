@@ -6,6 +6,7 @@ jinja2
 boto3
 scipy
 azure-core
+azure-identity
 azure-storage-blob
 scaleapi
 requests

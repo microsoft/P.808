@@ -5,6 +5,8 @@
 .github/workflows/*.yml -text
 pytest.ini -text
 requirements-test.txt -text
+src/requirements.txt -text
+src/configurations/master.cfg -text
 src/P808Template/*.html -text
 src/*.py -text
 src/**/*.py -text
