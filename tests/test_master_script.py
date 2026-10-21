@@ -118,7 +118,6 @@ def test_loudness_alert_warns_about_conflicting_device(
         {
             "create_input": {"clip_packing_strategy": "random"},
             "hit_app_html": {
-                "allowed_max_hit_in_project": "2",
                 "quantity_hits_more_than": "1",
                 "screenout_code": "test-only",
             },
@@ -195,6 +194,25 @@ def test_bonus_setting_warnings(
     assert len(warnings) == len(expected_messages)
     for expected_message in expected_messages:
         assert any(expected_message in warning for warning in warnings)
+
+
+def test_bonus_setting_warnings_use_optional_worker_limit_default(monkeypatch):
+    """
+    Verify that omitted worker HIT limits use the method-specific effective default.
+
+    :param monkeypatch: Fixture for importing the repository source module.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master_script = importlib.import_module("master_script")
+
+    warnings = master_script.get_bonus_setting_warnings(
+        {"quantity_hits_more_than": "30"},
+        60,
+        default_allowed_hits=50,
+    )
+
+    assert warnings == []
 
 
 @pytest.mark.parametrize(
