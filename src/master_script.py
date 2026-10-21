@@ -11,9 +11,11 @@ import os
 import asyncio
 import base64
 import hashlib
+import posixpath
 import random
 import re
 import string
+from urllib.parse import urlparse
 
 import configparser as CP
 import pandas as pd
@@ -33,6 +35,16 @@ from utils.preview_html import generate_previews
 
 #p835_personalized = "p835_personalized"
 p835_personalized = "pp835"
+
+
+def _get_url_filename(url):
+    """
+    Return a URL path's final component without its query string.
+
+    :param url: URL containing a clip path and optional SAS query string.
+    :return: Final path component of the URL.
+    """
+    return posixpath.basename(urlparse(url).path)
 
 
 def _strip_author_lines(text):
@@ -686,8 +698,9 @@ async def prepare_csv_for_create_input(cfg, test_method, clips, gold, trapping, 
 
             clipdictList = []
             for eclip in rating_clips:
+                enhanced_clip_name = _get_url_filename(eclip)
                 for i, c in enumerate(testclipsurls):
-                    if os.path.basename(c) in eclip:
+                    if _get_url_filename(c) in enhanced_clip_name:
                         clipdictList.append({'rating_clips':eclip, 'references':testclipsurls[i]})
                         break
 

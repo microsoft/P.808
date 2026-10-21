@@ -183,9 +183,10 @@ class TrappingSamplesInStore(AzureClipStorage):
 class PairComparisonSamplesInStore(AzureClipStorage):
     async def get_dataframe(self):
         clips = await self.clip_names
-        pair_a_clips = [self.make_clip_url(clip)
-                        for clip in clips if '40S_' in clip]
-        pair_b_clips = [clip.replace('40S_', '50S_') for clip in pair_a_clips]
+        pair_a_names = [clip for clip in clips if '40S_' in clip]
+        pair_b_names = [clip.replace('40S_', '50S_') for clip in pair_a_names]
+        pair_a_clips = [self.make_clip_url(clip) for clip in pair_a_names]
+        pair_b_clips = [self.make_clip_url(clip) for clip in pair_b_names]
 
         df = pd.DataFrame({'pair_a': pair_a_clips, 'pair_b': pair_b_clips})
         return df

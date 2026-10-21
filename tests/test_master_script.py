@@ -10,6 +10,77 @@ import pytest
 from jinja2 import Template
 
 
+class _FakeAzureClipStorage:
+    def __init__(self, config, alg):
+        """
+        Configure deterministic Azure clip data for URL-matching tests.
+
+        :param config: Unused storage configuration.
+        :param alg: Store identifier used to select clips and signatures.
+        """
+        self._alg = alg
+        self._clips = {
+            "store1": ["processed/reference.wav"],
+            "noisy": ["references/reference.wav"],
+        }[alg]
+
+    @property
+    async def clip_names(self):
+        """
+        Return deterministic raw blob names.
+
+        :return: Blob names for the configured fake store.
+        """
+        return self._clips
+
+    def make_clip_url(self, clip):
+        """
+        Return a deterministic signed URL for a raw blob name.
+
+        :param clip: Raw blob name.
+        :return: URL with a store-specific query signature.
+        """
+        return f"https://example.blob.core.windows.net/clips/{clip}?sig={self._alg}"
+
+
+def test_prepare_csv_matches_azure_references_without_sas_queries(tmp_path, monkeypatch):
+    """
+    Verify that DCR/CCR matching compares URL paths while retaining signed URLs.
+
+    :param tmp_path: Temporary directory for input CSV files.
+    :param monkeypatch: Fixture for replacing Azure storage access.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master_script = importlib.import_module("master_script")
+    monkeypatch.setattr(master_script, "AzureClipStorage", _FakeAzureClipStorage)
+    general_path = tmp_path / "general.csv"
+    pd.DataFrame({"math": ["https://example.test/math.wav"]}).to_csv(general_path, index=False)
+    cfg = configparser.ConfigParser()
+    cfg.read_dict(
+        {
+            "RatingClips": {"RatingClipsConfigurations": "store1"},
+            "store1": {},
+            "noisy": {},
+        }
+    )
+
+    result = asyncio.run(
+        master_script.prepare_csv_for_create_input(
+            cfg,
+            "ccr",
+            str(tmp_path / "missing-clips.csv"),
+            None,
+            None,
+            str(general_path),
+        )
+    )
+
+    assert result.loc[0, "rating_clips"].endswith("reference.wav?sig=store1")
+    assert result.loc[0, "references"].endswith("reference.wav?sig=noisy")
+    assert result.loc[0, "trapping_clips"] == result.loc[0, "references"]
+
+
 @pytest.mark.parametrize(
     ("setting", "show_alert"),
     [(None, False), ("false", False), ("true", True), (" TRUE ", True)],

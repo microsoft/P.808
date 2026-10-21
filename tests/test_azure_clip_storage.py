@@ -5,7 +5,7 @@ from unittest.mock import Mock, PropertyMock
 import pytest
 
 from src import azure_clip_storage
-from src.azure_clip_storage import AzureClipStorage
+from src.azure_clip_storage import AzureClipStorage, PairComparisonSamplesInStore
 
 
 def _storage_config(path):
@@ -169,3 +169,38 @@ def test_make_clip_url_requires_a_user_delegation_key():
 
     with pytest.raises(RuntimeError, match="retrieved"):
         storage.make_clip_url("something/xyz/clip.wav")
+
+
+def test_pair_comparison_signs_each_raw_blob_name(monkeypatch):
+    """
+    Verify that paired clips receive signatures generated for their respective blob names.
+
+    :param monkeypatch: Pytest fixture used to replace Azure SDK calls.
+    :return: None.
+    """
+    generate_sas = Mock(side_effect=["token-a", "token-b"])
+    monkeypatch.setattr(
+        azure_clip_storage,
+        "generate_blob_sas",
+        generate_sas,
+    )
+    storage = PairComparisonSamplesInStore(
+        _storage_config("pairs"),
+        "pairs",
+        credential=Mock(),
+    )
+    storage._clip_names = ["pairs/40S_sample.wav"]
+    storage._user_delegation_key = Mock()
+    storage._sas_start_time = datetime.datetime.now(datetime.timezone.utc)
+    storage._sas_expiry_time = storage._sas_start_time + datetime.timedelta(days=7)
+
+    pairs = asyncio.run(storage.get_dataframe())
+
+    assert pairs.loc[0, "pair_a"].endswith("pairs/40S_sample.wav?token-a")
+    assert pairs.loc[0, "pair_b"].endswith("pairs/50S_sample.wav?token-b")
+    assert [
+        call.kwargs["blob_name"] for call in generate_sas.call_args_list
+    ] == [
+        "pairs/40S_sample.wav",
+        "pairs/50S_sample.wav",
+    ]
