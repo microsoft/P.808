@@ -117,7 +117,11 @@ def test_loudness_alert_warns_about_conflicting_device(
     cfg.read_dict(
         {
             "create_input": {"clip_packing_strategy": "random"},
-            "hit_app_html": {"quantity_hits_more_than": "1", "screenout_code": "test-only"},
+            "hit_app_html": {
+                "allowed_max_hit_in_project": "2",
+                "quantity_hits_more_than": "1",
+                "screenout_code": "test-only",
+            },
         }
     )
     if show_alert is not None:
@@ -141,6 +145,56 @@ def test_loudness_alert_warns_about_conflicting_device(
         assert "qualification and setup" in output
     renderer.assert_awaited_once()
     assert renderer.await_args.args[7]["required_playback_device"] == (device or "headset").strip().lower()
+
+
+@pytest.mark.parametrize(
+    ("number_of_hits", "allowed_hits", "quantity_threshold", "expected_messages"),
+    [
+        (60, 60, 30, []),
+        (60, 60, 20, ["outside the recommended range"]),
+        (60, 70, 30, ["greater than the total number of HITs"]),
+        (60, 20, 30, ["workers cannot reach the quantity bonus"]),
+        (
+            60,
+            60,
+            61,
+            [
+                "outside the recommended range",
+                "greater than the total number of HITs (60), so workers cannot reach",
+            ],
+        ),
+    ],
+)
+def test_bonus_setting_warnings(
+    number_of_hits,
+    allowed_hits,
+    quantity_threshold,
+    expected_messages,
+    monkeypatch,
+):
+    """
+    Verify warnings for unusual and unreachable bonus configurations.
+
+    :param number_of_hits: Total number of generated HITs.
+    :param allowed_hits: Maximum HITs one worker may complete.
+    :param quantity_threshold: Accepted HIT count required for a quantity bonus.
+    :param expected_messages: Warning fragments expected for the configuration.
+    :param monkeypatch: Fixture for importing the repository source module.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master_script = importlib.import_module("master_script")
+    warnings = master_script.get_bonus_setting_warnings(
+        {
+            "allowed_max_hit_in_project": str(allowed_hits),
+            "quantity_hits_more_than": str(quantity_threshold),
+        },
+        number_of_hits,
+    )
+
+    assert len(warnings) == len(expected_messages)
+    for expected_message in expected_messages:
+        assert any(expected_message in warning for warning in warnings)
 
 
 @pytest.mark.parametrize(
