@@ -1109,7 +1109,7 @@ async def main(cfg, test_method, args):
 
     default_allowed_hits = None
     if test_method == "acr":
-        default_allowed_hits = n_HITs
+        default_allowed_hits = min(50, n_HITs)
     elif test_method in ["p835", "echo_impairment_test", p835_personalized, "p804"]:
         default_allowed_hits = min(50, n_HITs)
 
