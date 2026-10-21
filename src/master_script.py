@@ -15,7 +15,7 @@ import posixpath
 import random
 import re
 import string
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 import configparser as CP
 import pandas as pd
@@ -44,7 +44,7 @@ def _get_url_filename(url):
     :param url: URL containing a clip path and optional SAS query string.
     :return: Final path component of the URL.
     """
-    return posixpath.basename(urlparse(url).path)
+    return posixpath.basename(urlsplit(url).path)
 
 
 def _strip_author_lines(text):

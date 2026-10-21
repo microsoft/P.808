@@ -20,8 +20,14 @@ class _FakeAzureClipStorage:
         """
         self._alg = alg
         self._clips = {
-            "store1": ["processed/reference.wav"],
-            "noisy": ["references/reference.wav"],
+            "store1": [
+                "processed/speech;one.wav",
+                "processed/speech;two.wav",
+            ],
+            "noisy": [
+                "references/speech;one.wav",
+                "references/speech;two.wav",
+            ],
         }[alg]
 
     @property
@@ -76,9 +82,15 @@ def test_prepare_csv_matches_azure_references_without_sas_queries(tmp_path, monk
         )
     )
 
-    assert result.loc[0, "rating_clips"].endswith("reference.wav?sig=store1")
-    assert result.loc[0, "references"].endswith("reference.wav?sig=noisy")
-    assert result.loc[0, "trapping_clips"] == result.loc[0, "references"]
+    assert result["rating_clips"].tolist() == [
+        "https://example.blob.core.windows.net/clips/processed/speech;one.wav?sig=store1",
+        "https://example.blob.core.windows.net/clips/processed/speech;two.wav?sig=store1",
+    ]
+    assert result["references"].tolist() == [
+        "https://example.blob.core.windows.net/clips/references/speech;one.wav?sig=noisy",
+        "https://example.blob.core.windows.net/clips/references/speech;two.wav?sig=noisy",
+    ]
+    assert result["trapping_clips"].tolist() == result["references"].tolist()
 
 
 @pytest.mark.parametrize(
