@@ -2,6 +2,7 @@ numpy
 pandas
 pytest
 scipy
+azure-identity
 azure-storage-blob
 jinja2
 requests

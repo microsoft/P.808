@@ -4,21 +4,36 @@ import posixpath
 
 import pandas as pd
 
-from azure.storage.blob import BlobServiceClient, generate_container_sas, ContainerSasPermissions
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobSasPermissions, BlobServiceClient, generate_blob_sas
 
 
 class AzureClipStorage:
-    def __init__(self, config, alg):
-        self._account_name = os.path.basename(
-            config['StorageUrl']).split('.')[0]
+    def __init__(self, config, alg, credential=None):
+        """
+        Configure Microsoft Entra-authenticated access to Azure Blob Storage.
 
-        self._account_key = config['StorageAccountKey']
+        :param config: Storage account and clip-path configuration.
+        :param alg: Algorithm name associated with the stored clips.
+        :param credential: Optional Azure token credential for dependency injection.
+        """
+        self._storage_url = config['StorageUrl'].rstrip('/')
+        self._account_name = os.path.basename(
+            self._storage_url).split('.')[0]
+
+        self._credential = credential if credential is not None else DefaultAzureCredential()
+        self._blob_service = None
         self._container = config['Container']
         self._alg = alg
-        self._clips_path = config['Path'].lstrip('/')
+        path = config['Path'].lstrip('/')
+        if path and not path.endswith('/'):
+            path += '/'
+        self._clips_path = path
         self._clip_names = []
         self._modified_clip_names = []
-        self._SAS_token = ''
+        self._user_delegation_key = None
+        self._sas_start_time = None
+        self._sas_expiry_time = None
 
     @property
     def container(self):
@@ -33,6 +48,20 @@ class AzureClipStorage:
         return self._clips_path
 
     @property
+    def blob_service(self):
+        """
+        Return a Blob service client authenticated with Microsoft Entra ID.
+
+        :return: Authenticated Azure Blob service client.
+        """
+        if self._blob_service is None:
+            self._blob_service = BlobServiceClient(
+                account_url=self._storage_url,
+                credential=self._credential,
+            )
+        return self._blob_service
+
+    @property
     async def clip_names(self):
         if len(self._clip_names) <= 0:
             await self.get_clips()
@@ -40,9 +69,12 @@ class AzureClipStorage:
 
     @property
     def store_service(self):
-        blob_service = BlobServiceClient(
-            account_url=f"https://{self._account_name}.blob.core.windows.net/", credential=self._account_key)
-        return blob_service.get_container_client(container=self._container)
+        """
+        Return the configured Azure Blob container client.
+
+        :return: Authenticated Azure Blob container client.
+        """
+        return self.blob_service.get_container_client(container=self._container)
 
     @property
     def modified_clip_names(self):
@@ -62,29 +94,47 @@ class AzureClipStorage:
                 self._clip_names.append(clip_path)
 
     async def get_clips(self):
-        blobs = self.store_service.list_blobs(
-            name_starts_with=self.clips_path)
+        """
+        Retrieve clip names and create a seven-day user delegation key.
 
-        if not self._SAS_token:
-            self._SAS_token = generate_container_sas(
-                account_name=self._account_name,
-                container_name=self._container,
-                account_key=self._account_key,
-                permission=ContainerSasPermissions(read=True),
-                expiry=datetime.datetime.utcnow() + datetime.timedelta(days=14)
+        :return: None.
+        """
+        blobs = self.store_service.list_blobs(name_starts_with=self.clips_path)
+
+        if self._user_delegation_key is None:
+            self._sas_start_time = datetime.datetime.now(datetime.timezone.utc)
+            self._sas_expiry_time = self._sas_start_time + datetime.timedelta(days=7)
+            self._user_delegation_key = self.blob_service.get_user_delegation_key(
+                key_start_time=self._sas_start_time,
+                key_expiry_time=self._sas_expiry_time,
             )
 
         await self.retrieve_contents(blobs)
 
     def make_clip_url(self, filename):
-        return f"https://{self._account_name}.blob.core.windows.net/{self._container}/{filename}?{self._SAS_token}"
+        """
+        Create a URL containing a read-only SAS scoped to one exact clip blob.
+
+        :param filename: Blob name of the clip.
+        :return: HTTPS URL containing a blob-scoped user delegation SAS.
+        """
+        if self._user_delegation_key is None:
+            raise RuntimeError("Clip names must be retrieved before generating clip URLs.")
+
+        sas_token = generate_blob_sas(
+            account_name=self._account_name,
+            container_name=self._container,
+            blob_name=filename,
+            user_delegation_key=self._user_delegation_key,
+            permission=BlobSasPermissions(read=True),
+            start=self._sas_start_time,
+            expiry=self._sas_expiry_time,
+            protocol='https',
+        )
+        return f"{self._storage_url}/{self._container}/{filename}?{sas_token}"
 
 
 class GoldSamplesInStore(AzureClipStorage):
-    def __init__(self, config, alg):
-        super().__init__(config, alg)
-        self._SAS_token = ''
-
     async def get_dataframe(self):
         clips = await self.clip_names
         df = pd.DataFrame(columns=['gold_clips', 'gold_clips_ans'])
@@ -133,9 +183,10 @@ class TrappingSamplesInStore(AzureClipStorage):
 class PairComparisonSamplesInStore(AzureClipStorage):
     async def get_dataframe(self):
         clips = await self.clip_names
-        pair_a_clips = [self.make_clip_url(clip)
-                        for clip in clips if '40S_' in clip]
-        pair_b_clips = [clip.replace('40S_', '50S_') for clip in pair_a_clips]
+        pair_a_names = [clip for clip in clips if '40S_' in clip]
+        pair_b_names = [clip.replace('40S_', '50S_') for clip in pair_a_names]
+        pair_a_clips = [self.make_clip_url(clip) for clip in pair_a_names]
+        pair_b_clips = [self.make_clip_url(clip) for clip in pair_b_names]
 
         df = pd.DataFrame({'pair_a': pair_a_clips, 'pair_b': pair_b_clips})
         return df
