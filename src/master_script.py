@@ -1001,6 +1001,49 @@ def _get_screenout_code(hitapp, key):
     return '${' + key + '}'
 
 
+def get_bonus_setting_warnings(hitapp, number_of_hits, default_allowed_hits=None):
+    """
+    Return warnings for inconsistent or unreachable bonus settings.
+
+    :param hitapp: Config section containing HIT and bonus limits.
+    :param number_of_hits: Total number of generated HITs in the study.
+    :param default_allowed_hits: Method-specific worker HIT limit when not configured.
+    :return: List of researcher-facing warning messages.
+    """
+    quantity_threshold = int(hitapp["quantity_hits_more_than"])
+    allowed_hits_value = hitapp.get("allowed_max_hit_in_project", default_allowed_hits)
+    allowed_hits = int(allowed_hits_value) if allowed_hits_value is not None else None
+    recommended_minimum = int(number_of_hits / 2)
+    recommended_maximum = int(number_of_hits * 2 / 3)
+    warnings = []
+
+    if quantity_threshold not in range(recommended_minimum, recommended_maximum + 1):
+        warnings.append(
+            f"'quantity_hits_more_than' ({quantity_threshold}) is outside the recommended "
+            f"range [{recommended_minimum}, {recommended_maximum}] for {number_of_hits} HITs."
+        )
+
+    if allowed_hits is not None and allowed_hits > number_of_hits:
+        warnings.append(
+            f"'allowed_max_hit_in_project' ({allowed_hits}) is greater than the total "
+            f"number of HITs ({number_of_hits})."
+        )
+
+    if quantity_threshold > number_of_hits:
+        warnings.append(
+            f"'quantity_hits_more_than' ({quantity_threshold}) is greater than the total "
+            f"number of HITs ({number_of_hits}), so workers cannot reach the quantity bonus."
+        )
+    elif allowed_hits is not None and allowed_hits < quantity_threshold:
+        warnings.append(
+            f"'allowed_max_hit_in_project' ({allowed_hits}) is less than "
+            f"'quantity_hits_more_than' ({quantity_threshold}), so workers cannot reach "
+            "the quantity bonus."
+        )
+
+    return warnings
+
+
 def _is_true(value):
     """
     Interpret a config value as a boolean flag, defaulting to True.
@@ -1077,10 +1120,18 @@ async def main(cfg, test_method, args):
         cfg["create_input"], df, test_method, output_csv_file
     )
 
-    # check settings of quantity bonus
-    if not (int(cfg_hit_app["quantity_hits_more_than"]) in range(int(n_HITs/2),  int(n_HITs*2/3)+1)):
-        print("\nWARNING: it seems that 'quantity_hits_more_than' not set properly. Consider to use a number in"
-                              f" the range of [{int(n_HITs/2)}, {int(n_HITs*2/3)}].\n")
+    default_allowed_hits = None
+    if test_method == "acr":
+        default_allowed_hits = min(50, n_HITs)
+    elif test_method in ["p835", "echo_impairment_test", p835_personalized, "p804"]:
+        default_allowed_hits = min(50, n_HITs)
+
+    for warning in get_bonus_setting_warnings(
+        cfg_hit_app,
+        n_HITs,
+        default_allowed_hits=default_allowed_hits,
+    ):
+        print(f"\nWARNING: {warning}\n")
 
     # create general config
     general_cfg = prepare_basic_cfg(df)
