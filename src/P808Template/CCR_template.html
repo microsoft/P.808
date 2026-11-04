@@ -55,6 +55,44 @@ section {
 }
 fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5px; }
 
+.mts_group {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 8px;
+}
+.language-choice { position: relative; margin: 0; cursor: pointer; }
+.language-choice input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.language-choice span {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 48px;
+	height: 100%;
+	padding: 8px 12px;
+	border: 2px solid #767676;
+	border-radius: 6px;
+	background: white;
+	font-weight: normal;
+	text-align: center;
+}
+.language-choice input:checked + span {
+	background: #0b5cad; border-color: #0b5cad; color: white; font-weight: bold;
+}
+.language-choice input:focus-visible + span { outline: 3px solid #222; outline-offset: 3px; }
+.language-choice input:disabled + span { opacity: 0.5; cursor: default; }
+
+#dc_beep_answer .radio label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 0;
+}
+#dc_beep_answer input[type="radio"] {
+    position: static;
+    margin: 0;
+    flex-shrink: 0;
+}
+
 	.disabled2_section{pointer-events: none; opacity: 0.4;}
 </style>
 
@@ -334,7 +372,17 @@ function initializeQualification(){
 	randomizeHearingtestItems();
     makeCheckboxBeRequired();
     forceNoSpaceInInput();
+    $("input[name='2_birth_year']").on("input", sanitizeBirthYear);
     $("#qualification :input").on('change', isQualificationDone);
+}
+
+/**
+ * Keep typed and pasted birth years to four decimal digits.
+ *
+ * @returns {void}
+ */
+function sanitizeBirthYear(){
+	this.value = this.value.replace(/[^0-9]/g, "").slice(0, 4);
 }
 /*
 	check if the qualification all answered
@@ -2232,22 +2280,27 @@ function appendCcrMetadata(prefix, number, item) {
 		</fieldset>
 		<fieldset class="qualificationFieldset"><label>2.&nbsp;In what year were you born? </label>
 				<div class="form-group">
-				  <input type="text" class="form-control" name="2_birth_year" required="">
+				  <input type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4"
+					autocomplete="bday-year" class="form-control" name="2_birth_year" required="">
 				</div>
 		</fieldset>
 
-		<fieldset class="qualificationFieldset"><label>3.&nbsp;What is your mother tongue (native language)? Select all that apply.</label>
-		<div class="mts_group row" style="margin-left:5px;">
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="english" required>English</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="mandarin" required>Mandarin Chinese</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="hindi" required>Hindi</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="spanish" required>Spanish</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="arabic" required>Arabic</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="french" required>French</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="bengali" required>Bengali</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="portuguese" required>Portuguese</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="russian" required>Russian</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="urdu" required>Urdu</label></div></div>
+		<fieldset class="qualificationFieldset">
+		<label id="mother-tongue-label">3.&nbsp;What is your mother tongue (native language)?</label>
+		<p id="mother-tongue-help">Select all that apply. Click a language to select or deselect it.</p>
+		<div class="mts_group" role="group" aria-labelledby="mother-tongue-label"
+			aria-describedby="mother-tongue-help">
+			{% for value, label in [
+				("english", "English"), ("mandarin", "Mandarin Chinese"), ("hindi", "Hindi"),
+				("spanish", "Spanish"), ("arabic", "Arabic"), ("french", "French"),
+				("bengali", "Bengali"), ("portuguese", "Portuguese"), ("russian", "Russian"),
+				("urdu", "Urdu"), ("other", "Other")
+			] %}
+			<label class="language-choice">
+				<input type="checkbox" name="3_mother_tongue" value="{{ value }}" required>
+				<span>{{ label }}</span>
+			</label>
+			{% endfor %}
 		</div>
 	</fieldset>
 
@@ -2285,6 +2338,7 @@ function appendCcrMetadata(prefix, number, item) {
 					<option value="3d">In the last 3 days</option>
 					<option value="7d">In the last week</option>
 					<option value="30d">In the last month</option>
+					<option value="more_than_30d">More than a month ago</option>
 					<option value="nn">Never participated</option>
 				  </select>
 				</div>
@@ -2299,6 +2353,7 @@ function appendCcrMetadata(prefix, number, item) {
 					<option value="3d">In the last 3 days</option>
 					<option value="7d">In the last week</option>
 					<option value="30d">In the last month</option>
+					<option value="more_than_30d">More than a month ago</option>
 					<option value="nn">Never participated</option>
 				  </select>
 				</div>
