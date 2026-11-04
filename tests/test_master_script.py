@@ -258,6 +258,42 @@ def test_ccr_zero_limit_blocks_fresh_browsers(counter, limit, blocked):
     assert json.loads(result.stdout) is blocked
 
 
+@pytest.mark.parametrize(("trap_count", "expected_threshold"), [(0, 0), (1, 1)])
+def test_ccr_analyzer_keeps_html_limit_and_pair_identity_settings(
+    tmp_path, monkeypatch, trap_count, expected_threshold,
+):
+    """
+    Synchronize deferred participation limits and retain metadata-enabled CCR aggregation.
+
+    :param tmp_path: Temporary generated analyzer configuration directory.
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    cfg = {
+        "create_input": {
+            "number_of_clips_per_session": "22", "number_of_trapping_per_session": str(trap_count),
+            "aggregate_by_pair_id": "true", "expected_votes_per_file": "10",
+        },
+        "hit_app_html": {
+            "allowed_max_hit_in_project": "0", "quantity_hits_more_than": "0", "quantity_bonus": "0",
+            "quality_top_percentage": "0", "quality_bonus": "0",
+        },
+    }
+    output = tmp_path / "parser.cfg"
+    _, template = master.get_path("ccr", False)
+    master.create_analyzer_cfg_dcr_ccr(cfg, template, str(output), {"bw_min": "SWB", "bw_max": "FB"}, 400)
+    parsed = configparser.ConfigParser()
+    parsed.read(output)
+    assert parsed.getint("acceptance_criteria", "allowedMaxHITsInProject") == 0
+    assert parsed.getint("acceptance_criteria", "correct_tps_bigger_equal") == expected_threshold
+    assert parsed.getboolean("general", "aggregate_by_pair_id")
+    assert parsed.getint("general", "expected_votes_per_file") == 10
+    assert parsed.get("acceptance_criteria", "bw_min") == "SWB"
+    assert parsed.get("acceptance_criteria", "bw_max") == "FB"
+
+
 class _FakeAzureClipStorage:
     def __init__(self, config, alg):
         """

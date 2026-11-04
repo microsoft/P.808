@@ -171,6 +171,8 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + number_of_traps
 
     config['max_allowed_hits'] = cfg["hit_app_html"].get("allowed_max_hit_in_project", str(min(50, n_HITs)))
+    config["aggregate_by_pair_id"] = _is_true(cfg["create_input"].get("aggregate_by_pair_id", "false"))
+    config["expected_votes_per_file"] = cfg["create_input"].get("expected_votes_per_file", "5")
     config["correct_tps_bigger_equal"] = "1" if number_of_traps else "0"
 
     config['quantity_hits_more_than'] = cfg['hit_app_html']['quantity_hits_more_than']

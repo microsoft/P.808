@@ -95,3 +95,9 @@ An optional `presentation_file` loads trusted JSON fields `title`, `style`, `scr
 `instructions`, `training` and `rating`. Custom replacements must retain stock IDs, containers,
 prerequisites and native qualification/device/setup/form behavior. Omitting `training` or `rating`
 keeps the native panels; training order is randomized unless `randomize_training_questions: false`.
+
+Set `aggregate_by_pair_id: true` in `[create_input]` to aggregate CCR by comparison ID; optionally
+set `expected_votes_per_file`. This requires roles `main`, `identical` or `contrast`, exports raw
+trials/control candidates before filtering, and excludes controls from comparison means. Contrast
+controls use degraded A and clean B. In this mode, `file_url` contains the comparison ID. CCR scores
+already express B-minus-A; the audit separately reconstructs second-minus-first.
