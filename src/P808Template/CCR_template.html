@@ -195,9 +195,9 @@ $(function() {
 		howManyHITsAnswered =0;
 		if (hit_num != null ){
 			howManyHITsAnswered= Number(hit_num);
-			if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
-				disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
-			}
+		}
+		if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
+			disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
 		}
 		if ((qual_passed!==null) && (qual_passed=="false")){
 			disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
@@ -1958,7 +1958,7 @@ function generate_training_section(){
 			$('#trainingTabs').append(ccr_nav_tab.f(i+1,'',''));
 			$('#nav-tabContent').append(ccr_tab.f(i+1, urlA, urlB,'', signA, signB));
 		}
-		$('#av-tabContent').append(input_template.f(i+1, urls[i].processed, order));
+		$('#nav-tabContent').append(input_template.f(i+1, urls[i].processed, order));
 	}
 
 	trainingStimulusPlayed = new Array(urls.length).fill(0);
@@ -2127,7 +2127,7 @@ function generate_rating_section(){
 					<tr>
 						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/inear.png" alt="in-ear headphones" width="100px"> </td>
 						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/overear.png" alt="Over-the-ear headphones" width="100px"> </td>
-						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/loudspeaker.png" alt="loudspeaker" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/louadspeaker.png" alt="loudspeaker" width="100px"> </td>
 						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/inbuild.png" alt="built-in speakers" width="100px"> </td>
 					</tr>
 					<tr>

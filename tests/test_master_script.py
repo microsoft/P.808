@@ -1,6 +1,9 @@
 import asyncio
 import configparser
 import importlib
+import json
+import shutil
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -8,6 +11,35 @@ from unittest.mock import AsyncMock, Mock
 import pandas as pd
 import pytest
 from jinja2 import Template
+
+
+@pytest.mark.parametrize(("counter", "limit", "blocked"), [
+    (None, 0, True), (None, 20, False), ("19", 20, False), ("20", 20, True),
+])
+def test_ccr_zero_limit_blocks_fresh_browsers(counter, limit, blocked):
+    """
+    Apply the native participation limit even before a counter has been stored.
+
+    :param counter: Stored completion count, or no prior browser record.
+    :param limit: Configured maximum number of tasks.
+    :param blocked: Whether the native task must be disabled.
+    :return: None.
+    """
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required to execute template JavaScript.")
+    path = Path(__file__).resolve().parents[1] / "src" / "P808Template" / "CCR_template.html"
+    html = path.read_text(encoding="utf-8")
+    body = html.split("\t\thit_num = readCookie(", 1)[1].split("\t\tif ((qual_passed", 1)[0]
+    script = (
+        f"const config={{cookieName:'fixture',allowedMaxHITsInProject:{limit}}};"
+        f"const readCookie=()=>{json.dumps(counter)};"
+        "const Hide_HIT_REASON={MAX_ACHIVED:'maximum'};let disabled=false;"
+        "const disableTheHIT=()=>{disabled=true;};"
+        "hit_num = readCookie(" + body + "\nconsole.log(JSON.stringify(disabled));"
+    )
+    result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=10)
+    assert json.loads(result.stdout) is blocked
 
 
 class _FakeAzureClipStorage:
