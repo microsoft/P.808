@@ -79,3 +79,9 @@ python src\pack_sessions.py --input comparisons.csv --output assignments.csv --a
 an assignment plan (`bundle_id`, `position`, `item_id`, `order`), not a publish-batch CSV. Preserve
 `order` when preparing the HIT App, add training and controls separately, and route participants
 to avoid repeated comparisons.
+
+### Prepacked assignments
+
+For CCR/DCR, set `clip_packing_strategy: prepacked` and `prepacked_sessions` in `[create_input]`.
+Each row needs `Q0_R`/`Q0_P` through the configured comparison count. Other columns are preserved;
+supply the usual source-clip and training CSVs.

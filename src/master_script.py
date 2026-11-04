@@ -1097,6 +1097,9 @@ async def main(cfg, test_method, args):
             if (',' in cfg["create_input"]["condition_keys"]) & ("block_keys" not in cfg["create_input"]):
                 raise SystemExit("Error: In 'balanced_block' strategy, 'block_keys' should be specified in "
                                  "configuration when 'condition_keys' contains more than one key.")
+        elif clip_packing_strategy == "prepacked":
+            if test_method not in ("ccr", "dcr") or not cfg["create_input"].get("prepacked_sessions"):
+                raise SystemExit("Prepacked CCR/DCR packing requires a prepacked_sessions CSV path.")
         elif not(clip_packing_strategy == "random"):
             raise SystemExit("Error: Unexpected value for 'clip_packing_strategy' in the configuration file")
 

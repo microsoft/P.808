@@ -329,21 +329,7 @@ def create_input_for_acr(cfg, df, output_path, method):
                                    (n_sessions // math_hash_source.count()) + 1)[:n_sessions]
         output_df['math_hash'] = math_hash_output
 
-    # bandwidth-check sets: sample a whole 5-clip set per session so each session's
-    # clips (comb_bw*), per-position roles (ans_comb_bw*, checked server-side) and
-    # per-position hashes (comb_bw_hash*, used client-side) stay row-aligned.
-    bw_clip_cols = [f'comb_bw{i}' for i in range(1, 6)]
-    if all(c in df.columns for c in bw_clip_cols):
-        bw_set_cols = [c for c in df.columns
-                       if c.startswith('comb_bw') or c.startswith('ans_comb_bw')]
-        bw_sets = df[bw_set_cols].dropna(subset=bw_clip_cols).reset_index(drop=True)
-        if len(bw_sets) > 0:
-            bw_idx = np.tile(np.arange(len(bw_sets)),
-                             (n_sessions // len(bw_sets)) + 1)[:n_sessions]
-            np.random.shuffle(bw_idx)
-            bw_selected = bw_sets.iloc[bw_idx].reset_index(drop=True)
-            for c in bw_set_cols:
-                output_df[c] = bw_selected[c].to_numpy()
+    assign_bw_sets(df, output_df)
 
     # CMPs: 4 pairs are needed for 1 session
     nPairs = 4 * n_sessions
@@ -531,9 +517,27 @@ def create_input_for_dcrccr(cfg, df, output_path):
         )
     elif packing_strategy == "random":
         add_clips_random_ccr(clips, refs, n_clips_per_session, output_df)
+    elif packing_strategy == "prepacked":
+        source = cfg["prepacked_sessions"]
+        if os.path.abspath(source) == os.path.abspath(output_path):
+            raise ValueError("Prepacked input and output must be different files")
+        output_df = pd.read_csv(source, dtype=str, keep_default_na=False)
+        if output_df.empty:
+            raise ValueError("Prepacked sessions must not be empty")
+        required = {f"Q{i}_{side}" for i in range(n_clips_per_session) for side in ("R", "P")}
+        actual = {column for column in output_df if re.fullmatch(r"Q\d+_[RP]", column)}
+        if actual != required:
+            raise ValueError("Prepacked comparison columns do not match number_of_clips_per_session")
+        for column in required:
+            if output_df[column].str.strip().eq("").any():
+                raise ValueError(f"Empty prepacked audio URL in {column}")
+        for column in output_df:
+            if re.fullmatch(r"Q\d+_ORDER", column) and not output_df[column].isin(("ab", "ba")).all():
+                raise ValueError(f"Invalid prepacked presentation order in {column}")
 
     n_sessions = len(output_df)
     print(f'{n_clips} clips and {n_sessions} sessions')
+    assign_bw_sets(df, output_df)
 
     # create math
     math_source = df['math'].dropna()
@@ -593,6 +597,28 @@ def create_input_for_dcrccr(cfg, df, output_path):
         output_df['TP'] = full_trappings
     output_df.to_csv(output_path, index=False)
     return len(output_df)
+
+
+def assign_bw_sets(df, output_df):
+    """
+    Assign complete bandwidth sets, keeping audio URLs, roles and hashes row-aligned.
+
+    :param df: General assets table with optional bandwidth-check columns.
+    :param output_df: Session table to update in place.
+    :return: None.
+    """
+    clip_columns = [f"comb_bw{i}" for i in range(1, 6)]
+    if not all(column in df for column in clip_columns):
+        return
+    columns = [column for column in df if column.startswith(("comb_bw", "ans_comb_bw"))]
+    sets = df[columns].dropna(subset=clip_columns).reset_index(drop=True)
+    if sets.empty:
+        return
+    indices = np.tile(np.arange(len(sets)), len(output_df) // len(sets) + 1)[:len(output_df)]
+    np.random.shuffle(indices)
+    selected = sets.iloc[indices].reset_index(drop=True)
+    for column in columns:
+        output_df[column] = selected[column].to_numpy()
 
 
 def create_input_for_mturk(cfg, df, method, output_path):
