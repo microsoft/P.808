@@ -166,10 +166,11 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     print("Start creating config file for result_parser")
     config = {}
 
-    config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + \
-                      int(cfg['create_input']['number_of_trapping_per_session'])
+    number_of_traps = int(cfg['create_input']['number_of_trapping_per_session'])
+    config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + number_of_traps
 
     config['max_allowed_hits'] = cfg["hit_app_html"].get("allowed_max_hit_in_project", str(min(50, n_HITs)))
+    config["correct_tps_bigger_equal"] = "1" if number_of_traps else "0"
 
     config['quantity_hits_more_than'] = cfg['hit_app_html']['quantity_hits_more_than']
     config['quantity_bonus'] = cfg['hit_app_html']['quantity_bonus']
@@ -234,7 +235,8 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
 
     if n_traps > 1:
         print("more than 1 trapping clips question is not supported. Proceed with 1 trap")
-    rating_urls.append({"ref": "${TP}", "processed": "${TP}", 'dummy': 'dummy'})
+    if n_traps > 0:
+        rating_urls.append({"ref": "${TP}", "processed": "${TP}", 'dummy': 'dummy'})
     if 'number_of_gold_clips_per_session' in cfg_g:
         print("Gold clips are not supported for CCR and DCR method. Proceed without them")
     config['rating_urls'] = rating_urls
