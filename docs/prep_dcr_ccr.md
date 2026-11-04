@@ -63,3 +63,19 @@ Now, you are ready for running the test on [Prolific](running_test_prolific.md) 
 
 Eligibility passes when any selected device meets `required_playback_device` (`headset`,
 `loudspeaker` or `any`). Acoustic checks verify the active device and audibility.
+
+## Optional: vary session bundles
+
+Use `src/pack_sessions.py` to create distinct repeated bundles with exact coverage and balanced
+A/B order. Optional group and stratum columns constrain scene repeats and bundle composition:
+
+```powershell
+python src\pack_sessions.py --input comparisons.csv --output assignments.csv --audit assignment_audit.json `
+    --id-column comparison_id --group-column scene --stratum-column stratum `
+    --quota representative=10 --quota supplementary=10 --session-size 20 --repeats 10 --seed 42
+```
+
+`--repeats` must be positive and even; session counts and quotas must fit exactly. The output is
+an assignment plan (`bundle_id`, `position`, `item_id`, `order`), not a publish-batch CSV. Preserve
+`order` when preparing the HIT App, add training and controls separately, and route participants
+to avoid repeated comparisons.
