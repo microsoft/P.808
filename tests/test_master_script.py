@@ -1,3 +1,4 @@
+import ast
 import asyncio
 import configparser
 import importlib
@@ -117,6 +118,115 @@ if (classes.size) throw new Error("highlight remained after playback");
 if (counter.textContent !== "7") throw new Error("final counter is " + counter.textContent);
 """
     subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=10)
+
+
+@pytest.mark.parametrize(
+    ("custom", "randomize_training", "expected_randomization"),
+    [(False, None, "true"), (True, None, "true"), ("wording", None, "true"),
+     (True, "false", "false"), (True, "true", "true")],
+)
+def test_ccr_presentation_and_metadata_are_opt_in(
+    tmp_path, monkeypatch, custom, randomize_training, expected_randomization,
+):
+    """
+    Preserve stock defaults while allowing reviewed content and preassigned directions.
+
+    :param tmp_path: Temporary training/presentation/output directory.
+    :param monkeypatch: Fixture for importing the CLI's existing module layout.
+    :param custom: Whether the study opts into presentation and comparison metadata.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    training = tmp_path / "training.csv"
+    pd.DataFrame({
+        "training_references": ["a.wav", "c.wav", "e.wav"],
+        "training_clips": ["b.wav", "d.wav", "f.wav"],
+        "order": ["ab", "ba", "ab"],
+        "pair_id": ["practice-1", "practice-2", "practice-3"],
+    }).to_csv(training, index=False)
+    cfg = {
+        "allowed_max_hit_in_project": "7", "hit_base_payment": "0.5",
+        "quantity_hits_more_than": "2", "quantity_bonus": "0.1",
+        "quality_top_percentage": "20", "quality_bonus": "0.15",
+    }
+    if randomize_training is not None:
+        cfg["randomize_training_questions"] = randomize_training
+    if custom:
+        presentation = tmp_path / "presentation.json"
+        content = {
+            "title": "Reviewed wording", "style": "body {font-size:20px;}",
+            "instructions": '<section id="Survey">Approved welcome</section>',
+            "script": "window.reviewedContent = true;",
+        }
+        if custom is True:
+            content.update({
+                "training": '<section id="training">Approved practice</section>',
+                "rating": '<section id="rating_section">Approved comparisons</section>',
+            })
+        presentation.write_text(json.dumps(content), encoding="utf-8")
+        cfg.update({
+            "comparison_metadata": "true", "presentation_file": str(presentation), "append_training_trap": "false",
+        })
+    output = tmp_path / "ccr.html"
+    template, _ = master.get_path("ccr", False)
+    asyncio.run(master.create_hit_app_ccr_dcr(
+        cfg, template, str(output), str(training),
+        {"number_of_clips_per_session": "2", "number_of_trapping_per_session": "0" if custom else "1"},
+        {},
+    ))
+    html = output.read_text(encoding="utf-8")
+    training_urls = ast.literal_eval(re.search(r"trainingUrls:\s*(\[.*\]),", html).group(1))
+    rating_urls = ast.literal_eval(re.search(r"questionUrls:\s*(\[.*\]),", html).group(1))
+    assert len(training_urls) == (3 if custom else 4)
+    assert len(rating_urls) == (2 if custom else 3)
+    assert training_urls[1]["order"] == "ba"
+    assert ("Approved welcome" in html) == bool(custom)
+    assert ("Welcome to this Data Labeling task!" in html) != bool(custom)
+    assert ("window.reviewedContent = true;" in html) == bool(custom)
+    assert f'randomizeTrainingQuestions:"{expected_randomization}"' in html
+    assert ("pair_id" in rating_urls[0]) == bool(custom)
+    assert ('id="trainingTabs"' in html) == (custom is not True)
+    assert ('id="nav-tab-ul"' in html) == (custom is not True)
+    assert 'id="qualification"' in html
+    assert 'id="device_check_section"' in html
+    assert 'id="setup"' in html
+    assert "validateQualificationAnswer" in html
+    assert "passDeviceCheck" in html
+
+
+@pytest.mark.parametrize(
+    ("strategy", "columns", "accepted"),
+    [
+        ("random", None, False),
+        ("prepacked", "Q0_ID,Q0_ROLE,Q0_ORDER", False),
+        ("prepacked", "Q0_ID,Q0_ROLE,Q0_ORDER,Q0_EXPOSURE", True),
+    ],
+)
+def test_ccr_comparison_metadata_requires_prepacked_columns(tmp_path, monkeypatch, strategy, columns, accepted):
+    """
+    Reject CCR comparison metadata before setup unless prepacked sessions supply every metadata column.
+
+    :param tmp_path: Temporary prepacked sessions directory.
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :param strategy: Configured clip packing strategy.
+    :param columns: Prepacked CSV header, or None when no CSV is configured.
+    :param accepted: Whether validation should pass.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    create_input = {"number_of_clips_per_session": "1", "clip_packing_strategy": strategy}
+    if columns:
+        sessions = tmp_path / "sessions.csv"
+        sessions.write_text(columns + "\n", encoding="utf-8")
+        create_input["prepacked_sessions"] = str(sessions)
+    cfg = {"create_input": create_input, "hit_app_html": {"comparison_metadata": "true"}}
+    monkeypatch.setattr(master, "prepare_csv_for_create_input", AsyncMock(side_effect=RuntimeError("validated")))
+    args = SimpleNamespace(general_assets=None, p831_fest=False, clips=None, gold_clips=None, trapping_clips=None)
+
+    with pytest.raises(RuntimeError if accepted else SystemExit):
+        asyncio.run(master.main(cfg, "ccr", args))
 
 
 @pytest.mark.parametrize(("counter", "limit", "blocked"), [

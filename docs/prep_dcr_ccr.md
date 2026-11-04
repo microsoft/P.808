@@ -85,3 +85,13 @@ to avoid repeated comparisons.
 For CCR/DCR, set `clip_packing_strategy: prepacked` and `prepacked_sessions` in `[create_input]`.
 Each row needs `Q0_R`/`Q0_P` through the configured comparison count. Other columns are preserved;
 supply the usual source-clip and training CSVs.
+
+For CCR, `comparison_metadata: true` in `[hit_app_html]` requires prepacked `Qn_ID`, `Qn_ROLE`,
+`Qn_ORDER` and `Qn_EXPOSURE` columns, which follow comparisons when screen positions are randomized.
+Training rows may specify `pair_id`, `order` and `practice_example`; `append_training_trap: false`
+omits the appended training comparison.
+
+An optional `presentation_file` loads trusted JSON fields `title`, `style`, `script`,
+`instructions`, `training` and `rating`. Custom replacements must retain stock IDs, containers,
+prerequisites and native qualification/device/setup/form behavior. Omitting `training` or `rating`
+keeps the native panels; training order is randomized unless `randomize_training_questions: false`.

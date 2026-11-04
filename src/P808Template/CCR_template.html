@@ -58,6 +58,12 @@ fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5
 	.disabled2_section{pointer-events: none; opacity: 0.4;}
 </style>
 
+{% if cfg.presentation %}
+<title>{{ cfg.presentation.title | e }}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>{{ cfg.presentation.style }}</style>
+{% endif %}
+
 <script type="text/javascript" id="js_part2" nonce="csp_nonce_token">
 
 /*
@@ -96,7 +102,7 @@ var config ={
     knownQuestionUrl:"",
     knownQuestionAns: "0",
 
-    randomizeTrainingQuestions:"true",
+    randomizeTrainingQuestions:"{{cfg.randomize_training_questions}}",
     randomizeRatingQuestions:"true",
     allowedMaxHITsInProject:{{cfg.allowed_max_hit_in_project}},
 	allowedMaxContinuesSessionDurationInMinutes:45,
@@ -2032,7 +2038,9 @@ function generate_training_section(){
 	var i;
 	var urlA,urlB,signA, signB, order;
 	for (i = 0; i < urls.length; i++) {
-		let r = Math.random();
+		if ("order" in urls[i] && !["ab", "ba"].includes(urls[i].order))
+			throw new Error("Invalid prescribed comparison order");
+		let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
 		if (r>0.5){
 			urlA = urls[i].ref;
 			urlB = urls[i].processed;
@@ -2055,6 +2063,7 @@ function generate_training_section(){
 			$('#nav-tabContent').append(ccr_tab.f(i+1, urlA, urlB,'', signA, signB));
 		}
 		$('#nav-tabContent').append(input_template.f(i+1, urls[i].processed, order));
+		appendCcrMetadata("T", i + 1, urls[i]);
 	}
 
 	trainingStimulusPlayed = new Array(urls.length).fill(0);
@@ -2077,7 +2086,9 @@ function generate_rating_section(){
 	var i;
 	var urlA,urlB,signA, signB, order;
 	for (i = 0; i < urls.length; i++) {
-		let r = Math.random();
+		if ("order" in urls[i] && !["ab", "ba"].includes(urls[i].order))
+			throw new Error("Invalid prescribed comparison order");
+		let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
 		if (r>0.5){
 			urlA = urls[i].ref;
 			urlB = urls[i].processed;
@@ -2100,6 +2111,22 @@ function generate_rating_section(){
 			$('#nav-tabContent-rating').append(ccr_tab.f(i+1,  urlA, urlB,'', signA, signB));
 		}
 		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i].processed, order));
+		appendCcrMetadata("Q", i + 1, urls[i]);
+	}
+}
+
+/**
+ * Record canonical identities independently of shuffled question position.
+ * @param {string} prefix Training (T) or rating (Q).
+ * @param {number} number One-based realized question position.
+ * @param {Object} item Canonical reference/processed comparison and optional metadata.
+ */
+function appendCcrMetadata(prefix, number, item) {
+	if (!item.pair_id) return;
+	for (const key of ["pair_id", "role", "reference", "practice_exposure"]) {
+		const value = key === "reference" ? item.ref : (item[key] || "");
+		$("<input>", {type: "hidden", name: prefix + number + "_" + key, value: value})
+			.appendTo(prefix === "T" ? "#nav-tabContent" : "#nav-tabContent-rating");
 	}
 }
 </script>
@@ -2113,7 +2140,16 @@ function generate_rating_section(){
 	</div>
 </section>
 
+{% if cfg.presentation %}
+<script nonce="csp_nonce_token">
+{{ cfg.presentation.script }}
+</script>
+{% endif %}
+
 <!-- Instructions -->
+{% if cfg.presentation %}
+{{ cfg.presentation.instructions }}
+{% else %}
 <section class="container" id="Survey">
 	<div class="panel panel-primary">
 		<div class="panel-heading">
@@ -2167,6 +2203,7 @@ function generate_rating_section(){
 
 	</div>
 </section>
+{% endif %}
 
 
 <!-- Qualification -->
@@ -2647,6 +2684,9 @@ function generate_rating_section(){
 
 
 <!-- Training section, appears once a day-->
+{% if cfg.presentation and cfg.presentation.training %}
+{{ cfg.presentation.training }}
+{% else %}
 <section class="container disabled2_section" id="training">
 		<div class="panel panel-primary">
 			<div class="panel-heading">
@@ -2684,6 +2724,7 @@ function generate_rating_section(){
 		</div>
 
 </section>
+{% endif %}
 <!-- Training section ends-->
 
 <input id="tp_check" name="tp_check" type="hidden" value="-1" />
@@ -2704,6 +2745,9 @@ function generate_rating_section(){
 <input id="ttfb" name="ttfb" type="hidden" value="" />
 
 <!--- Rating task -->
+{% if cfg.presentation and cfg.presentation.rating %}
+{{ cfg.presentation.rating }}
+{% else %}
 <section class="container disabled2_section" id="rating_section">
 		<div class="panel panel-primary">
 			<div class="panel-heading">
@@ -2734,10 +2778,15 @@ function generate_rating_section(){
 			</div>
 		</div>
 </section>
+{% endif %}
 
 
 <section class="container" id="thanks">
+{% if cfg.presentation %}
+	<p>Thank you for participating. Please submit your responses.</p>
+{% else %}
 	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
+{% endif %}
 </section>
 
 <section class="container" id="max_allowed_HITs_reached" hidden>
