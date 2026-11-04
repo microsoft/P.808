@@ -39,6 +39,8 @@ body{font-family:Tahoma,"Times New Roman", Times, serif;}
 .baudio .play_clip2 .clip2 {font-weight: bold; color: #000000; font-size: 110%; background-color: #ff9999;}
 .baudio .play_clip1 .clip2 {color: #838383; font-weight: normal; }
 .baudio .play_clip2 .clip1 {color: #838383; font-weight: normal; }
+.study-progress {margin: 15px 0;}
+.study-progress .progress {margin-bottom: 0;}
 .baudio . clip1 {padding: 2px 5px 2px 5px;}
 .baudio .title {font-size: 72%; color: #838383;}
 
@@ -1374,6 +1376,8 @@ $(function() {
 		configureDoubleClipPlaybackUiForClip(double_clip);
 
 	});
+	updateProgressForSection("training");
+	updateProgressForSection("rating_section");
 
 	$("source").on("error", function (e) {
         console.log("Error at audio tag level!"+e.target.src);
@@ -1496,7 +1500,38 @@ function set_onclick_listeners(){
 	$("#trainingTabs, #nav-tab-ul").on("shown.bs.tab", "a", function(){
 		var sectionId = this.closest("#trainingTabs") ? "training" : "rating_section";
 		scrollToActiveQuestion(sectionId);
+		updateProgressForSection(sectionId);
 	});
+	$("#training, #rating_section").on("change", 'input[type="radio"]', function(){
+		updateProgressForSection(this.closest("#training") ? "training" : "rating_section");
+	});
+}
+
+/**
+ * Refresh the current-question label and completion bar for one rating section.
+ *
+ * @param {string} sectionId - The training or rating section to update.
+ */
+function updateProgressForSection(sectionId){
+	var isTraining = sectionId === "training";
+	var prefix = isTraining ? "t" : "q";
+	var tabsId = isTraining ? "trainingTabs" : "nav-tab-ul";
+	var label = document.getElementById(prefix + "-progress-label");
+	var bar = document.getElementById(prefix + "-progress-bar");
+	if (!label || !bar) return;
+	var total = isTraining ? config.trainingUrls.length : config.questionUrls.length;
+	var activeIndex = Math.max(0, $("#" + tabsId + " li.active").index());
+	var completed = 0;
+	for (var i = 1; i <= total; i++){
+		var answered = document.querySelector('input[name="' + prefix + i + '"]:checked');
+		var finishedField = document.getElementById("audio_n_finish_" + prefix + "_" + i);
+		var listened = finishedField && Number(finishedField.value) > 0;
+		if (answered && listened) completed++;
+	}
+	label.textContent = (isTraining ? "Practice " : "Comparison ") + (activeIndex + 1) + " of " + total;
+	bar.style.width = (total ? 100 * completed / total : 0) + "%";
+	bar.setAttribute("aria-valuemax", total);
+	bar.setAttribute("aria-valuenow", completed);
 }
 
 /**
@@ -2759,6 +2794,13 @@ function appendCcrMetadata(prefix, number, item) {
 				   
 
  				<!-- will be generated -->
+				<div class="study-progress" id="training-progress">
+					<p id="t-progress-label" role="status" aria-live="polite"></p>
+					<div class="progress">
+						<div id="t-progress-bar" class="progress-bar" role="progressbar"
+							aria-labelledby="t-progress-label" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"></div>
+					</div>
+				</div>
 				<ul class="nav nav-tabs" role="tablist" id="trainingTabs">
 				</ul>
 
@@ -2819,6 +2861,13 @@ function appendCcrMetadata(prefix, number, item) {
 
 
  				<!-- will be generated -->
+				<div class="study-progress" id="rating-progress">
+					<p id="q-progress-label" role="status" aria-live="polite"></p>
+					<div class="progress">
+						<div id="q-progress-bar" class="progress-bar" role="progressbar"
+							aria-labelledby="q-progress-label" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"></div>
+					</div>
+				</div>
 				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
 				<!-- will be generated -->
 				<div class="tab-content" id="nav-tabContent-rating">	</div>

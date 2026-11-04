@@ -120,6 +120,21 @@ if (counter.textContent !== "7") throw new Error("final counter is " + counter.t
     subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=10)
 
 
+def test_ccr_progress_bars_report_current_question_and_completed_ratings():
+    """
+    Provide accessible progress indicators for both practice and main comparisons.
+
+    :return: None.
+    """
+    path = Path(__file__).resolve().parents[1] / "src" / "P808Template" / "CCR_template.html"
+    html = path.read_text(encoding="utf-8")
+    for prefix in ("t", "q"):
+        assert f'id="{prefix}-progress-label" role="status" aria-live="polite"' in html
+        assert f'id="{prefix}-progress-bar" class="progress-bar" role="progressbar"' in html
+        assert f'aria-labelledby="{prefix}-progress-label"' in html
+    assert 'updateProgressForSection(this.closest("#training") ? "training" : "rating_section")' in html
+
+
 @pytest.mark.parametrize(
     ("custom", "randomize_training", "expected_randomization"),
     [(False, None, "true"), (True, None, "true"), ("wording", None, "true"),
