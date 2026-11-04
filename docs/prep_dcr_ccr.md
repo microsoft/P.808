@@ -58,3 +58,8 @@ column named `training_clips` and URLs to corresponding reference clips in colum
     * `YOUR_PROJECT_NAME_ccr_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script
         
 Now, you are ready for running the test on [Prolific](running_test_prolific.md) or [Amazon Mechanical Turk](running_test_mturk.md).
+
+## CCR listening-device availability
+
+Eligibility passes when any selected device meets `required_playback_device` (`headset`,
+`loudspeaker` or `any`). Acoustic checks verify the active device and audibility.

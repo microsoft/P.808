@@ -2,6 +2,7 @@ import asyncio
 import configparser
 import importlib
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -11,6 +12,54 @@ from unittest.mock import AsyncMock, Mock
 import pandas as pd
 import pytest
 from jinja2 import Template
+
+
+@pytest.mark.parametrize(
+    ("template", "required_device", "selected_devices", "expected"),
+    [
+        (template, "headset", ["in-ear", "ib-ls"], True)
+        for template in [
+            "ACR_template.html", "CCR_template.html", "DCR_template.html", "P808_multi.html",
+            "P835_template.html", "P835_personalized_template3.html",
+        ]
+    ] + [
+        ("CCR_template.html", "headset", ["over-ear", "ex-ls"], True),
+        ("CCR_template.html", "headset", ["in-ear", "over-ear"], True),
+        ("CCR_template.html", "headset", ["ib-ls", "ex-ls"], False),
+        ("CCR_template.html", "headset", [], False),
+        ("CCR_template.html", "loudspeaker", ["in-ear", "ex-ls"], True),
+        ("CCR_template.html", "loudspeaker", ["over-ear"], False),
+        ("CCR_template.html", "any", ["in-ear", "ex-ls"], True),
+        ("CCR_template.html", "any", [], False),
+    ],
+)
+def test_templates_accept_any_eligible_reported_device(template, required_device, selected_devices, expected):
+    """
+    Execute the listening-device availability check without confusing ownership with active playback.
+
+    :param template: Template file containing the availability check.
+    :param required_device: Configured playback-device class.
+    :param selected_devices: Device types reported as available by the participant.
+    :param expected: Whether the available devices meet the configured requirement.
+    :return: None.
+    """
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required to execute template JavaScript.")
+    path = Path(__file__).resolve().parents[1] / "src" / "P808Template" / template
+    html = path.read_text(encoding="utf-8")
+    function = re.search(
+        r"function selfReportedDeviceAvailable\(requiredDevice\) \{.*?\n\s*\}(?=\n)", html, re.DOTALL,
+    ).group(0)
+    script = (
+        "const selected = " + json.dumps(selected_devices) + ";"
+        "const $ = selector => ({toArray: () => selected.map(value => ({value}))});"
+        + function
+        + "\nconsole.log(JSON.stringify(selfReportedDeviceAvailable(" + json.dumps(required_device) + ")));"
+    )
+    result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=10)
+    assert json.loads(result.stdout) is expected
+    assert "device_check = selfReportedDeviceAvailable(config.requiredPlaybackDevice);" in html
 
 
 def test_ccr_clip_highlights_follow_media_playback_events():
