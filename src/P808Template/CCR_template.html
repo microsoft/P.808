@@ -651,7 +651,7 @@ async function validateCMPSectionAfterMath(cmp_answers){
 		createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
 		unlockAfterSetup();
 		alert("Your setup looks good. You can continue with the task.");
-		var setupNext = document.getElementById("training");
+		var setupNext = document.getElementById("details_instruction") || document.getElementById("training");
 		if (setupNext) setupNext.scrollIntoView({ behavior: "smooth", block: "start" });
 		return;
 	}
@@ -843,10 +843,8 @@ function showNextQuestionInTrainingSection(){
 		id=id+2;
 		$('#trainingTabs li:nth-child('+id+') a').tab('show');
 	}else{
-		// last next is called
-		setTimeout(function (){
-			window.location.hash="navNextPre";
-		},  50);
+		var ratingSection = document.getElementById("rating_section");
+		if (ratingSection) ratingSection.scrollIntoView({ behavior: "smooth", block: "start" });
 	}
 }
 
@@ -1443,10 +1441,26 @@ function set_onclick_listeners(){
 	// device check runs an objective acoustic echo test (see startDeviceCheck)
 	document.getElementById("start_headset_check").onclick = function() { startDeviceCheck(); };
 	wireDeviceCheckOptions();
-	$('#prev-training').on('click', function(){ showPreviousQuestionInTrainingSection(); });
-	$('#next-training').on('click', function(){ showNextQuestionInTrainingSection(); });
-	$('#prev-rating').on('click', function(){ showPreviousQuestionInRatingSection(); });
-	$('#next-rating').on('click', function(){ showNextQuestionInRatingSection(); });
+	$('#prev-training').on('click', function(event){ event.preventDefault(); showPreviousQuestionInTrainingSection(); });
+	$('#next-training').on('click', function(event){ event.preventDefault(); showNextQuestionInTrainingSection(); });
+	$('#prev-rating').on('click', function(event){ event.preventDefault(); showPreviousQuestionInRatingSection(); });
+	$('#next-rating').on('click', function(event){ event.preventDefault(); showNextQuestionInRatingSection(); });
+	$("#trainingTabs, #nav-tab-ul").on("shown.bs.tab", "a", function(){
+		var sectionId = this.closest("#trainingTabs") ? "training" : "rating_section";
+		scrollToActiveQuestion(sectionId);
+	});
+}
+
+/**
+ * Keep the selected item visible without relying on the navigation link's hash target.
+ *
+ * @param {string} sectionId - The practice or rating section containing the selected item.
+ */
+function scrollToActiveQuestion(sectionId){
+	var prefix = sectionId == "training" ? "t" : "q";
+	var target = document.getElementById(prefix+"-progress-label");
+	if (!target) target = document.querySelector("#"+sectionId+" .tab-pane.active .baudio_table");
+	if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 </script>
