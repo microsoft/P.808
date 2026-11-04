@@ -1960,7 +1960,8 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
                 found_gold_question = True
                 continue
             # for cases where we have two gold clips
-            if f'{config["gold_question"]["url_found_in"]}_2' in session and session[f'{config["gold_question"]["url_found_in"]}_2'] == session[f"answer.{question}_url"]:
+            gold_url_field = config["gold_question"]["url_found_in"] if "gold_question" in config else ""
+            if gold_url_field and session.get(f"{gold_url_field}_2") == session[f"answer.{question}_url"]:
                 continue
 
             short_file_name = session[f"answer.{question}_url"].rsplit("/", 1)[-1]
@@ -1985,7 +1986,10 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
             # a "cannot rate it" case: on P.804 the rater may mark col/disc/reverb/sig as
             # not assessable (value 0, only offered when allow_cannot_rate is enabled). It
             # is not a 1-5 quality score, so drop it before computing the MOS.
-            if vote_value == 0:
+            if (
+                test_method == "p804" and question_name_suffix in ("_col", "_disc", "_reverb", "_sig")
+                and vote_value == 0
+            ):
                 file_cannot_rate_cases[file_name] = file_cannot_rate_cases.get(file_name, 0) + 1
                 continue
             try:
