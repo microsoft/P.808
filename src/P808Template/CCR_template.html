@@ -1032,6 +1032,103 @@ function doubleClipTimeUpdate(){
 	$("#baudio_l_c_"+id).text(ct.toString().toMMSS());
 }
 
+/**
+ * Keep the current clip highlight and elapsed-time display synchronized with actual playback.
+ *
+ * @param {DoubleClip} clip - The pair of audio elements being played.
+ */
+function configureDoubleClipPlaybackUiForClip(clip){
+	var counter = document.getElementById("baudio_l_c_" + clip.id);
+	var title = document.getElementById("title_" + clip.id);
+	var gapStartedAt = null;
+	var gapCompleted = false;
+	var secondClipStarted = false;
+	var animationFrame = null;
+
+	function clearHighlight(){
+		title.classList.remove("play_clip1", "play_clip2");
+	}
+
+	function updateCounter(){
+		var currentTime = clip.ae1.currentTime;
+		if (secondClipStarted){
+			currentTime = clip.ae1.duration + clip.pause_time_sec + clip.ae2.currentTime;
+		}else if (gapStartedAt !== null){
+			var gapElapsed = Math.min((performance.now() - gapStartedAt) / 1000, clip.pause_time_sec);
+			currentTime = clip.ae1.duration + gapElapsed;
+			if (gapElapsed >= clip.pause_time_sec){
+				gapStartedAt = null;
+				gapCompleted = true;
+			}
+		}else if (gapCompleted){
+			currentTime = clip.ae1.duration + clip.pause_time_sec;
+		}
+		if (Number.isFinite(currentTime)) counter.textContent = currentTime.toString().toMMSS();
+	}
+
+	function stopAnimation(){
+		if (animationFrame !== null){
+			cancelAnimationFrame(animationFrame);
+			animationFrame = null;
+		}
+	}
+
+	function updateWhilePlaying(){
+		animationFrame = null;
+		if (!clip.in_between && clip.ae1.paused && clip.ae2.paused && gapStartedAt !== null){
+			var gapElapsed = (performance.now() - gapStartedAt) / 1000;
+			gapCompleted = gapElapsed >= clip.pause_time_sec;
+			gapStartedAt = null;
+		}
+		updateCounter();
+		if (!clip.paused || clip.in_between || gapStartedAt !== null){
+			animationFrame = requestAnimationFrame(updateWhilePlaying);
+		}else{
+			clearHighlight();
+		}
+	}
+
+	function scheduleUpdate(){
+		if (animationFrame === null) animationFrame = requestAnimationFrame(updateWhilePlaying);
+	}
+
+	clip.ae1.addEventListener("playing", function(){
+		gapStartedAt = null;
+		gapCompleted = false;
+		secondClipStarted = false;
+		clearHighlight();
+		title.classList.add("play_clip1");
+		scheduleUpdate();
+	});
+	clip.ae2.addEventListener("playing", function(){
+		gapStartedAt = null;
+		gapCompleted = true;
+		secondClipStarted = true;
+		clearHighlight();
+		title.classList.add("play_clip2");
+		scheduleUpdate();
+	});
+	clip.ae1.addEventListener("ended", function(){
+		gapStartedAt = performance.now();
+		gapCompleted = false;
+		clearHighlight();
+		updateCounter();
+		scheduleUpdate();
+	});
+	clip.ae2.addEventListener("ended", function(){
+		secondClipStarted = true;
+		gapStartedAt = null;
+		gapCompleted = true;
+		clearHighlight();
+		updateCounter();
+		stopAnimation();
+	});
+	[clip.ae1, clip.ae2].forEach(function(media){
+		media.addEventListener("pause", scheduleUpdate);
+		media.addEventListener("waiting", clearHighlight);
+	});
+}
+
 /*
 	callback function, double clips. it schedule playing the second clip after 1 sec. when the first clup ends.
 */
@@ -1060,11 +1157,8 @@ function startSecondClip(){
 	this.ae2.play();
 	this.in_between = false;
 	this.time_out_id = null;
-	$("#title_"+this.id).removeClass("play_clip1");
-	$("#title_"+this.id).addClass("play_clip2");
-
-
 }
+
 /*
 	DoubleClip component, including two audio elements
 */
@@ -1132,21 +1226,15 @@ class DoubleClip {
 		let ae2_ct = this.ae2.currentTime;
 		if (ae1_ct < this.ae1.duration){
 			this.ae1.play();
-			$("#title_"+this.id).removeClass("play_clip2");
-			$("#title_"+this.id).addClass("play_clip1");
 			return;
 		}
 		if (ae1_ct == this.ae1.duration && ae2_ct < this.ae2.duration){
 			this.ae2.play();
-			$("#title_"+this.id).removeClass("play_clip1");
-			$("#title_"+this.id).addClass("play_clip2");
 			return;
 		}
 		//so start again
 		this.ae1.play();
 		this.ae2.currentTime= 0;
-		$("#title_"+this.id).removeClass("play_clip2");
-		$("#title_"+this.id).addClass("play_clip1");
   }
 }
 
@@ -1237,6 +1325,7 @@ $(function() {
 
 		audioElement1.addEventListener("ended",doubleClipIsended.bind(double_clip),false);
 		audioElement2.addEventListener("ended",doubleClipIsended.bind(double_clip),false);
+		configureDoubleClipPlaybackUiForClip(double_clip);
 
 	});
 
