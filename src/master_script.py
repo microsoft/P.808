@@ -141,6 +141,7 @@ def create_analyzer_cfg_general(cfg, cfg_section, template_path, out_path, gener
     # BW check
     config['bw_min'] = general_cfg['bw_min']
     config['bw_max'] = general_cfg['bw_max']
+    config['cmp_pass_threshold'] = general_cfg['cmp_pass_threshold']
 
     with open(template_path, 'r') as file:
         content = file.read()
@@ -185,6 +186,7 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     # BW check
     config['bw_min'] = general_cfg['bw_min']
     config['bw_max'] = general_cfg['bw_max']
+    config['cmp_pass_threshold'] = general_cfg['cmp_pass_threshold']
     
     with open(template_path, 'r') as file:
         content = file.read()
@@ -736,7 +738,14 @@ def _correct_pair_url(row):
     return row["pair_a"] if a > b else row["pair_b"]
 
 
-def prepare_basic_cfg(df):
+def prepare_basic_cfg(df, cmp_pass_threshold=2):
+    """
+    Create shared HIT app configuration from the general-assets dataframe.
+
+    :param df: General-assets dataframe containing comparison and hearing-test clips.
+    :param cmp_pass_threshold: Correct setup comparisons required to pass.
+    :return: Shared HIT app configuration dictionary.
+    """
     config = {}
     pair_cols = ["pair_a", "pair_b"] + (["pair_ans"] if "pair_ans" in df.columns else [])
     only_cfgs = df[pair_cols].copy()
@@ -775,7 +784,7 @@ def prepare_basic_cfg(df):
     # set environment test
     config["cmp_correct_answers"] = cmp_correct_hashes
     config["cmp_max_n_feedback"] = 4
-    config["cmp_pass_threshold"] = 2
+    config["cmp_pass_threshold"] = cmp_pass_threshold
     return config
 
 
@@ -1001,6 +1010,29 @@ def _get_screenout_code(hitapp, key):
     return '${' + key + '}'
 
 
+def _get_cmp_pass_threshold(hitapp):
+    """
+    Return the configured number of correct setup comparisons required to pass.
+
+    :param hitapp: Config section containing HIT app settings.
+    :return: Comparison pass threshold as an integer from 1 through 4.
+    """
+    raw_threshold = hitapp.get("cmp_pass_threshold", "2")
+    try:
+        threshold = int(str(raw_threshold).strip())
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            f"'cmp_pass_threshold' must be an integer from 1 through 4, got '{raw_threshold}'."
+        ) from error
+
+    if threshold not in range(1, 5):
+        raise ValueError(
+            f"'cmp_pass_threshold' must be from 1 through 4, got {threshold}."
+        )
+
+    return threshold
+
+
 def get_bonus_setting_warnings(hitapp, number_of_hits, default_allowed_hits=None):
     """
     Return warnings for inconsistent or unreachable bonus settings.
@@ -1134,7 +1166,10 @@ async def main(cfg, test_method, args):
         print(f"\nWARNING: {warning}\n")
 
     # create general config
-    general_cfg = prepare_basic_cfg(df)
+    general_cfg = prepare_basic_cfg(
+        df,
+        cmp_pass_threshold=_get_cmp_pass_threshold(cfg_hit_app),
+    )
     # add BW check config
     general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app)
     # optional study-level screen-out completion code (paid for the screening effort),

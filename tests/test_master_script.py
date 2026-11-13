@@ -299,6 +299,151 @@ def test_bonus_setting_warnings_use_optional_worker_limit_default(monkeypatch):
 
 
 @pytest.mark.parametrize(
+    ("configured_value", "expected_threshold"),
+    [
+        (None, 2),
+        ("3", 3),
+        (" 4 ", 4),
+    ],
+)
+def test_comparison_pass_threshold_configuration(
+    configured_value,
+    expected_threshold,
+    monkeypatch,
+):
+    """
+    Verify the configurable comparison threshold and its default.
+
+    :param configured_value: Optional raw threshold from the HIT app configuration.
+    :param expected_threshold: Parsed comparison threshold.
+    :param monkeypatch: Fixture for importing the repository source module.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master_script = importlib.import_module("master_script")
+    hitapp = {}
+    if configured_value is not None:
+        hitapp["cmp_pass_threshold"] = configured_value
+
+    assert master_script._get_cmp_pass_threshold(hitapp) == expected_threshold
+
+
+@pytest.mark.parametrize("configured_value", ["invalid", "0", "5"])
+def test_comparison_pass_threshold_rejects_invalid_values(
+    configured_value,
+    monkeypatch,
+):
+    """
+    Verify that unsupported comparison thresholds stop study generation.
+
+    :param configured_value: Invalid raw threshold from the HIT app configuration.
+    :param monkeypatch: Fixture for importing the repository source module.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master_script = importlib.import_module("master_script")
+
+    with pytest.raises(ValueError, match="cmp_pass_threshold"):
+        master_script._get_cmp_pass_threshold(
+            {"cmp_pass_threshold": configured_value}
+        )
+
+
+@pytest.mark.parametrize(
+    "template_name",
+    [
+        "acr_result_parser_template.cfg",
+        "p804_result_parser_template.cfg",
+        "pp835_result_parser_template.cfg",
+    ],
+)
+def test_general_analyzer_cfg_uses_environment_comparison_threshold(
+    tmp_path,
+    monkeypatch,
+    template_name,
+):
+    """
+    Verify that general analyzer templates use the HIT app's comparison threshold.
+
+    :param tmp_path: Temporary directory for the rendered analyzer configuration.
+    :param monkeypatch: Fixture for importing the repository source module.
+    :param template_name: Analyzer template rendered by the general generator.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master_script = importlib.import_module("master_script")
+    source_dir = Path(__file__).resolve().parents[1] / "src"
+    template_path = source_dir / "assets_master_script" / template_name
+    output_path = tmp_path / "result_parser.cfg"
+    cfg = {
+        "create_input": {
+            "number_of_clips_per_session": "10",
+            "number_of_trapping_per_session": "1",
+            "number_of_gold_clips_per_session": "1",
+        }
+    }
+    cfg_section = {
+        "quantity_hits_more_than": "10",
+        "quantity_bonus": "0.1",
+        "quality_top_percentage": "20",
+        "quality_bonus": "0.15",
+    }
+
+    master_script.create_analyzer_cfg_general(
+        cfg,
+        cfg_section,
+        template_path,
+        output_path,
+        {"bw_min": "NB-WB", "bw_max": "FB", "cmp_pass_threshold": 3},
+        20,
+    )
+
+    output = output_path.read_text(encoding="utf-8")
+    assert "correct_cmp_bigger_equal: 3" in output
+
+
+def test_comparison_analyzer_cfg_uses_environment_comparison_threshold(
+    tmp_path,
+    monkeypatch,
+):
+    """
+    Verify that DCR/CCR analyzer output uses the HIT app's comparison threshold.
+
+    :param tmp_path: Temporary directory for the rendered analyzer configuration.
+    :param monkeypatch: Fixture for importing the repository source module.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master_script = importlib.import_module("master_script")
+    source_dir = Path(__file__).resolve().parents[1] / "src"
+    template_path = source_dir / "assets_master_script" / "dcr_ccr_result_parser_template.cfg"
+    output_path = tmp_path / "result_parser.cfg"
+    cfg = {
+        "create_input": {
+            "number_of_clips_per_session": "10",
+            "number_of_trapping_per_session": "1",
+        },
+        "hit_app_html": {
+            "quantity_hits_more_than": "10",
+            "quantity_bonus": "0.1",
+            "quality_top_percentage": "20",
+            "quality_bonus": "0.15",
+        },
+    }
+
+    master_script.create_analyzer_cfg_dcr_ccr(
+        cfg,
+        template_path,
+        output_path,
+        {"bw_min": "NB-WB", "bw_max": "FB", "cmp_pass_threshold": 3},
+        20,
+    )
+
+    output = output_path.read_text(encoding="utf-8")
+    assert "correct_cmp_bigger_equal: 3" in output
+
+
+@pytest.mark.parametrize(
     "template_name",
     [
         "ACR_template.html",
