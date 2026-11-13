@@ -11,6 +11,7 @@ import os
 import asyncio
 import base64
 import hashlib
+import json
 import posixpath
 import random
 import re
@@ -167,10 +168,13 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     print("Start creating config file for result_parser")
     config = {}
 
-    config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + \
-                      int(cfg['create_input']['number_of_trapping_per_session'])
+    number_of_traps = int(cfg['create_input']['number_of_trapping_per_session'])
+    config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + number_of_traps
 
-    config['max_allowed_hits'] = cfg["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg else min(50, n_HITs)
+    config['max_allowed_hits'] = cfg["hit_app_html"].get("allowed_max_hit_in_project", str(min(50, n_HITs)))
+    config["aggregate_by_pair_id"] = _is_true(cfg["create_input"].get("aggregate_by_pair_id", "false"))
+    config["expected_votes_per_file"] = cfg["create_input"].get("expected_votes_per_file", "5")
+    config["correct_tps_bigger_equal"] = "1" if number_of_traps else "0"
 
     config['quantity_hits_more_than'] = cfg['hit_app_html']['quantity_hits_more_than']
     config['quantity_bonus'] = cfg['hit_app_html']['quantity_bonus']
@@ -226,6 +230,13 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     config['sum_quality'] = config['quality_bonus'] + float(cfg['hit_base_payment'])
 
     config = {**config, **general_cfg}
+    config["comparison_metadata"] = _is_true(cfg.get("comparison_metadata", "false"))
+    config["randomize_training_questions"] = str(
+        _is_true(cfg.get("randomize_training_questions", "true"))
+    ).lower()
+    if cfg.get("presentation_file"):
+        with open(cfg["presentation_file"], encoding="utf-8") as presentation:
+            config["presentation"] = json.load(presentation)
     # rating urls
     rating_urls = []
     n_clips = int(cfg_g['number_of_clips_per_session'])
@@ -233,10 +244,16 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     # 'dummy':'dummy' is added because of current bug in AMT for replacing variable names. See issue #6
     for i in range(0, n_clips):
         rating_urls.append({"ref": f"${{Q{i}_R}}", "processed": f"${{Q{i}_P}}", 'dummy': 'dummy'})
+        if config["comparison_metadata"]:
+            rating_urls[-1].update(
+                pair_id=f"${{Q{i}_ID}}", role=f"${{Q{i}_ROLE}}", order=f"${{Q{i}_ORDER}}",
+                practice_exposure=f"${{Q{i}_EXPOSURE}}",
+            )
 
     if n_traps > 1:
         print("more than 1 trapping clips question is not supported. Proceed with 1 trap")
-    rating_urls.append({"ref": "${TP}", "processed": "${TP}", 'dummy': 'dummy'})
+    if n_traps > 0:
+        rating_urls.append({"ref": "${TP}", "processed": "${TP}", 'dummy': 'dummy'})
     if 'number_of_gold_clips_per_session' in cfg_g:
         print("Gold clips are not supported for CCR and DCR method. Proceed without them")
     config['rating_urls'] = rating_urls
@@ -248,11 +265,17 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     for _, row in df_train.iterrows():
         if train_ref is None:
             train_ref = row['training_references']
-        train_urls.append({"ref": f"{row['training_references']}", "processed": f"{row['training_clips']}"})
+        item = {"ref": f"{row['training_references']}", "processed": f"{row['training_clips']}"}
+        for column in ("order", "practice_example", "pair_id"):
+            if column in df_train and pd.notna(row[column]):
+                item[column] = str(row[column])
+        train_urls.append(item)
     # add a trapping clips to the training section
-    train_urls.append({"ref": f"{train_ref}", "processed": f"{train_ref}"})
+    append_training_trap = _is_true(cfg.get("append_training_trap", "true"))
+    if append_training_trap:
+        train_urls.append({"ref": f"{train_ref}", "processed": f"{train_ref}"})
     config['training_urls'] = train_urls
-    config['training_trap_urls'] = train_ref
+    config['training_trap_urls'] = train_ref if append_training_trap else ""
 
     with open(template_path, 'r') as file:
         content = file.read()
@@ -1127,8 +1150,18 @@ async def main(cfg, test_method, args):
             if (',' in cfg["create_input"]["condition_keys"]) & ("block_keys" not in cfg["create_input"]):
                 raise SystemExit("Error: In 'balanced_block' strategy, 'block_keys' should be specified in "
                                  "configuration when 'condition_keys' contains more than one key.")
+        elif clip_packing_strategy == "prepacked":
+            if test_method not in ("ccr", "dcr") or not cfg["create_input"].get("prepacked_sessions"):
+                raise SystemExit("Prepacked CCR/DCR packing requires a prepacked_sessions CSV path.")
         elif not(clip_packing_strategy == "random"):
             raise SystemExit("Error: Unexpected value for 'clip_packing_strategy' in the configuration file")
+    if test_method == "ccr" and _is_true(cfg_hit_app.get("comparison_metadata", "false")):
+        n_clips = int(cfg["create_input"]["number_of_clips_per_session"])
+        required = {f"Q{i}_{field}" for i in range(n_clips) for field in ("ID", "ROLE", "ORDER", "EXPOSURE")}
+        if clip_packing_strategy != "prepacked" or not required.issubset(
+                pd.read_csv(cfg["create_input"]["prepacked_sessions"], nrows=0).columns):
+            raise SystemExit("CCR comparison_metadata requires prepacked sessions with Qn_ID, Qn_ROLE, Qn_ORDER and "
+                             "Qn_EXPOSURE columns.")
 
     # prepare format
     print("Starting to prepare the mturk clips")

@@ -39,6 +39,8 @@ body{font-family:Tahoma,"Times New Roman", Times, serif;}
 .baudio .play_clip2 .clip2 {font-weight: bold; color: #000000; font-size: 110%; background-color: #ff9999;}
 .baudio .play_clip1 .clip2 {color: #838383; font-weight: normal; }
 .baudio .play_clip2 .clip1 {color: #838383; font-weight: normal; }
+.study-progress {margin: 15px 0;}
+.study-progress .progress {margin-bottom: 0;}
 .baudio . clip1 {padding: 2px 5px 2px 5px;}
 .baudio .title {font-size: 72%; color: #838383;}
 
@@ -55,8 +57,52 @@ section {
 }
 fieldset { padding: 10px; background:#fbfbfb; border-radius:5px; margin-bottom:5px; }
 
+.mts_group {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 8px;
+}
+.language-choice { position: relative; margin: 0; cursor: pointer; }
+.language-choice input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.language-choice span {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 48px;
+	height: 100%;
+	padding: 8px 12px;
+	border: 2px solid #767676;
+	border-radius: 6px;
+	background: white;
+	font-weight: normal;
+	text-align: center;
+}
+.language-choice input:checked + span {
+	background: #0b5cad; border-color: #0b5cad; color: white; font-weight: bold;
+}
+.language-choice input:focus-visible + span { outline: 3px solid #222; outline-offset: 3px; }
+.language-choice input:disabled + span { opacity: 0.5; cursor: default; }
+
+#dc_beep_answer .radio label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 0;
+}
+#dc_beep_answer input[type="radio"] {
+    position: static;
+    margin: 0;
+    flex-shrink: 0;
+}
+
 	.disabled2_section{pointer-events: none; opacity: 0.4;}
 </style>
+
+{% if cfg.presentation %}
+<title>{{ cfg.presentation.title | e }}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>{{ cfg.presentation.style }}</style>
+{% endif %}
 
 <script type="text/javascript" id="js_part2" nonce="csp_nonce_token">
 
@@ -96,7 +142,7 @@ var config ={
     knownQuestionUrl:"",
     knownQuestionAns: "0",
 
-    randomizeTrainingQuestions:"true",
+    randomizeTrainingQuestions:"{{cfg.randomize_training_questions}}",
     randomizeRatingQuestions:"true",
     allowedMaxHITsInProject:{{cfg.allowed_max_hit_in_project}},
 	allowedMaxContinuesSessionDurationInMinutes:45,
@@ -195,9 +241,9 @@ $(function() {
 		howManyHITsAnswered =0;
 		if (hit_num != null ){
 			howManyHITsAnswered= Number(hit_num);
-			if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
-				disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
-			}
+		}
+		if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
+			disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
 		}
 		if ((qual_passed!==null) && (qual_passed=="false")){
 			disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
@@ -328,7 +374,17 @@ function initializeQualification(){
 	randomizeHearingtestItems();
     makeCheckboxBeRequired();
     forceNoSpaceInInput();
+    $("input[name='2_birth_year']").on("input", sanitizeBirthYear);
     $("#qualification :input").on('change', isQualificationDone);
+}
+
+/**
+ * Keep typed and pasted birth years to four decimal digits.
+ *
+ * @returns {void}
+ */
+function sanitizeBirthYear(){
+	this.value = this.value.replace(/[^0-9]/g, "").slice(0, 4);
 }
 /*
 	check if the qualification all answered
@@ -361,13 +417,7 @@ function validateQualificationAnswer(){
 		}).get();
 		m_tongue_check = mother_tongues.some(function (v) { return config.qualification.mother_tongue.includes(v); });
 
-			// check listening-device self-report against the required playback device
-		// (headset -> in-ear/over-ear, loudspeaker -> ex-ls/ib-ls). When the study accepts
-		// "any" device, any single valid selection is fine. The objective device check
-		// later verifies the actual active device.
-		device_check = (config.requiredPlaybackDevice === "any")
-			? (selfReportedDeviceClass() !== null)
-			: (selfReportedDeviceClass() === config.requiredPlaybackDevice);
+		device_check = selfReportedDeviceAvailable(config.requiredPlaybackDevice);
 	hearing_self_report_check=$("input[name='8_hearing']:checked").val() == "normal"
 	count_correct_ht=0;
 	if (checkQualNumCorrect($("input[name='num1']").val().trim(),config.qualification.num1))
@@ -651,7 +701,7 @@ async function validateCMPSectionAfterMath(cmp_answers){
 		createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
 		unlockAfterSetup();
 		alert("Your setup looks good. You can continue with the task.");
-		var setupNext = document.getElementById("training");
+		var setupNext = document.getElementById("details_instruction") || document.getElementById("training");
 		if (setupNext) setupNext.scrollIntoView({ behavior: "smooth", block: "start" });
 		return;
 	}
@@ -843,10 +893,8 @@ function showNextQuestionInTrainingSection(){
 		id=id+2;
 		$('#trainingTabs li:nth-child('+id+') a').tab('show');
 	}else{
-		// last next is called
-		setTimeout(function (){
-			window.location.hash="navNextPre";
-		},  50);
+		var ratingSection = document.getElementById("rating_section");
+		if (ratingSection) ratingSection.scrollIntoView({ behavior: "smooth", block: "start" });
 	}
 }
 
@@ -1032,6 +1080,103 @@ function doubleClipTimeUpdate(){
 	$("#baudio_l_c_"+id).text(ct.toString().toMMSS());
 }
 
+/**
+ * Keep the current clip highlight and elapsed-time display synchronized with actual playback.
+ *
+ * @param {DoubleClip} clip - The pair of audio elements being played.
+ */
+function configureDoubleClipPlaybackUiForClip(clip){
+	var counter = document.getElementById("baudio_l_c_" + clip.id);
+	var title = document.getElementById("title_" + clip.id);
+	var gapStartedAt = null;
+	var gapCompleted = false;
+	var secondClipStarted = false;
+	var animationFrame = null;
+
+	function clearHighlight(){
+		title.classList.remove("play_clip1", "play_clip2");
+	}
+
+	function updateCounter(){
+		var currentTime = clip.ae1.currentTime;
+		if (secondClipStarted){
+			currentTime = clip.ae1.duration + clip.pause_time_sec + clip.ae2.currentTime;
+		}else if (gapStartedAt !== null){
+			var gapElapsed = Math.min((performance.now() - gapStartedAt) / 1000, clip.pause_time_sec);
+			currentTime = clip.ae1.duration + gapElapsed;
+			if (gapElapsed >= clip.pause_time_sec){
+				gapStartedAt = null;
+				gapCompleted = true;
+			}
+		}else if (gapCompleted){
+			currentTime = clip.ae1.duration + clip.pause_time_sec;
+		}
+		if (Number.isFinite(currentTime)) counter.textContent = currentTime.toString().toMMSS();
+	}
+
+	function stopAnimation(){
+		if (animationFrame !== null){
+			cancelAnimationFrame(animationFrame);
+			animationFrame = null;
+		}
+	}
+
+	function updateWhilePlaying(){
+		animationFrame = null;
+		if (!clip.in_between && clip.ae1.paused && clip.ae2.paused && gapStartedAt !== null){
+			var gapElapsed = (performance.now() - gapStartedAt) / 1000;
+			gapCompleted = gapElapsed >= clip.pause_time_sec;
+			gapStartedAt = null;
+		}
+		updateCounter();
+		if (!clip.paused || clip.in_between || gapStartedAt !== null){
+			animationFrame = requestAnimationFrame(updateWhilePlaying);
+		}else{
+			clearHighlight();
+		}
+	}
+
+	function scheduleUpdate(){
+		if (animationFrame === null) animationFrame = requestAnimationFrame(updateWhilePlaying);
+	}
+
+	clip.ae1.addEventListener("playing", function(){
+		gapStartedAt = null;
+		gapCompleted = false;
+		secondClipStarted = false;
+		clearHighlight();
+		title.classList.add("play_clip1");
+		scheduleUpdate();
+	});
+	clip.ae2.addEventListener("playing", function(){
+		gapStartedAt = null;
+		gapCompleted = true;
+		secondClipStarted = true;
+		clearHighlight();
+		title.classList.add("play_clip2");
+		scheduleUpdate();
+	});
+	clip.ae1.addEventListener("ended", function(){
+		gapStartedAt = performance.now();
+		gapCompleted = false;
+		clearHighlight();
+		updateCounter();
+		scheduleUpdate();
+	});
+	clip.ae2.addEventListener("ended", function(){
+		secondClipStarted = true;
+		gapStartedAt = null;
+		gapCompleted = true;
+		clearHighlight();
+		updateCounter();
+		stopAnimation();
+	});
+	[clip.ae1, clip.ae2].forEach(function(media){
+		media.addEventListener("pause", scheduleUpdate);
+		media.addEventListener("waiting", clearHighlight);
+	});
+}
+
 /*
 	callback function, double clips. it schedule playing the second clip after 1 sec. when the first clup ends.
 */
@@ -1060,11 +1205,8 @@ function startSecondClip(){
 	this.ae2.play();
 	this.in_between = false;
 	this.time_out_id = null;
-	$("#title_"+this.id).removeClass("play_clip1");
-	$("#title_"+this.id).addClass("play_clip2");
-
-
 }
+
 /*
 	DoubleClip component, including two audio elements
 */
@@ -1132,21 +1274,15 @@ class DoubleClip {
 		let ae2_ct = this.ae2.currentTime;
 		if (ae1_ct < this.ae1.duration){
 			this.ae1.play();
-			$("#title_"+this.id).removeClass("play_clip2");
-			$("#title_"+this.id).addClass("play_clip1");
 			return;
 		}
 		if (ae1_ct == this.ae1.duration && ae2_ct < this.ae2.duration){
 			this.ae2.play();
-			$("#title_"+this.id).removeClass("play_clip1");
-			$("#title_"+this.id).addClass("play_clip2");
 			return;
 		}
 		//so start again
 		this.ae1.play();
 		this.ae2.currentTime= 0;
-		$("#title_"+this.id).removeClass("play_clip2");
-		$("#title_"+this.id).addClass("play_clip1");
   }
 }
 
@@ -1237,8 +1373,11 @@ $(function() {
 
 		audioElement1.addEventListener("ended",doubleClipIsended.bind(double_clip),false);
 		audioElement2.addEventListener("ended",doubleClipIsended.bind(double_clip),false);
+		configureDoubleClipPlaybackUiForClip(double_clip);
 
 	});
+	updateProgressForSection("training");
+	updateProgressForSection("rating_section");
 
 	$("source").on("error", function (e) {
         console.log("Error at audio tag level!"+e.target.src);
@@ -1354,10 +1493,57 @@ function set_onclick_listeners(){
 	// device check runs an objective acoustic echo test (see startDeviceCheck)
 	document.getElementById("start_headset_check").onclick = function() { startDeviceCheck(); };
 	wireDeviceCheckOptions();
-	$('#prev-training').on('click', function(){ showPreviousQuestionInTrainingSection(); });
-	$('#next-training').on('click', function(){ showNextQuestionInTrainingSection(); });
-	$('#prev-rating').on('click', function(){ showPreviousQuestionInRatingSection(); });
-	$('#next-rating').on('click', function(){ showNextQuestionInRatingSection(); });
+	$('#prev-training').on('click', function(event){ event.preventDefault(); showPreviousQuestionInTrainingSection(); });
+	$('#next-training').on('click', function(event){ event.preventDefault(); showNextQuestionInTrainingSection(); });
+	$('#prev-rating').on('click', function(event){ event.preventDefault(); showPreviousQuestionInRatingSection(); });
+	$('#next-rating').on('click', function(event){ event.preventDefault(); showNextQuestionInRatingSection(); });
+	$("#trainingTabs, #nav-tab-ul").on("shown.bs.tab", "a", function(){
+		var sectionId = this.closest("#trainingTabs") ? "training" : "rating_section";
+		scrollToActiveQuestion(sectionId);
+		updateProgressForSection(sectionId);
+	});
+	$("#training, #rating_section").on("change", 'input[type="radio"]', function(){
+		updateProgressForSection(this.closest("#training") ? "training" : "rating_section");
+	});
+}
+
+/**
+ * Refresh the current-question label and completion bar for one rating section.
+ *
+ * @param {string} sectionId - The training or rating section to update.
+ */
+function updateProgressForSection(sectionId){
+	var isTraining = sectionId === "training";
+	var prefix = isTraining ? "t" : "q";
+	var tabsId = isTraining ? "trainingTabs" : "nav-tab-ul";
+	var label = document.getElementById(prefix + "-progress-label");
+	var bar = document.getElementById(prefix + "-progress-bar");
+	if (!label || !bar) return;
+	var total = isTraining ? config.trainingUrls.length : config.questionUrls.length;
+	var activeIndex = Math.max(0, $("#" + tabsId + " li.active").index());
+	var completed = 0;
+	for (var i = 1; i <= total; i++){
+		var answered = document.querySelector('input[name="' + prefix + i + '"]:checked');
+		var finishedField = document.getElementById("audio_n_finish_" + prefix + "_" + i);
+		var listened = finishedField && Number(finishedField.value) > 0;
+		if (answered && listened) completed++;
+	}
+	label.textContent = (isTraining ? "Practice " : "Comparison ") + (activeIndex + 1) + " of " + total;
+	bar.style.width = (total ? 100 * completed / total : 0) + "%";
+	bar.setAttribute("aria-valuemax", total);
+	bar.setAttribute("aria-valuenow", completed);
+}
+
+/**
+ * Keep the selected item visible without relying on the navigation link's hash target.
+ *
+ * @param {string} sectionId - The practice or rating section containing the selected item.
+ */
+function scrollToActiveQuestion(sectionId){
+	var prefix = sectionId == "training" ? "t" : "q";
+	var target = document.getElementById(prefix+"-progress-label");
+	if (!target) target = document.querySelector("#"+sectionId+" .tab-pane.active .baudio_table");
+	if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 </script>
@@ -1375,22 +1561,21 @@ function set_onclick_listeners(){
 		dB) and the inferred device are stored in the hidden fields for offline checking.
 	*/
 
-	/*
-		Return the self-reported device class from the 4_ld checkboxes:
-		"headset", "loudspeaker", or null when it is ambiguous/not answered.
-	*/
-	function selfReportedDeviceClass() {
-		var headsetVals = ["in-ear", "over-ear"];
-		var speakerVals = ["ex-ls", "ib-ls"];
-		var isHeadset = false, isSpeaker = false;
-		$("input[name='4_ld']:checked").each(function () {
-			var v = $(this).val();
-			if (headsetVals.indexOf(v) >= 0) isHeadset = true;
-			if (speakerVals.indexOf(v) >= 0) isSpeaker = true;
+	/**
+	 * Check whether any reported device is eligible, without rejecting mixed device ownership.
+	 *
+	 * @param {string} requiredDevice Required class: "headset", "loudspeaker", or "any".
+	 * @returns {boolean} Whether at least one reported device meets the requirement.
+	 */
+	function selfReportedDeviceAvailable(requiredDevice) {
+		var deviceValues = {
+			headset: ["in-ear", "over-ear"],
+			loudspeaker: ["ex-ls", "ib-ls"],
+			any: ["in-ear", "over-ear", "ex-ls", "ib-ls"]
+		}[requiredDevice] || [];
+		return $("input[name='4_ld']:checked").toArray().some(function (input) {
+			return deviceValues.includes(input.value);
 		});
-		if (isHeadset && !isSpeaker) return "headset";
-		if (isSpeaker && !isHeadset) return "loudspeaker";
-		return null;
 	}
 
 	function sleepMs(ms) {
@@ -1936,7 +2121,9 @@ function generate_training_section(){
 	var i;
 	var urlA,urlB,signA, signB, order;
 	for (i = 0; i < urls.length; i++) {
-		let r = Math.random();
+		if ("order" in urls[i] && !["ab", "ba"].includes(urls[i].order))
+			throw new Error("Invalid prescribed comparison order");
+		let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
 		if (r>0.5){
 			urlA = urls[i].ref;
 			urlB = urls[i].processed;
@@ -1958,7 +2145,8 @@ function generate_training_section(){
 			$('#trainingTabs').append(ccr_nav_tab.f(i+1,'',''));
 			$('#nav-tabContent').append(ccr_tab.f(i+1, urlA, urlB,'', signA, signB));
 		}
-		$('#av-tabContent').append(input_template.f(i+1, urls[i].processed, order));
+		$('#nav-tabContent').append(input_template.f(i+1, urls[i].processed, order));
+		appendCcrMetadata("T", i + 1, urls[i]);
 	}
 
 	trainingStimulusPlayed = new Array(urls.length).fill(0);
@@ -1981,7 +2169,9 @@ function generate_rating_section(){
 	var i;
 	var urlA,urlB,signA, signB, order;
 	for (i = 0; i < urls.length; i++) {
-		let r = Math.random();
+		if ("order" in urls[i] && !["ab", "ba"].includes(urls[i].order))
+			throw new Error("Invalid prescribed comparison order");
+		let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
 		if (r>0.5){
 			urlA = urls[i].ref;
 			urlB = urls[i].processed;
@@ -2004,6 +2194,22 @@ function generate_rating_section(){
 			$('#nav-tabContent-rating').append(ccr_tab.f(i+1,  urlA, urlB,'', signA, signB));
 		}
 		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i].processed, order));
+		appendCcrMetadata("Q", i + 1, urls[i]);
+	}
+}
+
+/**
+ * Record canonical identities independently of shuffled question position.
+ * @param {string} prefix Training (T) or rating (Q).
+ * @param {number} number One-based realized question position.
+ * @param {Object} item Canonical reference/processed comparison and optional metadata.
+ */
+function appendCcrMetadata(prefix, number, item) {
+	if (!item.pair_id) return;
+	for (const key of ["pair_id", "role", "reference", "practice_exposure"]) {
+		const value = key === "reference" ? item.ref : (item[key] || "");
+		$("<input>", {type: "hidden", name: prefix + number + "_" + key, value: value})
+			.appendTo(prefix === "T" ? "#nav-tabContent" : "#nav-tabContent-rating");
 	}
 }
 </script>
@@ -2017,7 +2223,16 @@ function generate_rating_section(){
 	</div>
 </section>
 
+{% if cfg.presentation %}
+<script nonce="csp_nonce_token">
+{{ cfg.presentation.script }}
+</script>
+{% endif %}
+
 <!-- Instructions -->
+{% if cfg.presentation %}
+{{ cfg.presentation.instructions }}
+{% else %}
 <section class="container" id="Survey">
 	<div class="panel panel-primary">
 		<div class="panel-heading">
@@ -2071,6 +2286,7 @@ function generate_rating_section(){
 
 	</div>
 </section>
+{% endif %}
 
 
 <!-- Qualification -->
@@ -2099,22 +2315,27 @@ function generate_rating_section(){
 		</fieldset>
 		<fieldset class="qualificationFieldset"><label>2.&nbsp;In what year were you born? </label>
 				<div class="form-group">
-				  <input type="text" class="form-control" name="2_birth_year" required="">
+				  <input type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4"
+					autocomplete="bday-year" class="form-control" name="2_birth_year" required="">
 				</div>
 		</fieldset>
 
-		<fieldset class="qualificationFieldset"><label>3.&nbsp;What is your mother tongue (native language)? Select all that apply.</label>
-		<div class="mts_group row" style="margin-left:5px;">
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="english" required>English</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="mandarin" required>Mandarin Chinese</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="hindi" required>Hindi</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="spanish" required>Spanish</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="arabic" required>Arabic</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="french" required>French</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="bengali" required>Bengali</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="portuguese" required>Portuguese</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="russian" required>Russian</label></div></div>
-			<div class="col-xs-6 col-sm-4 col-md-3"><div class="checkbox"><label><input type="checkbox" name="3_mother_tongue" value="urdu" required>Urdu</label></div></div>
+		<fieldset class="qualificationFieldset">
+		<label id="mother-tongue-label">3.&nbsp;What is your mother tongue (native language)?</label>
+		<p id="mother-tongue-help">Select all that apply. Click a language to select or deselect it.</p>
+		<div class="mts_group" role="group" aria-labelledby="mother-tongue-label"
+			aria-describedby="mother-tongue-help">
+			{% for value, label in [
+				("english", "English"), ("mandarin", "Mandarin Chinese"), ("hindi", "Hindi"),
+				("spanish", "Spanish"), ("arabic", "Arabic"), ("french", "French"),
+				("bengali", "Bengali"), ("portuguese", "Portuguese"), ("russian", "Russian"),
+				("urdu", "Urdu"), ("other", "Other")
+			] %}
+			<label class="language-choice">
+				<input type="checkbox" name="3_mother_tongue" value="{{ value }}" required>
+				<span>{{ label }}</span>
+			</label>
+			{% endfor %}
 		</div>
 	</fieldset>
 
@@ -2127,7 +2348,7 @@ function generate_rating_section(){
 					<tr>
 						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/inear.png" alt="in-ear headphones" width="100px"> </td>
 						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/overear.png" alt="Over-the-ear headphones" width="100px"> </td>
-						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/loudspeaker.png" alt="loudspeaker" width="100px"> </td>
+						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/louadspeaker.png" alt="loudspeaker" width="100px"> </td>
 						<td style="width:25%"> <img src="https://audiosamplesp808.blob.core.windows.net/p808-assets/img/inbuild.png" alt="built-in speakers" width="100px"> </td>
 					</tr>
 					<tr>
@@ -2152,6 +2373,7 @@ function generate_rating_section(){
 					<option value="3d">In the last 3 days</option>
 					<option value="7d">In the last week</option>
 					<option value="30d">In the last month</option>
+					<option value="more_than_30d">More than a month ago</option>
 					<option value="nn">Never participated</option>
 				  </select>
 				</div>
@@ -2166,6 +2388,7 @@ function generate_rating_section(){
 					<option value="3d">In the last 3 days</option>
 					<option value="7d">In the last week</option>
 					<option value="30d">In the last month</option>
+					<option value="more_than_30d">More than a month ago</option>
 					<option value="nn">Never participated</option>
 				  </select>
 				</div>
@@ -2381,8 +2604,8 @@ function generate_rating_section(){
 				<div id="device_check_audibility" class="alert alert-info" style="display:none; margin-top:15px;">
 					<p>You just heard <b>one longer beep</b> followed by <b>a few shorter beeps</b>.
 						<b>How many of the shorter beeps did you hear?</b> Do not count the first, longer beep.
-						If you are not sure, or heard nothing, make sure your device is not muted and the volume
-						is comfortable, then run the check again with <b>Start</b> above.</p>
+						If you heard nothing or are unsure, select <b>I heard no sound</b> and click <b>Submit</b>.
+						You can then check your volume and run the check again with <b>Start</b> (one retry).</p>
 					<div id="dc_beep_answer" style="margin-top:10px;">
 						<div class="radio"><label><input type="radio" name="dc_beep_count" value="0">
 								I heard no sound</label></div>
@@ -2551,6 +2774,9 @@ function generate_rating_section(){
 
 
 <!-- Training section, appears once a day-->
+{% if cfg.presentation and cfg.presentation.training %}
+{{ cfg.presentation.training }}
+{% else %}
 <section class="container disabled2_section" id="training">
 		<div class="panel panel-primary">
 			<div class="panel-heading">
@@ -2568,6 +2794,13 @@ function generate_rating_section(){
 				   
 
  				<!-- will be generated -->
+				<div class="study-progress" id="training-progress">
+					<p id="t-progress-label" role="status" aria-live="polite"></p>
+					<div class="progress">
+						<div id="t-progress-bar" class="progress-bar" role="progressbar"
+							aria-labelledby="t-progress-label" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"></div>
+					</div>
+				</div>
 				<ul class="nav nav-tabs" role="tablist" id="trainingTabs">
 				</ul>
 
@@ -2588,6 +2821,7 @@ function generate_rating_section(){
 		</div>
 
 </section>
+{% endif %}
 <!-- Training section ends-->
 
 <input id="tp_check" name="tp_check" type="hidden" value="-1" />
@@ -2608,6 +2842,9 @@ function generate_rating_section(){
 <input id="ttfb" name="ttfb" type="hidden" value="" />
 
 <!--- Rating task -->
+{% if cfg.presentation and cfg.presentation.rating %}
+{{ cfg.presentation.rating }}
+{% else %}
 <section class="container disabled2_section" id="rating_section">
 		<div class="panel panel-primary">
 			<div class="panel-heading">
@@ -2624,6 +2861,13 @@ function generate_rating_section(){
 
 
  				<!-- will be generated -->
+				<div class="study-progress" id="rating-progress">
+					<p id="q-progress-label" role="status" aria-live="polite"></p>
+					<div class="progress">
+						<div id="q-progress-bar" class="progress-bar" role="progressbar"
+							aria-labelledby="q-progress-label" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"></div>
+					</div>
+				</div>
 				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
 				<!-- will be generated -->
 				<div class="tab-content" id="nav-tabContent-rating">	</div>
@@ -2638,10 +2882,15 @@ function generate_rating_section(){
 			</div>
 		</div>
 </section>
+{% endif %}
 
 
 <section class="container" id="thanks">
+{% if cfg.presentation %}
+	<p>Thank you for participating. Please submit your responses.</p>
+{% else %}
 	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
+{% endif %}
 </section>
 
 <section class="container" id="max_allowed_HITs_reached" hidden>

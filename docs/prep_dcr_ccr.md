@@ -58,3 +58,46 @@ column named `training_clips` and URLs to corresponding reference clips in colum
     * `YOUR_PROJECT_NAME_ccr_result_parser.cfg`: Customized configuration file to be used by `result_parser.py` script
         
 Now, you are ready for running the test on [Prolific](running_test_prolific.md) or [Amazon Mechanical Turk](running_test_mturk.md).
+
+## CCR listening-device availability
+
+Eligibility passes when any selected device meets `required_playback_device` (`headset`,
+`loudspeaker` or `any`). Acoustic checks verify the active device and audibility.
+
+## Optional: vary session bundles
+
+Use `src/pack_sessions.py` to create distinct repeated bundles with exact coverage and balanced
+A/B order. Optional group and stratum columns constrain scene repeats and bundle composition:
+
+```powershell
+python src\pack_sessions.py --input comparisons.csv --output assignments.csv --audit assignment_audit.json `
+    --id-column comparison_id --group-column scene --stratum-column stratum `
+    --quota representative=10 --quota supplementary=10 --session-size 20 --repeats 10 --seed 42
+```
+
+`--repeats` must be positive and even; session counts and quotas must fit exactly. The output is
+an assignment plan (`bundle_id`, `position`, `item_id`, `order`), not a publish-batch CSV. Preserve
+`order` when preparing the HIT App, add training and controls separately, and route participants
+to avoid repeated comparisons.
+
+### Prepacked assignments
+
+For CCR/DCR, set `clip_packing_strategy: prepacked` and `prepacked_sessions` in `[create_input]`.
+Each row needs `Q0_R`/`Q0_P` through the configured comparison count. Other columns are preserved;
+supply the usual source-clip and training CSVs.
+
+For CCR, `comparison_metadata: true` in `[hit_app_html]` requires prepacked `Qn_ID`, `Qn_ROLE`,
+`Qn_ORDER` and `Qn_EXPOSURE` columns, which follow comparisons when screen positions are randomized.
+Training rows may specify `pair_id`, `order` and `practice_example`; `append_training_trap: false`
+omits the appended training comparison.
+
+An optional `presentation_file` loads trusted JSON fields `title`, `style`, `script`,
+`instructions`, `training` and `rating`. Custom replacements must retain stock IDs, containers,
+prerequisites and native qualification/device/setup/form behavior. Omitting `training` or `rating`
+keeps the native panels; training order is randomized unless `randomize_training_questions: false`.
+
+Set `aggregate_by_pair_id: true` in `[create_input]` to aggregate CCR by comparison ID; optionally
+set `expected_votes_per_file`. This requires roles `main`, `identical` or `contrast`, exports raw
+trials/control candidates before filtering, and excludes controls from comparison means. Contrast
+controls use degraded A and clean B. In this mode, `file_url` contains the comparison ID. CCR scores
+already express B-minus-A; the audit separately reconstructs second-minus-first.

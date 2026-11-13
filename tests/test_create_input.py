@@ -163,6 +163,68 @@ def test_create_input_for_mturk_dispatches_comparison_method(monkeypatch):
     create_comparison.assert_called_once_with(cfg, data, output_path)
 
 
+def test_prepacked_ccr_preserves_assignments_and_bandwidth_sets(tmp_path):
+    """
+    Retain preassigned identities/orders and synchronize every bandwidth-set field.
+
+    :param tmp_path: Temporary CSV directory.
+    :return: None.
+    """
+    data, _, _ = _create_comparison_input_data()
+    for index in range(1, 6):
+        data[f"comb_bw{index}"] = f"bandwidth-{index}.wav"
+        data[f"ans_comb_bw{index}"] = "sq"
+        data[f"comb_bw_hash{index}"] = f"hash-{index}"
+    prepacked = pd.DataFrame({
+        "bundle_id": ["bundle-1", "bundle-2"],
+        "Q0_R": ["a.wav", "c.wav"], "Q0_P": ["b.wav", "d.wav"],
+        "Q0_ID": ["ab", "cd"], "Q0_ORDER": ["ba", "ab"],
+    })
+    source = tmp_path / "prepacked.csv"
+    prepacked.to_csv(source, index=False)
+    output = tmp_path / "output.csv"
+    count = create_input.create_input_for_dcrccr({
+        "clip_packing_strategy": "prepacked", "prepacked_sessions": str(source),
+        "number_of_clips_per_session": "1", "number_of_trapping_per_session": "0",
+    }, data, str(output))
+    result = pd.read_csv(output)
+    assert count == 2
+    pd.testing.assert_frame_equal(result[prepacked.columns], prepacked)
+    assert "TP" not in result
+    for index in range(1, 6):
+        assert result[f"comb_bw{index}"].tolist() == [f"bandwidth-{index}.wav"] * 2
+        assert result[f"comb_bw_hash{index}"].tolist() == [f"hash-{index}"] * 2
+
+
+@pytest.mark.parametrize("case", ["missing_column", "empty_url", "bad_order", "input_collision"])
+def test_prepacked_ccr_rejects_unusable_assignments(tmp_path, case):
+    """
+    Reject ambiguous or destructive prepacked input before writing output.
+
+    :param tmp_path: Temporary CSV directory.
+    :param case: Input-integrity failure to exercise.
+    :return: None.
+    """
+    data, _, _ = _create_comparison_input_data()
+    row = {"Q0_R": "a.wav", "Q0_P": "b.wav", "Q0_ORDER": "ab"}
+    if case == "missing_column":
+        del row["Q0_R"]
+    elif case == "empty_url":
+        row["Q0_P"] = " "
+    elif case == "bad_order":
+        row["Q0_ORDER"] = "random"
+    source = tmp_path / "prepacked.csv"
+    pd.DataFrame([row]).to_csv(source, index=False)
+    output = source if case == "input_collision" else tmp_path / "output.csv"
+    before = source.read_bytes()
+    with pytest.raises(ValueError):
+        create_input.create_input_for_dcrccr({
+            "clip_packing_strategy": "prepacked", "prepacked_sessions": str(source),
+            "number_of_clips_per_session": "1", "number_of_trapping_per_session": "0",
+        }, data, str(output))
+    assert source.read_bytes() == before
+
+
 def test_create_input_for_mturk_preserves_balanced_ccr_blocks(tmp_path, monkeypatch):
     """
     Verify that CCR generation preserves balanced blocks and reference pairing.

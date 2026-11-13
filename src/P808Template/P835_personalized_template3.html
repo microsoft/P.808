@@ -537,9 +537,7 @@
 		// (headset -> in-ear/over-ear, loudspeaker -> ex-ls/ib-ls). When the study accepts
 		// "any" device, any single valid selection is fine. The objective device check
 		// later verifies the actual active device.
-		device_check = (config.requiredPlaybackDevice === "any")
-			? (selfReportedDeviceClass() !== null)
-			: (selfReportedDeviceClass() === config.requiredPlaybackDevice);
+		device_check = selfReportedDeviceAvailable(config.requiredPlaybackDevice);
 		hearing_self_report_check = $("input[name='8_hearing']:checked").val() == "normal"
 		count_correct_ht = 0;
 		if (checkQualNumCorrect($("input[name='num1']").val().trim(), config.qualification.num1))
@@ -1464,22 +1462,21 @@
 		dB) and the inferred device are stored in the hidden fields for offline checking.
 	*/
 
-	/*
-		Return the self-reported device class from the 4_ld checkboxes:
-		"headset", "loudspeaker", or null when it is ambiguous/not answered.
-	*/
-	function selfReportedDeviceClass() {
-		var headsetVals = ["in-ear", "over-ear"];
-		var speakerVals = ["ex-ls", "ib-ls"];
-		var isHeadset = false, isSpeaker = false;
-		$("input[name='4_ld']:checked").each(function () {
-			var v = $(this).val();
-			if (headsetVals.indexOf(v) >= 0) isHeadset = true;
-			if (speakerVals.indexOf(v) >= 0) isSpeaker = true;
+	/**
+	 * Check whether any reported device is eligible, without rejecting mixed device ownership.
+	 *
+	 * @param {string} requiredDevice Required class: "headset", "loudspeaker", or "any".
+	 * @returns {boolean} Whether at least one reported device meets the requirement.
+	 */
+	function selfReportedDeviceAvailable(requiredDevice) {
+		var deviceValues = {
+			headset: ["in-ear", "over-ear"],
+			loudspeaker: ["ex-ls", "ib-ls"],
+			any: ["in-ear", "over-ear", "ex-ls", "ib-ls"]
+		}[requiredDevice] || [];
+		return $("input[name='4_ld']:checked").toArray().some(function (input) {
+			return deviceValues.includes(input.value);
 		});
-		if (isHeadset && !isSpeaker) return "headset";
-		if (isSpeaker && !isHeadset) return "loudspeaker";
-		return null;
 	}
 
 	function sleepMs(ms) {
@@ -2876,8 +2873,8 @@
 				<div id="device_check_audibility" class="alert alert-info" style="display:none; margin-top:15px;">
 					<p>You just heard <b>one longer beep</b> followed by <b>a few shorter beeps</b>.
 						<b>How many of the shorter beeps did you hear?</b> Do not count the first, longer beep.
-						If you are not sure, or heard nothing, make sure your device is not muted and the volume
-						is comfortable, then run the check again with <b>Start</b> above.</p>
+						If you heard nothing or are unsure, select <b>I heard no sound</b> and click <b>Submit</b>.
+						You can then check your volume and run the check again with <b>Start</b> (one retry).</p>
 					<div id="dc_beep_answer" style="margin-top:10px;">
 						<div class="radio"><label><input type="radio" name="dc_beep_count" value="0">
 								I heard no sound</label></div>

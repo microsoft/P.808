@@ -1922,6 +1922,94 @@ p804_suffixes = ["_col", "_disc", "_loud", "_noise", "_reverb", "_sig", "_ovrl"]
 create_per_worker = True
 
 
+def ccr_trial(session, question):
+    """
+    Decode one metadata-enabled CCR judgment without a second sign inversion.
+
+    :param session: Lowercase answer-export row.
+    :param question: Realized question name, for example q1.
+    :return: Canonical pair, presentation order, raw judgment and candidate control outcomes.
+    """
+    prefix = f"answer.{question}"
+    pair_id = session.get(f"{prefix}_pair_id", "").strip()
+    role = session.get(f"{prefix}_role", "").strip()
+    order = session.get(f"{prefix}_order", "").strip()
+    reference = session.get(f"{prefix}_reference", "").strip()
+    processed = session.get(f"{prefix}_url", "").strip()
+    if not pair_id or not reference or not processed or role not in ("main", "identical", "contrast"):
+        raise ValueError(f"Missing or invalid CCR identity for {question}")
+    if order not in ("rp", "pr"):
+        raise ValueError(f"Missing or invalid CCR order for {question}")
+    value = float(session[prefix])
+    if not value.is_integer() or not -3 <= value <= 3:
+        raise ValueError(f"Invalid CCR score for {question}")
+    canonical = int(value)
+    return {
+        "workerid": session["workerid"],
+        "assignment_id": session["assignmentid"],
+        "bundle_id": session.get("answer.bundle_id") or session.get("input.bundle_id", ""),
+        "question": question,
+        "pair_id": pair_id,
+        "role": role,
+        "reference_url": reference,
+        "processed_url": processed,
+        "order": order,
+        "presentation_score": canonical if order == "rp" else -canonical,
+        "canonical_b_minus_a": canonical,
+        "practice_exposure": session.get(f"{prefix}_practice_exposure", ""),
+        "passes_exact_zero": canonical == 0 if role == "identical" else "",
+        "passes_within_one": abs(canonical) <= 1 if role == "identical" else "",
+        # Metadata-enabled contrast controls use clean B and degraded A.
+        "passes_contrast": canonical in (2, 3) if role == "contrast" else "",
+    }
+
+
+def export_ccr_audit(answer_path):
+    """
+    Preserve raw CCR trials and both candidate QC outcomes before session filtering.
+
+    :param answer_path: Original or merged answer CSV; no payment decision is made.
+    :return: None.
+    """
+    trials = []
+    controls = []
+    with open(answer_path, encoding="utf-8-sig", newline="") as source:
+        for raw in csv.DictReader(source):
+            session = {key.lower(): value for key, value in raw.items()}
+            checks = []
+            for question in question_names:
+                if not session.get(f"answer.{question}", "").strip():
+                    continue
+                trapping_url_field = config["trapping"]["url_found_in"]
+                if (
+                    session.get(trapping_url_field)
+                    and session.get(f"answer.{question}_url") == session[trapping_url_field]
+                ):
+                    continue
+                trial = ccr_trial(session, question)
+                trials.append(trial)
+                if trial["role"] != "main":
+                    checks.append(trial)
+            identical = [row for row in checks if row["role"] == "identical"]
+            contrast = [row for row in checks if row["role"] == "contrast"]
+            complete = len(identical) == len(contrast) == 1
+            controls.append({
+                "workerid": session["workerid"], "assignment_id": session["assignmentid"],
+                "bundle_id": session.get("answer.bundle_id") or session.get("input.bundle_id", ""),
+                "controls_complete": complete,
+                "identical_exact_zero": (
+                    complete and identical[0]["passes_exact_zero"] and contrast[0]["passes_contrast"]
+                ),
+                "identical_within_one": (
+                    complete and identical[0]["passes_within_one"] and contrast[0]["passes_contrast"]
+                ),
+                "acceptance_decision": "", "payment_decision": "",
+            })
+    base = os.path.splitext(answer_path)[0]
+    pd.DataFrame(trials).to_csv(base + "_ccr_raw_trials.csv", index=False)
+    pd.DataFrame(controls).to_csv(base + "_ccr_control_candidates.csv", index=False)
+
+
 def transform(test_method, sessions, agrregate_on_condition, is_worker_specific):
     """
     Given the valid sessions from answer.csv, group votes per files, and per conditions.
@@ -1940,6 +2028,7 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
     data_per_condition = {}
     data_per_worker =[]
     mos_name = method_to_mos[f"{test_method}{question_name_suffix}"]
+    pair_identity = test_method == "ccr" and config["general"].get("aggregate_by_pair_id", "false").lower() == "true"
 
     for session in sessions:
         found_gold_question = False
@@ -1949,6 +2038,9 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
                 session[config["trapping"]["url_found_in"]]
                 == session[f"answer.{question}_url"]
             ):
+                continue
+            trial = ccr_trial(session, question) if pair_identity else None
+            if trial and trial["role"] != "main":
                 continue
             # is it a gold clips
             if (
@@ -1960,11 +2052,14 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
                 found_gold_question = True
                 continue
             # for cases where we have two gold clips
-            if f'{config["gold_question"]["url_found_in"]}_2' in session and session[f'{config["gold_question"]["url_found_in"]}_2'] == session[f"answer.{question}_url"]:
+            gold_url_field = config["gold_question"]["url_found_in"] if "gold_question" in config else ""
+            if gold_url_field and session.get(f"{gold_url_field}_2") == session[f"answer.{question}_url"]:
                 continue
 
             short_file_name = session[f"answer.{question}_url"].rsplit("/", 1)[-1]
             file_name = session[f"answer.{question}_url"]
+            if trial:
+                file_name = trial["pair_id"]
             if file_name not in data_per_file:
                 data_per_file[file_name] = []
             votes = data_per_file[file_name]
@@ -1985,7 +2080,10 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
             # a "cannot rate it" case: on P.804 the rater may mark col/disc/reverb/sig as
             # not assessable (value 0, only offered when allow_cannot_rate is enabled). It
             # is not a 1-5 quality score, so drop it before computing the MOS.
-            if vote_value == 0:
+            if (
+                test_method == "p804" and question_name_suffix in ("_col", "_disc", "_reverb", "_sig")
+                and vote_value == 0
+            ):
                 file_cannot_rate_cases[file_name] = file_cannot_rate_cases.get(file_name, 0) + 1
                 continue
             try:
@@ -2005,6 +2103,8 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
                 }
 
                 tmp.update(cond)
+                if trial:
+                    tmp.update(trial)
                 data_per_worker.append(tmp)
             except Exception as err:
                 logger.info(err)
@@ -2466,6 +2566,8 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
     all_data_per_worker = []
     if prolific_ans_path:
         answer_path, wrong_v_code = combine_prolific_hit_server(prolific_ans_path, answer_path)
+    if test_method == "ccr" and config["general"].get("aggregate_by_pair_id", "false").lower() == "true":
+        export_ccr_audit(answer_path)
     # clean the data
     full_data, accepted_sessions = data_cleaning(answer_path, test_method, wrong_v_code)
     n_workers = number_of_uniqe_workers(full_data)

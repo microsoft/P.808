@@ -1,6 +1,11 @@
+import ast
 import asyncio
 import configparser
 import importlib
+import json
+import re
+import shutil
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -8,6 +13,300 @@ from unittest.mock import AsyncMock, Mock
 import pandas as pd
 import pytest
 from jinja2 import Template
+
+
+@pytest.mark.parametrize(
+    ("template", "required_device", "selected_devices", "expected"),
+    [
+        (template, "headset", ["in-ear", "ib-ls"], True)
+        for template in [
+            "ACR_template.html", "CCR_template.html", "DCR_template.html", "P808_multi.html",
+            "P835_template.html", "P835_personalized_template3.html",
+        ]
+    ] + [
+        ("CCR_template.html", "headset", ["over-ear", "ex-ls"], True),
+        ("CCR_template.html", "headset", ["in-ear", "over-ear"], True),
+        ("CCR_template.html", "headset", ["ib-ls", "ex-ls"], False),
+        ("CCR_template.html", "headset", [], False),
+        ("CCR_template.html", "loudspeaker", ["in-ear", "ex-ls"], True),
+        ("CCR_template.html", "loudspeaker", ["over-ear"], False),
+        ("CCR_template.html", "any", ["in-ear", "ex-ls"], True),
+        ("CCR_template.html", "any", [], False),
+    ],
+)
+def test_templates_accept_any_eligible_reported_device(template, required_device, selected_devices, expected):
+    """
+    Execute the listening-device availability check without confusing ownership with active playback.
+
+    :param template: Template file containing the availability check.
+    :param required_device: Configured playback-device class.
+    :param selected_devices: Device types reported as available by the participant.
+    :param expected: Whether the available devices meet the configured requirement.
+    :return: None.
+    """
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required to execute template JavaScript.")
+    path = Path(__file__).resolve().parents[1] / "src" / "P808Template" / template
+    html = path.read_text(encoding="utf-8")
+    function = re.search(
+        r"function selfReportedDeviceAvailable\(requiredDevice\) \{.*?\n\s*\}(?=\n)", html, re.DOTALL,
+    ).group(0)
+    script = (
+        "const selected = " + json.dumps(selected_devices) + ";"
+        "const $ = selector => ({toArray: () => selected.map(value => ({value}))});"
+        + function
+        + "\nconsole.log(JSON.stringify(selfReportedDeviceAvailable(" + json.dumps(required_device) + ")));"
+    )
+    result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=10)
+    assert json.loads(result.stdout) is expected
+    assert "device_check = selfReportedDeviceAvailable(config.requiredPlaybackDevice);" in html
+
+
+def test_ccr_clip_highlights_follow_media_playback_events():
+    """
+    Verify clip highlighting changes on actual playback events and clears at completion.
+
+    :return: None.
+    """
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required to execute template JavaScript.")
+    path = Path(__file__).resolve().parents[1] / "src" / "P808Template" / "CCR_template.html"
+    html = path.read_text(encoding="utf-8")
+    start = html.index("function configureDoubleClipPlaybackUiForClip(clip){")
+    end = html.index("function doubleClipIsended()", start)
+    function = html[start:end].rstrip()
+    script = function + """
+String.prototype.toMMSS = function () { return this.toString(); };
+let nextFrame = 0;
+const media = () => ({
+    paused: true, currentTime: 0, duration: 3, listeners: {},
+    addEventListener(name, callback) { this.listeners[name] = callback; },
+    trigger(name) {
+        this.paused = name !== "playing";
+        this.listeners[name]();
+    }
+});
+const first = media();
+const second = media();
+const classes = new Set();
+const clip = {
+    id: "q_1", ae1: first, ae2: second, pause_time_sec: 1, in_between: false,
+    get paused() { return first.paused && second.paused && !this.in_between; }
+};
+const title = {classList: {
+    add(name) { classes.add(name); },
+    remove(...names) { names.forEach(name => classes.delete(name)); }
+}};
+const counter = {textContent: ""};
+global.document = {getElementById(id) { return id.startsWith("title_") ? title : counter; }};
+global.performance = {now: () => 1000};
+global.requestAnimationFrame = () => ++nextFrame;
+global.cancelAnimationFrame = () => {};
+""" + function + """
+configureDoubleClipPlaybackUiForClip(clip);
+first.trigger("playing");
+if (!classes.has("play_clip1")) throw new Error("first clip highlight missing");
+first.trigger("ended");
+if (classes.size) throw new Error("highlight remained during the gap");
+second.currentTime = second.duration;
+second.trigger("playing");
+if (!classes.has("play_clip2")) throw new Error("second clip highlight missing");
+second.trigger("ended");
+if (classes.size) throw new Error("highlight remained after playback");
+if (counter.textContent !== "7") throw new Error("final counter is " + counter.textContent);
+"""
+    subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=10)
+
+
+def test_ccr_progress_bars_report_current_question_and_completed_ratings():
+    """
+    Provide accessible progress indicators for both practice and main comparisons.
+
+    :return: None.
+    """
+    path = Path(__file__).resolve().parents[1] / "src" / "P808Template" / "CCR_template.html"
+    html = path.read_text(encoding="utf-8")
+    for prefix in ("t", "q"):
+        assert f'id="{prefix}-progress-label" role="status" aria-live="polite"' in html
+        assert f'id="{prefix}-progress-bar" class="progress-bar" role="progressbar"' in html
+        assert f'aria-labelledby="{prefix}-progress-label"' in html
+    assert 'updateProgressForSection(this.closest("#training") ? "training" : "rating_section")' in html
+
+
+@pytest.mark.parametrize(
+    ("custom", "randomize_training", "expected_randomization"),
+    [(False, None, "true"), (True, None, "true"), ("wording", None, "true"),
+     (True, "false", "false"), (True, "true", "true")],
+)
+def test_ccr_presentation_and_metadata_are_opt_in(
+    tmp_path, monkeypatch, custom, randomize_training, expected_randomization,
+):
+    """
+    Preserve stock defaults while allowing reviewed content and preassigned directions.
+
+    :param tmp_path: Temporary training/presentation/output directory.
+    :param monkeypatch: Fixture for importing the CLI's existing module layout.
+    :param custom: Whether the study opts into presentation and comparison metadata.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    training = tmp_path / "training.csv"
+    pd.DataFrame({
+        "training_references": ["a.wav", "c.wav", "e.wav"],
+        "training_clips": ["b.wav", "d.wav", "f.wav"],
+        "order": ["ab", "ba", "ab"],
+        "pair_id": ["practice-1", "practice-2", "practice-3"],
+    }).to_csv(training, index=False)
+    cfg = {
+        "allowed_max_hit_in_project": "7", "hit_base_payment": "0.5",
+        "quantity_hits_more_than": "2", "quantity_bonus": "0.1",
+        "quality_top_percentage": "20", "quality_bonus": "0.15",
+    }
+    if randomize_training is not None:
+        cfg["randomize_training_questions"] = randomize_training
+    if custom:
+        presentation = tmp_path / "presentation.json"
+        content = {
+            "title": "Reviewed wording", "style": "body {font-size:20px;}",
+            "instructions": '<section id="Survey">Approved welcome</section>',
+            "script": "window.reviewedContent = true;",
+        }
+        if custom is True:
+            content.update({
+                "training": '<section id="training">Approved practice</section>',
+                "rating": '<section id="rating_section">Approved comparisons</section>',
+            })
+        presentation.write_text(json.dumps(content), encoding="utf-8")
+        cfg.update({
+            "comparison_metadata": "true", "presentation_file": str(presentation), "append_training_trap": "false",
+        })
+    output = tmp_path / "ccr.html"
+    template, _ = master.get_path("ccr", False)
+    asyncio.run(master.create_hit_app_ccr_dcr(
+        cfg, template, str(output), str(training),
+        {"number_of_clips_per_session": "2", "number_of_trapping_per_session": "0" if custom else "1"},
+        {},
+    ))
+    html = output.read_text(encoding="utf-8")
+    training_urls = ast.literal_eval(re.search(r"trainingUrls:\s*(\[.*\]),", html).group(1))
+    rating_urls = ast.literal_eval(re.search(r"questionUrls:\s*(\[.*\]),", html).group(1))
+    assert len(training_urls) == (3 if custom else 4)
+    assert len(rating_urls) == (2 if custom else 3)
+    assert training_urls[1]["order"] == "ba"
+    assert ("Approved welcome" in html) == bool(custom)
+    assert ("Welcome to this Data Labeling task!" in html) != bool(custom)
+    assert ("window.reviewedContent = true;" in html) == bool(custom)
+    assert f'randomizeTrainingQuestions:"{expected_randomization}"' in html
+    assert ("pair_id" in rating_urls[0]) == bool(custom)
+    assert ('id="trainingTabs"' in html) == (custom is not True)
+    assert ('id="nav-tab-ul"' in html) == (custom is not True)
+    assert 'id="qualification"' in html
+    assert 'id="device_check_section"' in html
+    assert 'id="setup"' in html
+    assert "validateQualificationAnswer" in html
+    assert "passDeviceCheck" in html
+
+
+@pytest.mark.parametrize(
+    ("strategy", "columns", "accepted"),
+    [
+        ("random", None, False),
+        ("prepacked", "Q0_ID,Q0_ROLE,Q0_ORDER", False),
+        ("prepacked", "Q0_ID,Q0_ROLE,Q0_ORDER,Q0_EXPOSURE", True),
+    ],
+)
+def test_ccr_comparison_metadata_requires_prepacked_columns(tmp_path, monkeypatch, strategy, columns, accepted):
+    """
+    Reject CCR comparison metadata before setup unless prepacked sessions supply every metadata column.
+
+    :param tmp_path: Temporary prepacked sessions directory.
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :param strategy: Configured clip packing strategy.
+    :param columns: Prepacked CSV header, or None when no CSV is configured.
+    :param accepted: Whether validation should pass.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    create_input = {"number_of_clips_per_session": "1", "clip_packing_strategy": strategy}
+    if columns:
+        sessions = tmp_path / "sessions.csv"
+        sessions.write_text(columns + "\n", encoding="utf-8")
+        create_input["prepacked_sessions"] = str(sessions)
+    cfg = {"create_input": create_input, "hit_app_html": {"comparison_metadata": "true"}}
+    monkeypatch.setattr(master, "prepare_csv_for_create_input", AsyncMock(side_effect=RuntimeError("validated")))
+    args = SimpleNamespace(general_assets=None, p831_fest=False, clips=None, gold_clips=None, trapping_clips=None)
+
+    with pytest.raises(RuntimeError if accepted else SystemExit):
+        asyncio.run(master.main(cfg, "ccr", args))
+
+
+@pytest.mark.parametrize(("counter", "limit", "blocked"), [
+    (None, 0, True), (None, 20, False), ("19", 20, False), ("20", 20, True),
+])
+def test_ccr_zero_limit_blocks_fresh_browsers(counter, limit, blocked):
+    """
+    Apply the native participation limit even before a counter has been stored.
+
+    :param counter: Stored completion count, or no prior browser record.
+    :param limit: Configured maximum number of tasks.
+    :param blocked: Whether the native task must be disabled.
+    :return: None.
+    """
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required to execute template JavaScript.")
+    path = Path(__file__).resolve().parents[1] / "src" / "P808Template" / "CCR_template.html"
+    html = path.read_text(encoding="utf-8")
+    body = html.split("\t\thit_num = readCookie(", 1)[1].split("\t\tif ((qual_passed", 1)[0]
+    script = (
+        f"const config={{cookieName:'fixture',allowedMaxHITsInProject:{limit}}};"
+        f"const readCookie=()=>{json.dumps(counter)};"
+        "const Hide_HIT_REASON={MAX_ACHIVED:'maximum'};let disabled=false;"
+        "const disableTheHIT=()=>{disabled=true;};"
+        "hit_num = readCookie(" + body + "\nconsole.log(JSON.stringify(disabled));"
+    )
+    result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=10)
+    assert json.loads(result.stdout) is blocked
+
+
+@pytest.mark.parametrize(("trap_count", "expected_threshold"), [(0, 0), (1, 1)])
+def test_ccr_analyzer_keeps_html_limit_and_pair_identity_settings(
+    tmp_path, monkeypatch, trap_count, expected_threshold,
+):
+    """
+    Synchronize deferred participation limits and retain metadata-enabled CCR aggregation.
+
+    :param tmp_path: Temporary generated analyzer configuration directory.
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    cfg = {
+        "create_input": {
+            "number_of_clips_per_session": "22", "number_of_trapping_per_session": str(trap_count),
+            "aggregate_by_pair_id": "true", "expected_votes_per_file": "10",
+        },
+        "hit_app_html": {
+            "allowed_max_hit_in_project": "0", "quantity_hits_more_than": "0", "quantity_bonus": "0",
+            "quality_top_percentage": "0", "quality_bonus": "0",
+        },
+    }
+    output = tmp_path / "parser.cfg"
+    _, template = master.get_path("ccr", False)
+    master.create_analyzer_cfg_dcr_ccr(cfg, template, str(output), {"bw_min": "SWB", "bw_max": "FB"}, 400)
+    parsed = configparser.ConfigParser()
+    parsed.read(output)
+    assert parsed.getint("acceptance_criteria", "allowedMaxHITsInProject") == 0
+    assert parsed.getint("acceptance_criteria", "correct_tps_bigger_equal") == expected_threshold
+    assert parsed.getboolean("general", "aggregate_by_pair_id")
+    assert parsed.getint("general", "expected_votes_per_file") == 10
+    assert parsed.get("acceptance_criteria", "bw_min") == "SWB"
+    assert parsed.get("acceptance_criteria", "bw_max") == "FB"
 
 
 class _FakeAzureClipStorage:
