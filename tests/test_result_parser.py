@@ -224,6 +224,37 @@ def test_ccr_pair_identity_keeps_annotated_trials_reusing_trap_audio(tmp_path, c
     assert [row["question"] for row in workers] == ["q1"]
 
 
+def test_prolific_merge_preserves_ccr_identity_strings(tmp_path, ccr_config):
+    """
+    Keep CCR identities verbatim when merging HIT App answers with a Prolific export.
+
+    :param tmp_path: Temporary export directory.
+    :param ccr_config: Isolated parser configuration with logger.
+    :return: None.
+    """
+    hitapp = tmp_path / "answers.csv"
+    hitapp_row = {
+        "WorkerId": "w", "AssignmentId": "a", "HITId": "h", "HITTypeId": "t", "Answer.studyId": "s",
+        "Answer.browser_info": "browser", "Input.bundle_id": "0007",
+        "Answer.Q1": "1", "Answer.Q1_pair_id": "001", "Answer.Q2": "-1", "Answer.Q2_pair_id": "NA",
+    }
+    with hitapp.open("w", newline="", encoding="utf-8") as target:
+        writer = csv.DictWriter(target, fieldnames=list(hitapp_row))
+        writer.writeheader()
+        writer.writerow(hitapp_row)
+    prolific = tmp_path / "prolific_export_study.csv"
+    with prolific.open("w", newline="", encoding="utf-8") as target:
+        writer = csv.writer(target)
+        writer.writerow(["Submission id", "Participant id", "Completion code", "Time taken", "URL", "Status"])
+        writer.writerow(["a", "p", "code", "60", "https://example.test/study", "APPROVED"])
+
+    merged_path, _ = result_parser.combine_prolific_hit_server(str(prolific), str(hitapp))
+
+    with open(merged_path, newline="", encoding="utf-8") as source:
+        merged = next(csv.DictReader(source))
+    assert (merged["Answer.Q1_pair_id"], merged["Answer.Q2_pair_id"], merged["Input.bundle_id"]) == ("001", "NA", "0007")
+
+
 def test_p804_cannot_rate_still_excludes_zero(ccr_config, monkeypatch):
     """
     Preserve the existing cannot-rate behavior on eligible P.804 dimensions.
