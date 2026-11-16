@@ -1981,9 +1981,11 @@ def export_ccr_audit(answer_path):
                 if not session.get(f"answer.{question}", "").strip():
                     continue
                 trapping_url_field = config["trapping"]["url_found_in"]
+                # Traps are never annotated, so annotated trials reusing the trap audio are kept.
                 if (
                     session.get(trapping_url_field)
                     and session.get(f"answer.{question}_url") == session[trapping_url_field]
+                    and not session.get(f"answer.{question}_pair_id", "").strip()
                 ):
                     continue
                 trial = ccr_trial(session, question)
@@ -2037,6 +2039,7 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
             if (config["trapping"]["url_found_in"] in session and 
                 session[config["trapping"]["url_found_in"]]
                 == session[f"answer.{question}_url"]
+                and not (pair_identity and session.get(f"answer.{question}_pair_id", "").strip())
             ):
                 continue
             trial = ccr_trial(session, question) if pair_identity else None

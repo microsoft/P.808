@@ -46,6 +46,20 @@ def _ccr_session(score=0, order="rp", pair_id="pair-1", role="main"):
     }
 
 
+def _write_answers(path, session):
+    """
+    Write one session as an answer export with the HIT App's capitalized headers.
+
+    :param path: Destination CSV path.
+    :param session: Lowercase answer-export row.
+    :return: None.
+    """
+    with path.open("w", newline="", encoding="utf-8") as target:
+        writer = csv.DictWriter(target, fieldnames=[key.title() for key in session])
+        writer.writeheader()
+        writer.writerow({key.title(): value for key, value in session.items()})
+
+
 def test_ccr_zero_is_a_valid_judgment_without_gold_section(ccr_config):
     """
     Keep the CCR scale center instead of treating it as P.804 cannot-rate.
@@ -133,10 +147,7 @@ def test_ccr_audit_preserves_zero_and_both_unselected_control_policies(tmp_path,
             if key.startswith("answer.q1"):
                 session[key.replace("answer.q1", f"answer.q{number}")] = value
     path = tmp_path / "answers.csv"
-    with path.open("w", newline="", encoding="utf-8") as target:
-        writer = csv.DictWriter(target, fieldnames=[key.title() for key in session])
-        writer.writeheader()
-        writer.writerow({key.title(): value for key, value in session.items()})
+    _write_answers(path, session)
     result_parser.export_ccr_audit(str(path))
     trials = pd.read_csv(tmp_path / "answers_ccr_raw_trials.csv")
     policies = pd.read_csv(tmp_path / "answers_ccr_control_candidates.csv", keep_default_na=False)
@@ -169,10 +180,7 @@ def test_ccr_pair_identity_skips_unannotated_trap_before_decoding(tmp_path, ccr_
             session[key.replace("answer.q1", "answer.q2")] = value
 
     path = tmp_path / "answers.csv"
-    with path.open("w", newline="", encoding="utf-8") as target:
-        writer = csv.DictWriter(target, fieldnames=[key.title() for key in session])
-        writer.writeheader()
-        writer.writerow({key.title(): value for key, value in session.items()})
+    _write_answers(path, session)
 
     result_parser.export_ccr_audit(str(path))
     trials = pd.read_csv(tmp_path / "answers_ccr_raw_trials.csv")
@@ -181,6 +189,39 @@ def test_ccr_pair_identity_skips_unannotated_trap_before_decoding(tmp_path, ccr_
     files, _, workers = result_parser.transform("ccr", [session], False, False)
     assert [row["file_url"] for row in files] == ["pair-1"]
     assert [row["question"] for row in workers] == ["q2"]
+
+
+def test_ccr_pair_identity_keeps_annotated_trials_reusing_trap_audio(tmp_path, ccr_config, monkeypatch):
+    """
+    Identify traps by missing metadata, because annotated trials may reuse the trap audio.
+
+    :param tmp_path: Temporary answer/export directory.
+    :param ccr_config: Isolated parser configuration.
+    :param monkeypatch: Fixture for specifying realized question names.
+    :return: None.
+    """
+    ccr_config["general"]["aggregate_by_pair_id"] = "true"
+    monkeypatch.setattr(result_parser, "question_names", ["q1", "q2", "q3", "q4"])
+    session = _ccr_session(score=2)
+    for number, role, score in [(2, "identical", 0), (3, "contrast", 2)]:
+        for key, value in _ccr_session(score, role=role, pair_id=role).items():
+            if key.startswith("answer.q1"):
+                session[key.replace("answer.q1", f"answer.q{number}")] = value
+    shared_url = session["answer.q1_url"]
+    session.update({"input.tp": shared_url, "answer.q4": "-1", "answer.q4_url": shared_url})
+
+    path = tmp_path / "answers.csv"
+    _write_answers(path, session)
+
+    result_parser.export_ccr_audit(str(path))
+    trials = pd.read_csv(tmp_path / "answers_ccr_raw_trials.csv")
+    controls = pd.read_csv(tmp_path / "answers_ccr_control_candidates.csv")
+    assert trials["question"].tolist() == ["q1", "q2", "q3"]
+    assert controls.iloc[0]["controls_complete"]
+
+    files, _, workers = result_parser.transform("ccr", [session], False, False)
+    assert [(row["file_url"], row["n"]) for row in files] == [("pair-1", 1)]
+    assert [row["question"] for row in workers] == ["q1"]
 
 
 def test_p804_cannot_rate_still_excludes_zero(ccr_config, monkeypatch):
