@@ -2414,12 +2414,15 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     :return:
     """
     prolific_ans = pd.read_csv(prolific_ans_path, low_memory=False)
-    # Read CCR identities as text: type inference would merge "001" with "1" and blank out "NA".
+    hitapp_ans = pd.read_csv(hitapp_ans_path, low_memory=False)
+    # Re-read CCR identities as raw text: type inference would merge "001" with "1", and NA
+    # detection would blank out "NA" (pandas >= 3.1 applies it before converters).
     identity_column = re.compile(
         r"(answer|input)\.(q\d+_(pair_id|role|order|reference|url|practice_exposure)|bundle_id)", re.IGNORECASE)
-    hitapp_columns = pd.read_csv(hitapp_ans_path, nrows=0).columns
-    hitapp_ans = pd.read_csv(hitapp_ans_path, low_memory=False, converters={
-        column: str for column in hitapp_columns if identity_column.fullmatch(column)})
+    identity_columns = [column for column in hitapp_ans.columns if identity_column.fullmatch(column)]
+    if identity_columns:
+        identities = pd.read_csv(hitapp_ans_path, usecols=identity_columns, dtype=str, keep_default_na=False)
+        hitapp_ans[identity_columns] = identities[identity_columns]
     logger.info('Combining the Prolific export with the HIT App server answers:')
     # copy index as id column
     hitapp_ans['h_id'] = hitapp_ans.index
