@@ -298,7 +298,8 @@ def test_ccr_analyzer_keeps_html_limit_and_pair_identity_settings(
     }
     output = tmp_path / "parser.cfg"
     _, template = master.get_path("ccr", False)
-    master.create_analyzer_cfg_dcr_ccr(cfg, template, str(output), {"bw_min": "SWB", "bw_max": "FB"}, 400)
+    master.create_analyzer_cfg_dcr_ccr(
+        cfg, template, str(output), {"bw_min": "SWB", "bw_max": "FB", "cmp_pass_threshold": 2}, 400)
     parsed = configparser.ConfigParser()
     parsed.read(output)
     assert parsed.getint("acceptance_criteria", "allowedMaxHITsInProject") == 0
