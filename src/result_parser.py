@@ -2024,6 +2024,7 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
     file_total_cases = {}
     file_silent_cases = {}
     file_cannot_rate_cases = {}
+    file_condition_source = {}
     global max_found_per_file
     global file_to_condition_map
     file_to_condition_map ={}
@@ -2061,8 +2062,11 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
 
             short_file_name = session[f"answer.{question}_url"].rsplit("/", 1)[-1]
             file_name = session[f"answer.{question}_url"]
+            condition_source = file_name
             if trial:
                 file_name = trial["pair_id"]
+            # Pair IDs group votes, but conditions are encoded in the audio URL.
+            file_condition_source.setdefault(file_name, condition_source)
             if file_name not in data_per_file:
                 data_per_file[file_name] = []
             votes = data_per_file[file_name]
@@ -2091,7 +2095,7 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
                 continue
             try:
                 votes.append(vote_value)
-                cond = conv_filename_to_condition(file_name)
+                cond = conv_filename_to_condition(condition_source)
                 tmp = {
                     "HITId": session["hitid"],
                     "workerid": session["workerid"],
@@ -2134,7 +2138,7 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
                         )
 
         # extra step:: add votes to the per-condition dict
-        tmp_n = conv_filename_to_condition(key)
+        tmp_n = conv_filename_to_condition(file_condition_source.get(key, key))
         if agrregate_on_condition:
             condition_keys = config['general']['condition_keys'].split(',')
             condition_keys.append('Unknown')

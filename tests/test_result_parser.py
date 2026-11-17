@@ -97,6 +97,27 @@ def test_ccr_pair_identity_separates_shared_audio_and_excludes_controls(ccr_conf
     assert workers[1]["reference_url"].endswith("pair-1-a.wav")
 
 
+def test_ccr_pair_identity_takes_conditions_from_audio_url(ccr_config):
+    """
+    Group by pair ID while extracting conditions from the processed audio URL.
+
+    :param ccr_config: Isolated configuration enabling explicit pair identity.
+    :return: None.
+    """
+    ccr_config["general"].update({
+        "aggregate_by_pair_id": "true",
+        "condition_pattern": r".*/(?P<condition_num>c\d+)_.*\.wav",
+        "condition_keys": "condition_num",
+    })
+    session = _ccr_session()
+    session["answer.q1_url"] = "https://example.test/c07_mic.wav"
+    files, conditions, workers = result_parser.transform("ccr", [session], True, False)
+    assert files[0]["file_url"] == "pair-1"
+    assert files[0]["condition_num"] == "c07"
+    assert workers[0]["condition_num"] == "c07"
+    assert [row["condition_num"] for row in conditions] == ["c07"]
+
+
 @pytest.mark.parametrize("order,raw", [("rp", 2), ("pr", -2)])
 def test_ccr_contrast_uses_clean_preference_in_both_directions(order, raw):
     """
