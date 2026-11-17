@@ -985,6 +985,14 @@ def get_path(test_method, is_p831_fest):
 
 
 def extend_general_cfg_bw(general, hitapp, test_method):
+    """
+    Add bandwidth qualification settings and reject incompatible CCR/DCR limits.
+
+    :param general: General configuration values to extend.
+    :param hitapp: HIT app configuration, including online qualification settings.
+    :param test_method: Listening-test method.
+    :return: Updated general configuration.
+    """
     # add BW check config
     if 'bw_min' not in hitapp or 'bw_max' not in hitapp :
         print("Warning: No bandwidth range specified in the config file, consider using updated template for master script. All bandwidth ranges will be allowed.")
@@ -995,7 +1003,8 @@ def extend_general_cfg_bw(general, hitapp, test_method):
         assert hitapp['bw_max'] in ['NB-WB', 'SWB', 'FB'], f'bw_max should be one of NB-WB, SWB, FB, but got {hitapp["bw_max"]}'
         bw_min = hitapp['bw_min']
         bw_max = hitapp['bw_max']
-    if test_method in ('ccr', 'dcr') and bw_max != 'FB':
+    online_qualification = _is_true(hitapp.get('run_online_eval_qualification', 'true'))
+    if test_method in ('ccr', 'dcr') and online_qualification and bw_max != 'FB':
         raise SystemExit(
             "CCR/DCR bandwidth qualification requires bw_max = FB because the HIT requires all bandwidth "
             "check answers to be correct."

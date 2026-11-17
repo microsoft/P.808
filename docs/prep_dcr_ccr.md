@@ -91,8 +91,8 @@ For CCR, `comparison_metadata: true` in `[hit_app_html]` requires prepacked `Qn_
 IDs must be nonempty, each ID must always name the same audio pair and role, and roles must be
 `main`, `identical` or `contrast`. IDs and nonempty exposure values may contain only letters,
 digits, `_`, `.`, `:` and `-`.
-CCR/DCR qualification requires all five bandwidth-check answers to match their supplied hashes;
-`bw_min` does not relax that client-side check, and `bw_max` must be `FB`.
+When online qualification is enabled, CCR/DCR requires all five bandwidth-check answers to match
+their supplied hashes; `bw_min` does not relax that client-side check, and `bw_max` must be `FB`.
 Training rows may specify `pair_id`, `order` (`ab`, `ba` or empty) and `practice_example`;
 `append_training_trap: false` omits the appended training comparison.
 

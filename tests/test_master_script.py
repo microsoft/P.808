@@ -296,6 +296,25 @@ def test_ccr_dcr_allow_fullband_bandwidth_max(monkeypatch, test_method):
     ) == {"bw_min": "NB-WB", "bw_max": "FB"}
 
 
+@pytest.mark.parametrize("test_method", ["ccr", "dcr"])
+def test_ccr_dcr_allow_narrower_bandwidth_max_without_online_qualification(monkeypatch, test_method):
+    """
+    Allow narrower bandwidth limits when the HIT does not run online qualification.
+
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :param test_method: Listening-test method.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+
+    assert master.extend_general_cfg_bw(
+        {},
+        {"bw_min": "NB-WB", "bw_max": "SWB", "run_online_eval_qualification": "false"},
+        test_method,
+    ) == {"bw_min": "NB-WB", "bw_max": "SWB"}
+
+
 def test_other_methods_allow_narrower_bandwidth_max(monkeypatch):
     """
     Keep the CCR/DCR-specific guard from changing other study methods.
