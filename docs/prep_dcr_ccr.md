@@ -88,9 +88,10 @@ supply the usual source-clip and training CSVs.
 
 For CCR, `comparison_metadata: true` in `[hit_app_html]` requires prepacked `Qn_ID`, `Qn_ROLE`,
 `Qn_ORDER` and `Qn_EXPOSURE` columns, which follow comparisons when screen positions are randomized.
-IDs must be nonempty and roles must be `main`, `identical` or `contrast`.
-Training rows may specify `pair_id`, `order` and `practice_example`; `append_training_trap: false`
-omits the appended training comparison.
+IDs must be nonempty, each ID must always name the same audio pair and role, and roles must be
+`main`, `identical` or `contrast`.
+Training rows may specify `pair_id`, `order` (`ab`, `ba` or empty) and `practice_example`;
+`append_training_trap: false` omits the appended training comparison.
 
 An optional `presentation_file` loads trusted JSON fields `title`, `style`, `script`,
 `instructions`, `training` and `rating`. Custom replacements must retain stock IDs, containers,

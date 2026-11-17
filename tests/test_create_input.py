@@ -165,7 +165,8 @@ def test_create_input_for_mturk_dispatches_comparison_method(monkeypatch):
 
 def test_prepacked_ccr_preserves_assignments_and_bandwidth_sets(tmp_path):
     """
-    Retain preassigned identities/orders and synchronize every bandwidth-set field.
+    Retain preassigned identities/orders, including one comparison shown in both orders, and synchronize every
+    bandwidth-set field.
 
     :param tmp_path: Temporary CSV directory.
     :return: None.
@@ -177,8 +178,8 @@ def test_prepacked_ccr_preserves_assignments_and_bandwidth_sets(tmp_path):
         data[f"comb_bw_hash{index}"] = f"hash-{index}"
     prepacked = pd.DataFrame({
         "bundle_id": ["bundle-1", "bundle-2"],
-        "Q0_R": ["a.wav", "c.wav"], "Q0_P": ["b.wav", "d.wav"],
-        "Q0_ID": ["ab", "cd"], "Q0_ORDER": ["ba", "ab"],
+        "Q0_R": ["a.wav", "a.wav"], "Q0_P": ["b.wav", "b.wav"],
+        "Q0_ID": ["ab", "ab"], "Q0_ORDER": ["ba", "ab"],
     })
     source = tmp_path / "prepacked.csv"
     prepacked.to_csv(source, index=False)
@@ -196,8 +197,9 @@ def test_prepacked_ccr_preserves_assignments_and_bandwidth_sets(tmp_path):
         assert result[f"comb_bw_hash{index}"].tolist() == [f"hash-{index}"] * 2
 
 
-@pytest.mark.parametrize(
-    "case", ["missing_column", "empty_url", "bad_order", "empty_id", "bad_role", "input_collision"])
+@pytest.mark.parametrize("case", [
+    "missing_column", "empty_url", "bad_order", "empty_id", "bad_role", "conflicting_id", "input_collision",
+])
 def test_prepacked_ccr_rejects_unusable_assignments(tmp_path, case):
     """
     Reject ambiguous or destructive prepacked input before writing output.
@@ -208,6 +210,7 @@ def test_prepacked_ccr_rejects_unusable_assignments(tmp_path, case):
     """
     data, _, _ = _create_comparison_input_data()
     row = {"Q0_R": "a.wav", "Q0_P": "b.wav", "Q0_ORDER": "ab", "Q0_ID": "pair-1", "Q0_ROLE": "main"}
+    rows = [row]
     if case == "missing_column":
         del row["Q0_R"]
     elif case == "empty_url":
@@ -218,8 +221,10 @@ def test_prepacked_ccr_rejects_unusable_assignments(tmp_path, case):
         row["Q0_ID"] = " "
     elif case == "bad_role":
         row["Q0_ROLE"] = "trap"
+    elif case == "conflicting_id":
+        rows.append({**row, "Q0_P": "c.wav", "Q0_ORDER": "ba"})
     source = tmp_path / "prepacked.csv"
-    pd.DataFrame([row]).to_csv(source, index=False)
+    pd.DataFrame(rows).to_csv(source, index=False)
     output = source if case == "input_collision" else tmp_path / "output.csv"
     before = source.read_bytes()
     with pytest.raises(ValueError):

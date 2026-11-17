@@ -536,9 +536,19 @@ def create_input_for_dcrccr(cfg, df, output_path):
                 raise ValueError(f"Invalid prepacked presentation order in {column}")
             if re.fullmatch(r"Q\d+_ID", column) and output_df[column].str.strip().eq("").any():
                 raise ValueError(f"Empty prepacked comparison ID in {column}")
-            if re.fullmatch(r"Q\d+_ROLE", column) and not output_df[column].isin(
+            if re.fullmatch(r"Q\d+_ROLE", column) and not output_df[column].str.strip().isin(
                     ("main", "identical", "contrast")).all():
                 raise ValueError(f"Invalid prepacked comparison role in {column}")
+        if all(f"Q{i}_ID" in output_df for i in range(n_clips_per_session)):
+            # Pair-ID aggregation pools all votes by ID, so one ID must always name the same comparison.
+            fields = ("ID", "R", "P", "ROLE")
+            identities = pd.concat([
+                output_df.reindex(columns=[f"Q{i}_{field}" for field in fields]).set_axis(fields, axis=1)
+                for i in range(n_clips_per_session)
+            ]).fillna("").apply(lambda column: column.str.strip()).drop_duplicates()
+            conflicting = identities.loc[identities["ID"].duplicated(), "ID"]
+            if not conflicting.empty:
+                raise ValueError(f"Prepacked comparison ID {conflicting.iloc[0]!r} maps to different audio or roles")
 
     n_sessions = len(output_df)
     print(f'{n_clips} clips and {n_sessions} sessions')

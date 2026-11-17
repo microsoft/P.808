@@ -268,6 +268,9 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
         for column in ("order", "practice_example", "pair_id"):
             if column in df_train and row[column].strip():
                 item[column] = row[column].strip()
+        # The template throws on any other order, which would leave the HIT page without questions.
+        if item.get("order", "ab") not in ("ab", "ba"):
+            raise ValueError(f"Invalid training order {item['order']!r}; use ab, ba or leave it empty")
         train_urls.append(item)
     # add a trapping clips to the training section
     append_training_trap = _is_true(cfg.get("append_training_trap", "true"))

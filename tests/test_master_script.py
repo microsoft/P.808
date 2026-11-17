@@ -261,22 +261,24 @@ def test_ccr_pair_aggregation_requires_comparison_metadata(monkeypatch):
         asyncio.run(master.main(cfg, "ccr", args))
 
 
-def test_ccr_training_identities_stay_raw_strings(tmp_path, monkeypatch):
+@pytest.mark.parametrize("order", ["ba", "AB", "rp"])
+def test_ccr_training_identities_stay_raw_strings(tmp_path, monkeypatch, order):
     """
-    Keep practice IDs such as "001" and "NA" identical to the main comparison IDs.
+    Keep practice IDs such as "001" and "NA" raw, and reject orders the HIT app cannot render.
 
     :param tmp_path: Temporary training/output directory.
     :param monkeypatch: Fixture for the CLI's module layout.
+    :param order: Training order of the second row; only "ab", "ba" or empty are valid.
     :return: None.
     """
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
     master = importlib.import_module("master_script")
     training = tmp_path / "training.csv"
-    training.write_text("training_references,training_clips,order,pair_id\na.wav,b.wav,,001\nc.wav,d.wav,ba,NA\n",
-                        encoding="utf-8")
+    training.write_text("training_references,training_clips,order,pair_id\n"
+                        f"a.wav,b.wav,,001\nc.wav,d.wav,{order},NA\n", encoding="utf-8")
     output = tmp_path / "ccr.html"
     template, _ = master.get_path("ccr", False)
-    asyncio.run(master.create_hit_app_ccr_dcr(
+    create = master.create_hit_app_ccr_dcr(
         {
             "allowed_max_hit_in_project": "7", "hit_base_payment": "0.5",
             "quantity_hits_more_than": "2", "quantity_bonus": "0.1",
@@ -284,7 +286,12 @@ def test_ccr_training_identities_stay_raw_strings(tmp_path, monkeypatch):
         },
         template, str(output), str(training),
         {"number_of_clips_per_session": "1", "number_of_trapping_per_session": "0"}, {},
-    ))
+    )
+    if order != "ba":
+        with pytest.raises(ValueError):
+            asyncio.run(create)
+        return
+    asyncio.run(create)
     html = output.read_text(encoding="utf-8")
     training_urls = ast.literal_eval(re.search(r"trainingUrls:\s*(\[.*\]),", html).group(1))
     assert [item["pair_id"] for item in training_urls] == ["001", "NA"]
