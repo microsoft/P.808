@@ -1088,91 +1088,44 @@ function doubleClipTimeUpdate(){
 function configureDoubleClipPlaybackUiForClip(clip){
 	var counter = document.getElementById("baudio_l_c_" + clip.id);
 	var title = document.getElementById("title_" + clip.id);
-	var gapStartedAt = null;
-	var gapCompleted = false;
-	var secondClipStarted = false;
 	var animationFrame = null;
 
+	/**
+	 * Remove the highlight from the clip title.
+	 */
 	function clearHighlight(){
 		title.classList.remove("play_clip1", "play_clip2");
 	}
 
-	function updateCounter(){
-		var currentTime = clip.ae1.currentTime;
-		if (secondClipStarted){
-			currentTime = clip.ae1.duration + clip.pause_time_sec + clip.ae2.currentTime;
-		}else if (gapStartedAt !== null){
-			var gapElapsed = Math.min((performance.now() - gapStartedAt) / 1000, clip.pause_time_sec);
-			currentTime = clip.ae1.duration + gapElapsed;
-			if (gapElapsed >= clip.pause_time_sec){
-				gapStartedAt = null;
-				gapCompleted = true;
-			}
-		}else if (gapCompleted){
-			currentTime = clip.ae1.duration + clip.pause_time_sec;
-		}
-		if (Number.isFinite(currentTime)) counter.textContent = currentTime.toString().toMMSS();
-	}
-
-	function stopAnimation(){
-		if (animationFrame !== null){
-			cancelAnimationFrame(animationFrame);
-			animationFrame = null;
-		}
-	}
-
-	function updateWhilePlaying(){
+	/**
+	 * Repaint the counter every frame until the clip is paused or finished; the gap counts as playing.
+	 */
+	function update(){
 		animationFrame = null;
-		if (!clip.in_between && clip.ae1.paused && clip.ae2.paused && gapStartedAt !== null){
-			var gapElapsed = (performance.now() - gapStartedAt) / 1000;
-			gapCompleted = gapElapsed >= clip.pause_time_sec;
-			gapStartedAt = null;
-		}
-		updateCounter();
-		if (!clip.paused || clip.in_between || gapStartedAt !== null){
-			animationFrame = requestAnimationFrame(updateWhilePlaying);
-		}else{
+		var currentTime = clip.currentTime;
+		if (Number.isFinite(currentTime)) counter.textContent = currentTime.toString().toMMSS();
+		if (clip.paused){
 			clearHighlight();
+		}else{
+			animationFrame = requestAnimationFrame(update);
 		}
 	}
 
-	function scheduleUpdate(){
-		if (animationFrame === null) animationFrame = requestAnimationFrame(updateWhilePlaying);
+	/**
+	 * Highlight the given clip (none during the gap) and make sure the counter keeps repainting.
+	 *
+	 * @param {string} [className] - Highlight class for the clip that just started.
+	 */
+	function follow(className){
+		clearHighlight();
+		if (className) title.classList.add(className);
+		if (animationFrame === null) animationFrame = requestAnimationFrame(update);
 	}
 
-	clip.ae1.addEventListener("playing", function(){
-		gapStartedAt = null;
-		gapCompleted = false;
-		secondClipStarted = false;
-		clearHighlight();
-		title.classList.add("play_clip1");
-		scheduleUpdate();
-	});
-	clip.ae2.addEventListener("playing", function(){
-		gapStartedAt = null;
-		gapCompleted = true;
-		secondClipStarted = true;
-		clearHighlight();
-		title.classList.add("play_clip2");
-		scheduleUpdate();
-	});
-	clip.ae1.addEventListener("ended", function(){
-		gapStartedAt = performance.now();
-		gapCompleted = false;
-		clearHighlight();
-		updateCounter();
-		scheduleUpdate();
-	});
-	clip.ae2.addEventListener("ended", function(){
-		secondClipStarted = true;
-		gapStartedAt = null;
-		gapCompleted = true;
-		clearHighlight();
-		updateCounter();
-		stopAnimation();
-	});
+	clip.ae1.addEventListener("playing", function(){ follow("play_clip1"); });
+	clip.ae2.addEventListener("playing", function(){ follow("play_clip2"); });
+	clip.ae1.addEventListener("ended", function(){ follow(); });
 	[clip.ae1, clip.ae2].forEach(function(media){
-		media.addEventListener("pause", scheduleUpdate);
 		media.addEventListener("waiting", clearHighlight);
 	});
 }

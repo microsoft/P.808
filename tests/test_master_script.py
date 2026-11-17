@@ -65,7 +65,7 @@ def test_templates_accept_any_eligible_reported_device(template, required_device
 
 def test_ccr_clip_highlights_follow_media_playback_events():
     """
-    Verify clip highlighting changes on actual playback events and clears at completion.
+    Verify clip highlighting follows playback events and the counter never moves backward when pausing in the gap.
 
     :return: None.
     """
@@ -77,45 +77,64 @@ def test_ccr_clip_highlights_follow_media_playback_events():
     start = html.index("function configureDoubleClipPlaybackUiForClip(clip){")
     end = html.index("function doubleClipIsended()", start)
     function = html[start:end].rstrip()
-    script = function + """
-String.prototype.toMMSS = function () { return this.toString(); };
-let nextFrame = 0;
-const media = () => ({
-    paused: true, currentTime: 0, duration: 3, listeners: {},
+    clip_start = html.index("class DoubleClip {")
+    clip_class = html[clip_start:html.index("\n}", clip_start) + 2]
+    script = clip_class + function + """
+String.prototype.toMMSS = function () { return String(parseInt(this, 10)); };
+let frames = [];
+const runFrame = () => frames.splice(0).forEach(callback => callback());
+const media = duration => ({
+    paused: true, currentTime: 0, duration, listeners: {},
     addEventListener(name, callback) { this.listeners[name] = callback; },
-    trigger(name) {
-        this.paused = name !== "playing";
-        this.listeners[name]();
-    }
+    play() { this.paused = false; },
+    pause() { this.paused = true; },
+    trigger(name) { if (this.listeners[name]) this.listeners[name](); }
 });
-const first = media();
-const second = media();
+const first = media(3.6);
+const second = media(3.6);
 const classes = new Set();
-const clip = {
-    id: "q_1", ae1: first, ae2: second, pause_time_sec: 1, in_between: false,
-    get paused() { return first.paused && second.paused && !this.in_between; }
-};
 const title = {classList: {
     add(name) { classes.add(name); },
     remove(...names) { names.forEach(name => classes.delete(name)); }
 }};
 const counter = {textContent: ""};
 global.document = {getElementById(id) { return id.startsWith("title_") ? title : counter; }};
-global.performance = {now: () => 1000};
-global.requestAnimationFrame = () => ++nextFrame;
-global.cancelAnimationFrame = () => {};
-""" + function + """
+global.requestAnimationFrame = callback => frames.push(callback);
+const clip = new DoubleClip("q_1", first, second);
+const expect = (actual, expected, label) => {
+    if (String(actual) !== String(expected)) throw new Error(label + ": " + actual + " instead of " + expected);
+};
 configureDoubleClipPlaybackUiForClip(clip);
+clip.play();
 first.trigger("playing");
-if (!classes.has("play_clip1")) throw new Error("first clip highlight missing");
+expect([...classes], "play_clip1", "first clip highlight");
+first.currentTime = 2.5;
+runFrame();
+expect(counter.textContent, 2, "counter while the first clip plays");
+first.currentTime = first.duration;
+first.paused = true;
+clip.in_between = true;
 first.trigger("ended");
-if (classes.size) throw new Error("highlight remained during the gap");
-second.currentTime = second.duration;
+expect(classes.size, 0, "highlight during the gap");
+runFrame();
+expect(counter.textContent, 3, "counter during the gap");
+clip.pause();
+runFrame();
+expect(counter.textContent, 3, "counter after pausing inside the gap");
+expect(frames.length, 0, "frames scheduled while paused");
+clip.play();
+second.currentTime = 0.5;
 second.trigger("playing");
-if (!classes.has("play_clip2")) throw new Error("second clip highlight missing");
+expect([...classes], "play_clip2", "second clip highlight");
+runFrame();
+expect(counter.textContent, 5, "counter after resuming");
+second.currentTime = second.duration;
+second.paused = true;
 second.trigger("ended");
-if (classes.size) throw new Error("highlight remained after playback");
-if (counter.textContent !== "7") throw new Error("final counter is " + counter.textContent);
+runFrame();
+expect(classes.size, 0, "highlight after playback");
+expect(counter.textContent, 8, "final counter");
+expect(frames.length, 0, "frames scheduled after playback");
 """
     subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=10)
 
