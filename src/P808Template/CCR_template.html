@@ -2121,8 +2121,6 @@ function generate_training_section(){
 	var i;
 	var urlA,urlB,signA, signB, order;
 	for (i = 0; i < urls.length; i++) {
-		if ("order" in urls[i] && !["ab", "ba"].includes(urls[i].order))
-			throw new Error("Invalid prescribed comparison order");
 		let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
 		if (r>0.5){
 			urlA = urls[i].ref;
@@ -2146,7 +2144,6 @@ function generate_training_section(){
 			$('#nav-tabContent').append(ccr_tab.f(i+1, urlA, urlB,'', signA, signB));
 		}
 		$('#nav-tabContent').append(input_template.f(i+1, urls[i].processed, order));
-		appendCcrMetadata("T", i + 1, urls[i]);
 	}
 
 	trainingStimulusPlayed = new Array(urls.length).fill(0);
@@ -2169,8 +2166,6 @@ function generate_rating_section(){
 	var i;
 	var urlA,urlB,signA, signB, order;
 	for (i = 0; i < urls.length; i++) {
-		if ("order" in urls[i] && !["ab", "ba"].includes(urls[i].order))
-			throw new Error("Invalid prescribed comparison order");
 		let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
 		if (r>0.5){
 			urlA = urls[i].ref;
@@ -2194,22 +2189,21 @@ function generate_rating_section(){
 			$('#nav-tabContent-rating').append(ccr_tab.f(i+1,  urlA, urlB,'', signA, signB));
 		}
 		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i].processed, order));
-		appendCcrMetadata("Q", i + 1, urls[i]);
+		appendCcrMetadata(i + 1, urls[i]);
 	}
 }
 
 /**
  * Record canonical identities independently of shuffled question position.
- * @param {string} prefix Training (T) or rating (Q).
  * @param {number} number One-based realized question position.
  * @param {Object} item Canonical reference/processed comparison and optional metadata.
  */
-function appendCcrMetadata(prefix, number, item) {
+function appendCcrMetadata(number, item) {
 	if (!item.pair_id) return;
 	for (const key of ["pair_id", "role", "reference", "practice_exposure"]) {
 		const value = key === "reference" ? item.ref : (item[key] || "");
-		$("<input>", {type: "hidden", name: prefix + number + "_" + key, value: value})
-			.appendTo(prefix === "T" ? "#nav-tabContent" : "#nav-tabContent-rating");
+		$("<input>", {type: "hidden", name: "Q" + number + "_" + key, value: value})
+			.appendTo("#nav-tabContent-rating");
 	}
 }
 </script>

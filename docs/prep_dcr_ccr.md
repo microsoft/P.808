@@ -93,16 +93,16 @@ IDs must be nonempty, each ID must always name the same audio pair and role, and
 digits, `_`, `.`, `:` and `-`.
 When online qualification is enabled, CCR/DCR requires all five bandwidth-check answers to match
 their supplied hashes; `bw_min` does not relax that client-side check, and `bw_max` must be `FB`.
-Training rows may specify `pair_id`, `order` (`ab`, `ba` or empty) and `practice_example`;
-`append_training_trap: false` omits the appended training comparison.
+Training rows may specify `order` (`ab`, `ba` or empty); `append_training_trap: false` omits the
+appended training comparison.
 
 An optional `presentation_file` loads trusted JSON fields `title`, `style`, `script`,
 `instructions`, `training` and `rating`. Custom replacements must retain stock IDs, containers,
 prerequisites and native qualification/device/setup/form behavior. Omitting `training` or `rating`
 keeps the native panels; training order is randomized unless `randomize_training_questions: false`.
 
-Set `aggregate_by_pair_id: true` in `[create_input]` to aggregate CCR by comparison ID; optionally
-set `expected_votes_per_file`. This requires `comparison_metadata: true` and roles `main`,
+Set `aggregate_by_pair_id: true` in `[create_input]` to aggregate CCR by comparison ID. This
+requires `comparison_metadata: true` and roles `main`,
 `identical` or `contrast`, exports raw
 trials/control candidates before filtering, and excludes controls from comparison means. Contrast
 controls use degraded A and clean B. In this mode, `file_url` contains the comparison ID, while

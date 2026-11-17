@@ -313,7 +313,11 @@ def test_prolific_merge_preserves_ccr_identity_strings(tmp_path, ccr_config):
 
     with open(merged_path, newline="", encoding="utf-8") as source:
         merged = next(csv.DictReader(source))
-    assert (merged["Answer.Q1_pair_id"], merged["Answer.Q2_pair_id"], merged["Input.bundle_id"]) == ("001", "NA", "0007")
+    assert (
+        merged["Answer.Q1_pair_id"],
+        merged["Answer.Q2_pair_id"],
+        merged["Input.bundle_id"],
+    ) == ("001", "NA", "0007")
 
 
 def test_p804_cannot_rate_still_excludes_zero(ccr_config, monkeypatch):

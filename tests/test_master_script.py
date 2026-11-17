@@ -331,9 +331,9 @@ def test_other_methods_allow_narrower_bandwidth_max(monkeypatch):
 
 
 @pytest.mark.parametrize("order", ["ba", "AB", "rp"])
-def test_ccr_training_identities_stay_raw_strings(tmp_path, monkeypatch, order):
+def test_ccr_training_order_is_validated_and_clip_urls_are_preserved(tmp_path, monkeypatch, order):
     """
-    Keep practice IDs such as "001" and "NA" raw, and reject orders the HIT app cannot render.
+    Preserve training clip URLs and reject unsupported prescribed orders.
 
     :param tmp_path: Temporary training/output directory.
     :param monkeypatch: Fixture for the CLI's module layout.
@@ -343,8 +343,11 @@ def test_ccr_training_identities_stay_raw_strings(tmp_path, monkeypatch, order):
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
     master = importlib.import_module("master_script")
     training = tmp_path / "training.csv"
-    training.write_text("training_references,training_clips,order,pair_id\n"
-                        f"a.wav,b.wav,,001\nc.wav,d.wav,{order},NA\n", encoding="utf-8")
+    training.write_text(
+        "training_references,training_clips,order\n"
+        f"a.wav,b.wav,\nc.wav,d.wav,{order}\n",
+        encoding="utf-8",
+    )
     output = tmp_path / "ccr.html"
     template, _ = master.get_path("ccr", False)
     create = master.create_hit_app_ccr_dcr(
@@ -363,7 +366,7 @@ def test_ccr_training_identities_stay_raw_strings(tmp_path, monkeypatch, order):
     asyncio.run(create)
     html = output.read_text(encoding="utf-8")
     training_urls = ast.literal_eval(re.search(r"trainingUrls:\s*(\[.*\]),", html).group(1))
-    assert [item["pair_id"] for item in training_urls] == ["001", "NA"]
+    assert [item["ref"] for item in training_urls] == ["a.wav", "c.wav"]
     assert "order" not in training_urls[0]
     assert training_urls[1]["order"] == "ba"
 
@@ -413,7 +416,7 @@ def test_ccr_analyzer_keeps_html_limit_and_pair_identity_settings(
     cfg = {
         "create_input": {
             "number_of_clips_per_session": "22", "number_of_trapping_per_session": str(trap_count),
-            "aggregate_by_pair_id": "true", "expected_votes_per_file": "10",
+            "aggregate_by_pair_id": "true",
         },
         "hit_app_html": {
             "allowed_max_hit_in_project": "0", "quantity_hits_more_than": "0", "quantity_bonus": "0",
@@ -429,7 +432,7 @@ def test_ccr_analyzer_keeps_html_limit_and_pair_identity_settings(
     assert parsed.getint("acceptance_criteria", "allowedMaxHITsInProject") == 0
     assert parsed.getint("acceptance_criteria", "correct_tps_bigger_equal") == expected_threshold
     assert parsed.getboolean("general", "aggregate_by_pair_id")
-    assert parsed.getint("general", "expected_votes_per_file") == 10
+    assert parsed.getint("general", "expected_votes_per_file") == 5
     assert parsed.get("acceptance_criteria", "bw_min") == "SWB"
     assert parsed.get("acceptance_criteria", "bw_max") == "FB"
 
