@@ -248,7 +248,12 @@ def check_tps(row, method):
                 correct_tps = 1
 
         else:
+            pair_identity = method == "ccr" and config["general"].get(
+                "aggregate_by_pair_id", "false").lower() == "true"
             for q_name in question_names:
+                # Annotated comparisons may reuse the trap audio; only the unannotated question is the trap.
+                if pair_identity and str(row.get(f"answer.{q_name}_pair_id", "")).strip():
+                    continue
                 if tp_url in row[f"answer.{q_name}_url"]:
                     # found a trapping clips question
                     if int(row[f"answer.{q_name}{suffix}"]) in tp_correct_ans:

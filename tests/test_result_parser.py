@@ -118,6 +118,25 @@ def test_ccr_pair_identity_takes_conditions_from_audio_url(ccr_config):
     assert [row["condition_num"] for row in conditions] == ["c07"]
 
 
+def test_ccr_pair_identity_trap_check_ignores_annotated_reuse(ccr_config, monkeypatch):
+    """
+    Judge the CCR trap only by the unannotated trap question, even when a control reuses its audio.
+
+    :param ccr_config: Isolated parser configuration.
+    :param monkeypatch: Fixture for specifying realized question names.
+    :return: None.
+    """
+    ccr_config.read_dict({"acceptance_criteria": {"correct_tps_bigger_equal": "1"}})
+    ccr_config["general"]["aggregate_by_pair_id"] = "true"
+    monkeypatch.setattr(result_parser, "question_names", ["q1", "q2"])
+    trap_url = "https://example.test/shared-b.wav"
+    row = _ccr_session(0, role="identical")
+    row.update({"input.tp": trap_url, "answer.q2": "-3", "answer.q2_url": trap_url})
+    assert result_parser.check_tps(row, "ccr") == 0
+    row["answer.q2"] = "0"
+    assert result_parser.check_tps(row, "ccr") == 1
+
+
 @pytest.mark.parametrize("order,raw", [("rp", 2), ("pr", -2)])
 def test_ccr_contrast_uses_clean_preference_in_both_directions(order, raw):
     """
