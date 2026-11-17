@@ -416,7 +416,7 @@ function validateQualificationAnswer(){
 		// (headset -> in-ear/over-ear, loudspeaker -> ex-ls/ib-ls). When the study accepts
 		// "any" device, any single valid selection is fine. The objective device check
 		// later verifies the actual active device.
-		device_check = selfReportedDeviceAvailable(config.requiredPlaybackDevice);
+        device_check = selfReportedDeviceAvailable(config.requiredPlaybackDevice);
 	hearing_self_report_check=$("input[name='8_hearing']:checked").val() == "normal"
 	count_correct_ht=0;
 	if (checkQualNumCorrect($("input[name='num1']").val().trim(),config.qualification.num1))
@@ -1178,22 +1178,29 @@ function userAnsweringToSetupQuestions(){
 		dB) and the inferred device are stored in the hidden fields for offline checking.
 	*/
 
-	/**
-	 * Check whether any reported device is eligible, without rejecting mixed device ownership.
-	 *
-	 * @param {string} requiredDevice Required class: "headset", "loudspeaker", or "any".
-	 * @returns {boolean} Whether at least one reported device meets the requirement.
-	 */
-	function selfReportedDeviceAvailable(requiredDevice) {
-		var deviceValues = {
-			headset: ["in-ear", "over-ear"],
-			loudspeaker: ["ex-ls", "ib-ls"],
-			any: ["in-ear", "over-ear", "ex-ls", "ib-ls"]
-		}[requiredDevice] || [];
-		return $("input[name='4_ld']:checked").toArray().some(function (input) {
-			return deviceValues.includes(input.value);
-		});
-	}
+    /**
+     * Check whether any reported device is eligible, without rejecting mixed device ownership.
+     *
+     * @param {string} requiredDevice Required class: "headset", "loudspeaker", or "any".
+     * @returns {boolean} Whether at least one reported device meets the requirement.
+     */
+    function selfReportedDeviceAvailable(requiredDevice) {
+        var deviceValues = {
+            headset: ["in-ear", "over-ear"],
+            loudspeaker: ["ex-ls", "ib-ls"],
+            any: ["in-ear", "over-ear", "ex-ls", "ib-ls"]
+        }[requiredDevice] || [];
+        return $("input[name='4_ld']:checked").toArray().some(
+            /**
+             * Check whether this selected device satisfies the playback requirement.
+             *
+             * @param {HTMLInputElement} input - A selected listening-device checkbox.
+             * @returns {boolean} Whether the input matches the required device class.
+             */
+            function (input) {
+                return deviceValues.includes(input.value);
+            });
+    }
 
 	function sleepMs(ms) {
 		return new Promise(function (resolve) { setTimeout(resolve, ms); });

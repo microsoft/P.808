@@ -241,9 +241,9 @@ $(function() {
 		howManyHITsAnswered =0;
 		if (hit_num != null ){
 			howManyHITsAnswered= Number(hit_num);
-		}
-		if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
-			disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
+        }
+        if (howManyHITsAnswered >= config['allowedMaxHITsInProject']){
+            disableTheHIT(Hide_HIT_REASON.MAX_ACHIVED);
 		}
 		if ((qual_passed!==null) && (qual_passed=="false")){
 			disableTheHIT(Hide_HIT_REASON.QUALIFICATON);
@@ -384,7 +384,7 @@ function initializeQualification(){
  * @returns {void}
  */
 function sanitizeBirthYear(){
-	this.value = this.value.replace(/[^0-9]/g, "").slice(0, 4);
+    this.value = this.value.replace(/[^0-9]/g, "").slice(0, 4);
 }
 /*
 	check if the qualification all answered
@@ -417,7 +417,7 @@ function validateQualificationAnswer(){
 		}).get();
 		m_tongue_check = mother_tongues.some(function (v) { return config.qualification.mother_tongue.includes(v); });
 
-		device_check = selfReportedDeviceAvailable(config.requiredPlaybackDevice);
+        device_check = selfReportedDeviceAvailable(config.requiredPlaybackDevice);
 	hearing_self_report_check=$("input[name='8_hearing']:checked").val() == "normal"
 	count_correct_ht=0;
 	if (checkQualNumCorrect($("input[name='num1']").val().trim(),config.qualification.num1))
@@ -701,7 +701,7 @@ async function validateCMPSectionAfterMath(cmp_answers){
 		createCookie(config['cookieName']+"_setup","un_important",config['showSetupEveryMinutes']);
 		unlockAfterSetup();
 		alert("Your setup looks good. You can continue with the task.");
-		var setupNext = document.getElementById("details_instruction") || document.getElementById("training");
+        var setupNext = document.getElementById("details_instruction") || document.getElementById("training");
 		if (setupNext) setupNext.scrollIntoView({ behavior: "smooth", block: "start" });
 		return;
 	}
@@ -893,8 +893,8 @@ function showNextQuestionInTrainingSection(){
 		id=id+2;
 		$('#trainingTabs li:nth-child('+id+') a').tab('show');
 	}else{
-		var ratingSection = document.getElementById("rating_section");
-		if (ratingSection) ratingSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        var ratingSection = document.getElementById("rating_section");
+        if (ratingSection) ratingSection.scrollIntoView({ behavior: "smooth", block: "start" });
 	}
 }
 
@@ -1086,48 +1086,68 @@ function doubleClipTimeUpdate(){
  * @param {DoubleClip} clip - The pair of audio elements being played.
  */
 function configureDoubleClipPlaybackUiForClip(clip){
-	var counter = document.getElementById("baudio_l_c_" + clip.id);
-	var title = document.getElementById("title_" + clip.id);
-	var animationFrame = null;
+    var counter = document.getElementById("baudio_l_c_" + clip.id);
+    var title = document.getElementById("title_" + clip.id);
+    var animationFrame = null;
 
-	/**
-	 * Remove the highlight from the clip title.
-	 */
-	function clearHighlight(){
-		title.classList.remove("play_clip1", "play_clip2");
-	}
+    /**
+     * Remove the highlight from the clip title.
+     */
+    function clearHighlight(){
+        title.classList.remove("play_clip1", "play_clip2");
+    }
 
-	/**
-	 * Repaint the counter every frame until the clip is paused or finished; the gap counts as playing.
-	 */
-	function update(){
-		animationFrame = null;
-		var currentTime = clip.currentTime;
-		if (Number.isFinite(currentTime)) counter.textContent = currentTime.toString().toMMSS();
-		if (clip.paused){
-			clearHighlight();
-		}else{
-			animationFrame = requestAnimationFrame(update);
-		}
-	}
+    /**
+     * Repaint the counter every frame until the clip is paused or finished; the gap counts as playing.
+     */
+    function update(){
+        animationFrame = null;
+        var currentTime = clip.currentTime;
+        if (Number.isFinite(currentTime)) counter.textContent = currentTime.toString().toMMSS();
+        if (clip.paused){
+            clearHighlight();
+        }else{
+            animationFrame = requestAnimationFrame(update);
+        }
+    }
 
-	/**
-	 * Highlight the given clip (none during the gap) and make sure the counter keeps repainting.
-	 *
-	 * @param {string} [className] - Highlight class for the clip that just started.
-	 */
-	function follow(className){
-		clearHighlight();
-		if (className) title.classList.add(className);
-		if (animationFrame === null) animationFrame = requestAnimationFrame(update);
-	}
+    /**
+     * Highlight the given clip (none during the gap) and make sure the counter keeps repainting.
+     *
+     * @param {string} [className] - Highlight class for the clip that just started.
+     */
+    function follow(className){
+        clearHighlight();
+        if (className) title.classList.add(className);
+        if (animationFrame === null) animationFrame = requestAnimationFrame(update);
+    }
 
-	clip.ae1.addEventListener("playing", function(){ follow("play_clip1"); });
-	clip.ae2.addEventListener("playing", function(){ follow("play_clip2"); });
-	clip.ae1.addEventListener("ended", function(){ follow(); });
-	[clip.ae1, clip.ae2].forEach(function(media){
-		media.addEventListener("waiting", clearHighlight);
-	});
+    /**
+     * Highlight the first clip when its playback begins.
+     */
+    function highlightFirstClip(){
+        follow("play_clip1");
+    }
+
+    /**
+     * Highlight the second clip when its playback begins.
+     */
+    function highlightSecondClip(){
+        follow("play_clip2");
+    }
+
+    /**
+     * Keep the gap unhighlighted after the first clip ends.
+     */
+    function clearClipHighlight(){
+        follow();
+    }
+
+    clip.ae1.addEventListener("playing", highlightFirstClip);
+    clip.ae2.addEventListener("playing", highlightSecondClip);
+    clip.ae1.addEventListener("ended", clearClipHighlight);
+    clip.ae1.addEventListener("waiting", clearHighlight);
+    clip.ae2.addEventListener("waiting", clearHighlight);
 }
 
 /*
@@ -1326,11 +1346,11 @@ $(function() {
 
 		audioElement1.addEventListener("ended",doubleClipIsended.bind(double_clip),false);
 		audioElement2.addEventListener("ended",doubleClipIsended.bind(double_clip),false);
-		configureDoubleClipPlaybackUiForClip(double_clip);
+        configureDoubleClipPlaybackUiForClip(double_clip);
 
 	});
-	updateProgressForSection("training");
-	updateProgressForSection("rating_section");
+    updateProgressForSection("training");
+    updateProgressForSection("rating_section");
 
 	$("source").on("error", function (e) {
         console.log("Error at audio tag level!"+e.target.src);
@@ -1446,18 +1466,68 @@ function set_onclick_listeners(){
 	// device check runs an objective acoustic echo test (see startDeviceCheck)
 	document.getElementById("start_headset_check").onclick = function() { startDeviceCheck(); };
 	wireDeviceCheckOptions();
-	$('#prev-training').on('click', function(event){ event.preventDefault(); showPreviousQuestionInTrainingSection(); });
-	$('#next-training').on('click', function(event){ event.preventDefault(); showNextQuestionInTrainingSection(); });
-	$('#prev-rating').on('click', function(event){ event.preventDefault(); showPreviousQuestionInRatingSection(); });
-	$('#next-rating').on('click', function(event){ event.preventDefault(); showNextQuestionInRatingSection(); });
-	$("#trainingTabs, #nav-tab-ul").on("shown.bs.tab", "a", function(){
-		var sectionId = this.closest("#trainingTabs") ? "training" : "rating_section";
-		scrollToActiveQuestion(sectionId);
-		updateProgressForSection(sectionId);
-	});
-	$("#training, #rating_section").on("change", 'input[type="radio"]', function(){
-		updateProgressForSection(this.closest("#training") ? "training" : "rating_section");
-	});
+    /**
+     * Prevent link navigation before showing the previous training question.
+     *
+     * @param {Event} event - The click event.
+     */
+    function onPreviousTrainingClick(event){
+        event.preventDefault();
+        showPreviousQuestionInTrainingSection();
+    }
+
+    /**
+     * Prevent link navigation before showing the next training question.
+     *
+     * @param {Event} event - The click event.
+     */
+    function onNextTrainingClick(event){
+        event.preventDefault();
+        showNextQuestionInTrainingSection();
+    }
+
+    /**
+     * Prevent link navigation before showing the previous rating question.
+     *
+     * @param {Event} event - The click event.
+     */
+    function onPreviousRatingClick(event){
+        event.preventDefault();
+        showPreviousQuestionInRatingSection();
+    }
+
+    /**
+     * Prevent link navigation before showing the next rating question.
+     *
+     * @param {Event} event - The click event.
+     */
+    function onNextRatingClick(event){
+        event.preventDefault();
+        showNextQuestionInRatingSection();
+    }
+
+    /**
+     * Scroll to the active question and refresh progress after a section tab changes.
+     */
+    function onQuestionTabShown(){
+        var sectionId = this.closest("#trainingTabs") ? "training" : "rating_section";
+        scrollToActiveQuestion(sectionId);
+        updateProgressForSection(sectionId);
+    }
+
+    /**
+     * Refresh the progress indicator after an answer changes.
+     */
+    function onRatingAnswerChanged(){
+        updateProgressForSection(this.closest("#training") ? "training" : "rating_section");
+    }
+
+    $('#prev-training').on('click', onPreviousTrainingClick);
+    $('#next-training').on('click', onNextTrainingClick);
+    $('#prev-rating').on('click', onPreviousRatingClick);
+    $('#next-rating').on('click', onNextRatingClick);
+    $("#trainingTabs, #nav-tab-ul").on("shown.bs.tab", "a", onQuestionTabShown);
+    $("#training, #rating_section").on("change", 'input[type="radio"]', onRatingAnswerChanged);
 }
 
 /**
@@ -1466,25 +1536,25 @@ function set_onclick_listeners(){
  * @param {string} sectionId - The training or rating section to update.
  */
 function updateProgressForSection(sectionId){
-	var isTraining = sectionId === "training";
-	var prefix = isTraining ? "t" : "q";
-	var tabsId = isTraining ? "trainingTabs" : "nav-tab-ul";
-	var label = document.getElementById(prefix + "-progress-label");
-	var bar = document.getElementById(prefix + "-progress-bar");
-	if (!label || !bar) return;
-	var total = isTraining ? config.trainingUrls.length : config.questionUrls.length;
-	var activeIndex = Math.max(0, $("#" + tabsId + " li.active").index());
-	var completed = 0;
-	for (var i = 1; i <= total; i++){
-		var answered = document.querySelector('input[name="' + prefix + i + '"]:checked');
-		var finishedField = document.getElementById("audio_n_finish_" + prefix + "_" + i);
-		var listened = finishedField && Number(finishedField.value) > 0;
-		if (answered && listened) completed++;
-	}
-	label.textContent = (isTraining ? "Practice " : "Comparison ") + (activeIndex + 1) + " of " + total;
-	bar.style.width = (total ? 100 * completed / total : 0) + "%";
-	bar.setAttribute("aria-valuemax", total);
-	bar.setAttribute("aria-valuenow", completed);
+    var isTraining = sectionId === "training";
+    var prefix = isTraining ? "t" : "q";
+    var tabsId = isTraining ? "trainingTabs" : "nav-tab-ul";
+    var label = document.getElementById(prefix + "-progress-label");
+    var bar = document.getElementById(prefix + "-progress-bar");
+    if (!label || !bar) return;
+    var total = isTraining ? config.trainingUrls.length : config.questionUrls.length;
+    var activeIndex = Math.max(0, $("#" + tabsId + " li.active").index());
+    var completed = 0;
+    for (var i = 1; i <= total; i++){
+        var answered = document.querySelector('input[name="' + prefix + i + '"]:checked');
+        var finishedField = document.getElementById("audio_n_finish_" + prefix + "_" + i);
+        var listened = finishedField && Number(finishedField.value) > 0;
+        if (answered && listened) completed++;
+    }
+    label.textContent = (isTraining ? "Practice " : "Comparison ") + (activeIndex + 1) + " of " + total;
+    bar.style.width = (total ? 100 * completed / total : 0) + "%";
+    bar.setAttribute("aria-valuemax", total);
+    bar.setAttribute("aria-valuenow", completed);
 }
 
 /**
@@ -1493,10 +1563,10 @@ function updateProgressForSection(sectionId){
  * @param {string} sectionId - The practice or rating section containing the selected item.
  */
 function scrollToActiveQuestion(sectionId){
-	var prefix = sectionId == "training" ? "t" : "q";
-	var target = document.getElementById(prefix+"-progress-label");
-	if (!target) target = document.querySelector("#"+sectionId+" .tab-pane.active .baudio_table");
-	if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    var prefix = sectionId == "training" ? "t" : "q";
+    var target = document.getElementById(prefix+"-progress-label");
+    if (!target) target = document.querySelector("#"+sectionId+" .tab-pane.active .baudio_table");
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 </script>
@@ -1514,22 +1584,29 @@ function scrollToActiveQuestion(sectionId){
 		dB) and the inferred device are stored in the hidden fields for offline checking.
 	*/
 
-	/**
-	 * Check whether any reported device is eligible, without rejecting mixed device ownership.
-	 *
-	 * @param {string} requiredDevice Required class: "headset", "loudspeaker", or "any".
-	 * @returns {boolean} Whether at least one reported device meets the requirement.
-	 */
-	function selfReportedDeviceAvailable(requiredDevice) {
-		var deviceValues = {
-			headset: ["in-ear", "over-ear"],
-			loudspeaker: ["ex-ls", "ib-ls"],
-			any: ["in-ear", "over-ear", "ex-ls", "ib-ls"]
-		}[requiredDevice] || [];
-		return $("input[name='4_ld']:checked").toArray().some(function (input) {
-			return deviceValues.includes(input.value);
-		});
-	}
+    /**
+     * Check whether any reported device is eligible, without rejecting mixed device ownership.
+     *
+     * @param {string} requiredDevice Required class: "headset", "loudspeaker", or "any".
+     * @returns {boolean} Whether at least one reported device meets the requirement.
+     */
+    function selfReportedDeviceAvailable(requiredDevice) {
+        var deviceValues = {
+            headset: ["in-ear", "over-ear"],
+            loudspeaker: ["ex-ls", "ib-ls"],
+            any: ["in-ear", "over-ear", "ex-ls", "ib-ls"]
+        }[requiredDevice] || [];
+        return $("input[name='4_ld']:checked").toArray().some(
+            /**
+             * Check whether this selected device satisfies the playback requirement.
+             *
+             * @param {HTMLInputElement} input - A selected listening-device checkbox.
+             * @returns {boolean} Whether the input matches the required device class.
+             */
+            function (input) {
+                return deviceValues.includes(input.value);
+            });
+    }
 
 	function sleepMs(ms) {
 		return new Promise(function (resolve) { setTimeout(resolve, ms); });
@@ -2074,7 +2151,7 @@ function generate_training_section(){
 	var i;
 	var urlA,urlB,signA, signB, order;
 	for (i = 0; i < urls.length; i++) {
-		let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
+        let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
 		if (r>0.5){
 			urlA = urls[i].ref;
 			urlB = urls[i].processed;
@@ -2096,7 +2173,7 @@ function generate_training_section(){
 			$('#trainingTabs').append(ccr_nav_tab.f(i+1,'',''));
 			$('#nav-tabContent').append(ccr_tab.f(i+1, urlA, urlB,'', signA, signB));
 		}
-		$('#nav-tabContent').append(input_template.f(i+1, urls[i].processed, order));
+        $('#nav-tabContent').append(input_template.f(i+1, urls[i].processed, order));
 	}
 
 	trainingStimulusPlayed = new Array(urls.length).fill(0);
@@ -2119,7 +2196,7 @@ function generate_rating_section(){
 	var i;
 	var urlA,urlB,signA, signB, order;
 	for (i = 0; i < urls.length; i++) {
-		let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
+        let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
 		if (r>0.5){
 			urlA = urls[i].ref;
 			urlB = urls[i].processed;
@@ -2142,8 +2219,8 @@ function generate_rating_section(){
 			$('#nav-tabContent-rating').append(ccr_tab.f(i+1,  urlA, urlB,'', signA, signB));
 		}
 		$('#nav-tabContent-rating').append(input_template.f(i+1,urls[i].processed, order));
-		appendCcrMetadata(i + 1, urls[i]);
-	}
+        appendCcrMetadata(i + 1, urls[i]);
+    }
 }
 
 /**
@@ -2152,11 +2229,11 @@ function generate_rating_section(){
  * @param {Object} item Canonical reference/processed comparison and optional metadata.
  */
 function appendCcrMetadata(number, item) {
-	if (!item.pair_id) return;
-	for (const key of ["pair_id", "role", "reference", "practice_exposure"]) {
-		const value = key === "reference" ? item.ref : (item[key] || "");
-		$("<input>", {type: "hidden", name: "Q" + number + "_" + key, value: value})
-			.appendTo("#nav-tabContent-rating");
+    if (!item.pair_id) return;
+    for (const key of ["pair_id", "role", "reference", "practice_exposure"]) {
+        const value = key === "reference" ? item.ref : (item[key] || "");
+        $("<input>", {type: "hidden", name: "Q" + number + "_" + key, value: value})
+            .appendTo("#nav-tabContent-rating");
 	}
 }
 </script>
