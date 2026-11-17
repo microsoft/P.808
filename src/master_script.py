@@ -257,7 +257,8 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     config['rating_urls'] = rating_urls
 
     # training urls
-    df_train = pd.read_csv(training_path)
+    # Raw text keeps identities such as "001" and "NA" equal to the main comparison IDs.
+    df_train = pd.read_csv(training_path, dtype=str, keep_default_na=False)
     train_urls = []
     train_ref = None
     for _, row in df_train.iterrows():
@@ -265,8 +266,8 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
             train_ref = row['training_references']
         item = {"ref": f"{row['training_references']}", "processed": f"{row['training_clips']}"}
         for column in ("order", "practice_example", "pair_id"):
-            if column in df_train and pd.notna(row[column]):
-                item[column] = str(row[column])
+            if column in df_train and row[column].strip():
+                item[column] = row[column].strip()
         train_urls.append(item)
     # add a trapping clips to the training section
     append_training_trap = _is_true(cfg.get("append_training_trap", "true"))
@@ -1123,7 +1124,11 @@ async def main(cfg, test_method, args):
                 raise SystemExit("Prepacked CCR/DCR packing requires a prepacked_sessions CSV path.")
         elif not(clip_packing_strategy == "random"):
             raise SystemExit("Error: Unexpected value for 'clip_packing_strategy' in the configuration file")
-    if test_method == "ccr" and _is_true(cfg_hit_app.get("comparison_metadata", "false")):
+    comparison_metadata = _is_true(cfg_hit_app.get("comparison_metadata", "false"))
+    if (test_method == "ccr" and not comparison_metadata
+            and _is_true(cfg["create_input"].get("aggregate_by_pair_id", "false"))):
+        raise SystemExit("CCR aggregate_by_pair_id requires comparison_metadata = true in hit_app_html.")
+    if test_method == "ccr" and comparison_metadata:
         n_clips = int(cfg["create_input"]["number_of_clips_per_session"])
         required = {f"Q{i}_{field}" for i in range(n_clips) for field in ("ID", "ROLE", "ORDER", "EXPOSURE")}
         if clip_packing_strategy != "prepacked" or not required.issubset(

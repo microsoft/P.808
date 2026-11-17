@@ -534,6 +534,11 @@ def create_input_for_dcrccr(cfg, df, output_path):
         for column in output_df:
             if re.fullmatch(r"Q\d+_ORDER", column) and not output_df[column].isin(("ab", "ba")).all():
                 raise ValueError(f"Invalid prepacked presentation order in {column}")
+            if re.fullmatch(r"Q\d+_ID", column) and output_df[column].str.strip().eq("").any():
+                raise ValueError(f"Empty prepacked comparison ID in {column}")
+            if re.fullmatch(r"Q\d+_ROLE", column) and not output_df[column].isin(
+                    ("main", "identical", "contrast")).all():
+                raise ValueError(f"Invalid prepacked comparison role in {column}")
 
     n_sessions = len(output_df)
     print(f'{n_clips} clips and {n_sessions} sessions')

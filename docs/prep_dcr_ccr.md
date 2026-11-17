@@ -88,6 +88,7 @@ supply the usual source-clip and training CSVs.
 
 For CCR, `comparison_metadata: true` in `[hit_app_html]` requires prepacked `Qn_ID`, `Qn_ROLE`,
 `Qn_ORDER` and `Qn_EXPOSURE` columns, which follow comparisons when screen positions are randomized.
+IDs must be nonempty and roles must be `main`, `identical` or `contrast`.
 Training rows may specify `pair_id`, `order` and `practice_example`; `append_training_trap: false`
 omits the appended training comparison.
 
@@ -97,7 +98,9 @@ prerequisites and native qualification/device/setup/form behavior. Omitting `tra
 keeps the native panels; training order is randomized unless `randomize_training_questions: false`.
 
 Set `aggregate_by_pair_id: true` in `[create_input]` to aggregate CCR by comparison ID; optionally
-set `expected_votes_per_file`. This requires roles `main`, `identical` or `contrast`, exports raw
+set `expected_votes_per_file`. This requires `comparison_metadata: true` and roles `main`,
+`identical` or `contrast`, exports raw
 trials/control candidates before filtering, and excludes controls from comparison means. Contrast
-controls use degraded A and clean B. In this mode, `file_url` contains the comparison ID. CCR scores
+controls use degraded A and clean B. In this mode, `file_url` contains the comparison ID, while
+`condition_pattern` is still matched against the processed audio URL. CCR scores
 already express B-minus-A; the audit separately reconstructs second-minus-first.

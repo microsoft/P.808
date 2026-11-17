@@ -244,6 +244,54 @@ def test_ccr_comparison_metadata_requires_prepacked_columns(tmp_path, monkeypatc
         asyncio.run(master.main(cfg, "ccr", args))
 
 
+def test_ccr_pair_aggregation_requires_comparison_metadata(monkeypatch):
+    """
+    Reject pair aggregation when the HIT app would not record the comparison identities it needs.
+
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    cfg = {"create_input": {"aggregate_by_pair_id": "true"}, "hit_app_html": {}}
+    monkeypatch.setattr(master, "prepare_csv_for_create_input", AsyncMock(side_effect=RuntimeError("validated")))
+    args = SimpleNamespace(general_assets=None, p831_fest=False, clips=None, gold_clips=None, trapping_clips=None)
+
+    with pytest.raises(SystemExit):
+        asyncio.run(master.main(cfg, "ccr", args))
+
+
+def test_ccr_training_identities_stay_raw_strings(tmp_path, monkeypatch):
+    """
+    Keep practice IDs such as "001" and "NA" identical to the main comparison IDs.
+
+    :param tmp_path: Temporary training/output directory.
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    training = tmp_path / "training.csv"
+    training.write_text("training_references,training_clips,order,pair_id\na.wav,b.wav,,001\nc.wav,d.wav,ba,NA\n",
+                        encoding="utf-8")
+    output = tmp_path / "ccr.html"
+    template, _ = master.get_path("ccr", False)
+    asyncio.run(master.create_hit_app_ccr_dcr(
+        {
+            "allowed_max_hit_in_project": "7", "hit_base_payment": "0.5",
+            "quantity_hits_more_than": "2", "quantity_bonus": "0.1",
+            "quality_top_percentage": "20", "quality_bonus": "0.15", "append_training_trap": "false",
+        },
+        template, str(output), str(training),
+        {"number_of_clips_per_session": "1", "number_of_trapping_per_session": "0"}, {},
+    ))
+    html = output.read_text(encoding="utf-8")
+    training_urls = ast.literal_eval(re.search(r"trainingUrls:\s*(\[.*\]),", html).group(1))
+    assert [item["pair_id"] for item in training_urls] == ["001", "NA"]
+    assert "order" not in training_urls[0]
+    assert training_urls[1]["order"] == "ba"
+
+
 @pytest.mark.parametrize(("counter", "limit", "blocked"), [
     (None, 0, True), (None, 20, False), ("19", 20, False), ("20", 20, True),
 ])
