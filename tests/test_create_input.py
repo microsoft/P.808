@@ -179,7 +179,7 @@ def test_prepacked_ccr_preserves_assignments_and_bandwidth_sets(tmp_path):
     prepacked = pd.DataFrame({
         "bundle_id": ["bundle-1", "bundle-2"],
         "Q0_R": ["a.wav", "a.wav"], "Q0_P": ["b.wav", "b.wav"],
-        "Q0_ID": ["ab", "ab"], "Q0_ORDER": ["ba", "ab"],
+        "Q0_ID": ["ab", "ab"], "Q0_ORDER": ["ba", "ab"], "Q0_EXPOSURE": ["same_scene", "same_scene"],
     })
     source = tmp_path / "prepacked.csv"
     prepacked.to_csv(source, index=False)
@@ -198,7 +198,8 @@ def test_prepacked_ccr_preserves_assignments_and_bandwidth_sets(tmp_path):
 
 
 @pytest.mark.parametrize("case", [
-    "missing_column", "empty_url", "bad_order", "empty_id", "bad_role", "conflicting_id", "input_collision",
+    "missing_column", "empty_url", "bad_order", "empty_id", "unsafe_id", "unsafe_exposure",
+    "bad_role", "conflicting_id", "input_collision",
 ])
 def test_prepacked_ccr_rejects_unusable_assignments(tmp_path, case):
     """
@@ -209,7 +210,10 @@ def test_prepacked_ccr_rejects_unusable_assignments(tmp_path, case):
     :return: None.
     """
     data, _, _ = _create_comparison_input_data()
-    row = {"Q0_R": "a.wav", "Q0_P": "b.wav", "Q0_ORDER": "ab", "Q0_ID": "pair-1", "Q0_ROLE": "main"}
+    row = {
+        "Q0_R": "a.wav", "Q0_P": "b.wav", "Q0_ORDER": "ab", "Q0_ID": "pair-1",
+        "Q0_ROLE": "main", "Q0_EXPOSURE": "same_scene",
+    }
     rows = [row]
     if case == "missing_column":
         del row["Q0_R"]
@@ -219,6 +223,10 @@ def test_prepacked_ccr_rejects_unusable_assignments(tmp_path, case):
         row["Q0_ORDER"] = "random"
     elif case == "empty_id":
         row["Q0_ID"] = " "
+    elif case == "unsafe_id":
+        row["Q0_ID"] = "pair'1"
+    elif case == "unsafe_exposure":
+        row["Q0_EXPOSURE"] = "same scene"
     elif case == "bad_role":
         row["Q0_ROLE"] = "trap"
     elif case == "conflicting_id":

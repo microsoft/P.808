@@ -261,6 +261,56 @@ def test_ccr_pair_aggregation_requires_comparison_metadata(monkeypatch):
         asyncio.run(master.main(cfg, "ccr", args))
 
 
+@pytest.mark.parametrize("test_method", ["ccr", "dcr"])
+@pytest.mark.parametrize("bw_max", ["NB-WB", "SWB"])
+def test_ccr_dcr_reject_bandwidth_max_below_fullband(monkeypatch, test_method, bw_max):
+    """
+    Reject bandwidth settings that conflict with the all-answers-correct HIT check.
+
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :param test_method: Listening-test method.
+    :param bw_max: Configured maximum bandwidth.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+
+    with pytest.raises(SystemExit, match="requires bw_max = FB"):
+        master.extend_general_cfg_bw({}, {"bw_min": "NB-WB", "bw_max": bw_max}, test_method)
+
+
+@pytest.mark.parametrize("test_method", ["ccr", "dcr"])
+def test_ccr_dcr_allow_fullband_bandwidth_max(monkeypatch, test_method):
+    """
+    Keep the compatible fullband maximum available for CCR and DCR studies.
+
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :param test_method: Listening-test method.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+
+    assert master.extend_general_cfg_bw(
+        {}, {"bw_min": "NB-WB", "bw_max": "FB"}, test_method
+    ) == {"bw_min": "NB-WB", "bw_max": "FB"}
+
+
+def test_other_methods_allow_narrower_bandwidth_max(monkeypatch):
+    """
+    Keep the CCR/DCR-specific guard from changing other study methods.
+
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+
+    assert master.extend_general_cfg_bw(
+        {}, {"bw_min": "NB-WB", "bw_max": "SWB"}, "acr"
+    ) == {"bw_min": "NB-WB", "bw_max": "SWB"}
+
+
 @pytest.mark.parametrize("order", ["ba", "AB", "rp"])
 def test_ccr_training_identities_stay_raw_strings(tmp_path, monkeypatch, order):
     """

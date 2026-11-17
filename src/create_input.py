@@ -536,6 +536,14 @@ def create_input_for_dcrccr(cfg, df, output_path):
                 raise ValueError(f"Invalid prepacked presentation order in {column}")
             if re.fullmatch(r"Q\d+_ID", column) and output_df[column].str.strip().eq("").any():
                 raise ValueError(f"Empty prepacked comparison ID in {column}")
+            if re.fullmatch(r"Q\d+_(?:ID|EXPOSURE)", column):
+                values = output_df[column]
+                if column.endswith("_EXPOSURE"):
+                    values = values[values.str.strip().ne("")]
+                if not values.str.fullmatch(r"[A-Za-z0-9_.:-]+").all():
+                    raise ValueError(
+                        f"Invalid metadata value in {column}; use only letters, digits, _, ., :, or -"
+                    )
             if re.fullmatch(r"Q\d+_ROLE", column) and not output_df[column].str.strip().isin(
                     ("main", "identical", "contrast")).all():
                 raise ValueError(f"Invalid prepacked comparison role in {column}")

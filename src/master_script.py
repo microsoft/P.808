@@ -984,7 +984,7 @@ def get_path(test_method, is_p831_fest):
     return template_path, cfg_path
 
 
-def extend_general_cfg_bw(general, hitapp):
+def extend_general_cfg_bw(general, hitapp, test_method):
     # add BW check config
     if 'bw_min' not in hitapp or 'bw_max' not in hitapp :
         print("Warning: No bandwidth range specified in the config file, consider using updated template for master script. All bandwidth ranges will be allowed.")
@@ -995,6 +995,11 @@ def extend_general_cfg_bw(general, hitapp):
         assert hitapp['bw_max'] in ['NB-WB', 'SWB', 'FB'], f'bw_max should be one of NB-WB, SWB, FB, but got {hitapp["bw_max"]}'
         bw_min = hitapp['bw_min']
         bw_max = hitapp['bw_max']
+    if test_method in ('ccr', 'dcr') and bw_max != 'FB':
+        raise SystemExit(
+            "CCR/DCR bandwidth qualification requires bw_max = FB because the HIT requires all bandwidth "
+            "check answers to be correct."
+        )
     general['bw_min'] = bw_min
     general['bw_max'] = bw_max
     return general
@@ -1177,7 +1182,7 @@ async def main(cfg, test_method, args):
     # create general config
     general_cfg = prepare_basic_cfg(df)
     # add BW check config
-    general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app)
+    general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app, test_method)
     # optional study-level screen-out completion code (paid for the screening effort),
     # shown when a participant fails the qualification or setup screening. Left as the
     # ${screenout_code} placeholder for the HIT app server to fill when not set in the
