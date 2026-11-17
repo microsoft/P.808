@@ -93,8 +93,9 @@ IDs must be nonempty, each ID must always name the same audio pair and role, and
 digits, `_`, `.`, `:` and `-`.
 When online qualification is enabled, CCR/DCR requires all five bandwidth-check answers to match
 their supplied hashes; `bw_min` does not relax that client-side check, and `bw_max` must be `FB`.
-Training rows may specify `order` (`ab`, `ba` or empty); `append_training_trap: false` omits the
-appended training comparison.
+Training rows may specify `order` (`ab`, `ba` or empty) and an optional `pair_id`, exported
+as `Tn_ID` with each shuffled practice comparison. Use only letters, digits, `_`, `.`, `:`
+or `-` in the ID. `append_training_trap: false` omits the appended training comparison.
 
 An optional `presentation_file` loads trusted JSON fields `title`, `style`, `script`,
 `instructions`, `training` and `rating`. Custom replacements must retain stock IDs, containers,

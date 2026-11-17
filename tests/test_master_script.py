@@ -215,6 +215,9 @@ def test_ccr_presentation_and_metadata_are_opt_in(
     assert len(training_urls) == (3 if custom else 4)
     assert len(rating_urls) == (2 if custom else 3)
     assert training_urls[1]["order"] == "ba"
+    assert [item["pair_id"] for item in training_urls[:3]] == ["practice-1", "practice-2", "practice-3"]
+    assert 'name="T{0}_ID"' in html
+    assert "urls[i].pair_id" in html
     assert ("Approved welcome" in html) == bool(custom)
     assert ("Welcome to this Data Labeling task!" in html) != bool(custom)
     assert ("window.reviewedContent = true;" in html) == bool(custom)
@@ -363,8 +366,8 @@ def test_ccr_training_order_is_validated_and_clip_urls_are_preserved(tmp_path, m
     master = importlib.import_module("master_script")
     training = tmp_path / "training.csv"
     training.write_text(
-        "training_references,training_clips,order\n"
-        f"a.wav,b.wav,\nc.wav,d.wav,{order}\n",
+        "training_references,training_clips,order,pair_id\n"
+        f"a.wav,b.wav,,001\nc.wav,d.wav,{order},practice-2\n",
         encoding="utf-8",
     )
     output = tmp_path / "ccr.html"
@@ -388,6 +391,38 @@ def test_ccr_training_order_is_validated_and_clip_urls_are_preserved(tmp_path, m
     assert [item["ref"] for item in training_urls] == ["a.wav", "c.wav"]
     assert "order" not in training_urls[0]
     assert training_urls[1]["order"] == "ba"
+    assert [item["pair_id"] for item in training_urls] == ["001", "practice-2"]
+
+
+def test_ccr_training_pair_id_rejects_unsafe_values(tmp_path, monkeypatch):
+    """
+    Reject training IDs that cannot safely be embedded in the HIT app.
+
+    :param tmp_path: Temporary training/output directory.
+    :param monkeypatch: Fixture for importing the CLI's existing module layout.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    training = tmp_path / "training.csv"
+    training.write_text(
+        "training_references,training_clips,pair_id\n"
+        "a.wav,b.wav,unsafe'pair\n",
+        encoding="utf-8",
+    )
+    template, _ = master.get_path("ccr", False)
+    create = master.create_hit_app_ccr_dcr(
+        {
+            "allowed_max_hit_in_project": "7", "hit_base_payment": "0.5",
+            "quantity_hits_more_than": "2", "quantity_bonus": "0.1",
+            "quality_top_percentage": "20", "quality_bonus": "0.15", "append_training_trap": "false",
+        },
+        template, str(tmp_path / "ccr.html"), str(training),
+        {"number_of_clips_per_session": "1", "number_of_trapping_per_session": "0"}, {},
+    )
+
+    with pytest.raises(ValueError, match="Invalid training pair ID"):
+        asyncio.run(create)
 
 
 @pytest.mark.parametrize(("counter", "limit", "blocked"), [

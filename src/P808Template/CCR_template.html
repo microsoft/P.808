@@ -2134,49 +2134,53 @@ function shuffle(a) {
 	return a;
 }
 
-/*
-	Generate the training section
-*/
+/**
+ * Generate the CCR training section and preserve optional per-comparison IDs in the submitted answers.
+ */
 function generate_training_section(){
-	ccr_nav_tab = '<li class="nav-item {1}"><a class="nav-link " data-toggle="tab"  href="#T{0}-panel" id="T{0}-tab " role="tab" aria-controls="T{0}" {2}>Q. {0}</a></li>';
-	ccr_tab ='<div class="tab-pane fade {3}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. The quality of the <b>second clip</b> compared to the quality of the <b>first clip</b> is: </p> <div class="row"> <p align="center"> <span class="baudio multi" id="t_{0}" data-src1="{1}" data-src2="{2}" data-title1 = "First clip" data-title2 = "Second clip" data-onfinished="playedAudioTraining"></span> </p> </div>  <fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the second clip is</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}3">Much Better</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}2">Better</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}1">Slightly Better</label></div></td><td class="c">1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="0">About the Same</label></div></td><td class="c">0</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}1"required="">Slightly Worse</label></div></td><td class="c">-1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}2"required="">Worse</label></div></td><td class="c">-2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}3"required="">Much Worse</label></div></td><td class="c">-3</td></tr></tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
-	// this will show which url was shown by in which question as their orther will be randomized
-	input_template= '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" /><input id="T{0}_order" name="T{0}_order" type="hidden" value="{2}" />';
+    ccr_nav_tab = '<li class="nav-item {1}"><a class="nav-link " data-toggle="tab"  href="#T{0}-panel" id="T{0}-tab " role="tab" aria-controls="T{0}" {2}>Q. {0}</a></li>';
+    ccr_tab ='<div class="tab-pane fade {3}" id="T{0}-panel" role="tabpanel" aria-labelledby="T{0}-tab"><p></p><div class="row">	<div class="col-sm-3"></div>	<div class="col-sm-6">		<p style="margin-top:10px;">{0}. The quality of the <b>second clip</b> compared to the quality of the <b>first clip</b> is: </p> <div class="row"> <p align="center"> <span class="baudio multi" id="t_{0}" data-src1="{1}" data-src2="{2}" data-title1 = "First clip" data-title2 = "Second clip" data-onfinished="playedAudioTraining"></span> </p> </div>  <fieldset id="fieldset_t{0}" class="trainingFieldset" title=""><table class="table md scale" cellspacing="0" cellpadding="0">			<thead><tr><th >Quality of the second clip is</th><th class="c" >Score</th></tr>			</thead>			<tbody><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}3">Much Better</label></div></td><td class="c">3</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}2">Better</label></div></td><td class="c">2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{4}1">Slightly Better</label></div></td><td class="c">1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="0">About the Same</label></div></td><td class="c">0</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}1"required="">Slightly Worse</label></div></td><td class="c">-1</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}2"required="">Worse</label></div></td><td class="c">-2</td></tr><tr><td><div class="radio" ><label ><input type="radio" name="t{0}" value="{5}3"required="">Much Worse</label></div></td><td class="c">-3</td></tr></tbody></table>		</fieldset><p></p> </div> 	<div class="col-sm-3"></div></div> <p></p> </div>';
+    input_template = '<input id="T{0}_URL" name="T{0}_URL" type="hidden" value="{1}" /><input id="T{0}_order" name="T{0}_order" type="hidden" value="{2}" />';
 
     if (JSON.parse(config['randomizeTrainingQuestions']))
-		urls = shuffle(config['trainingUrls']);
-	else
-		urls = config['trainingUrls'];
+        urls = shuffle(config['trainingUrls']);
+    else
+        urls = config['trainingUrls'];
 
-	var i;
-	var urlA,urlB,signA, signB, order;
-	for (i = 0; i < urls.length; i++) {
+    var i;
+    var urlA,urlB,signA, signB, order;
+    for (i = 0; i < urls.length; i++) {
         let r = urls[i].order === "ab" ? 1 : urls[i].order === "ba" ? 0 : Math.random();
-		if (r>0.5){
-			urlA = urls[i].ref;
-			urlB = urls[i].processed;
-			signA = '';
-			signB = '-';
-			order = 'rp';
-		}else{
-			//processed ,unprocessed => sign should be replaced
-			urlA = urls[i].processed;
-			urlB = urls[i].ref;
-			signA = '-';
-			signB = '';
-			order = 'pr';
-		}
-		if (i==0){
-			$('#trainingTabs').append(ccr_nav_tab.f(i+1,'active', 'ria-selected="true"'));
-			$('#nav-tabContent').append(ccr_tab.f(i+1, urlA, urlB,'in active', signA, signB));
-		}else{
-			$('#trainingTabs').append(ccr_nav_tab.f(i+1,'',''));
-			$('#nav-tabContent').append(ccr_tab.f(i+1, urlA, urlB,'', signA, signB));
-		}
-        $('#nav-tabContent').append(input_template.f(i+1, urls[i].processed, order));
-	}
+        if (r > 0.5) {
+            urlA = urls[i].ref;
+            urlB = urls[i].processed;
+            signA = '';
+            signB = '-';
+            order = 'rp';
+        } else {
+            urlA = urls[i].processed;
+            urlB = urls[i].ref;
+            signA = '-';
+            signB = '';
+            order = 'pr';
+        }
+        if (i == 0) {
+            $('#trainingTabs').append(ccr_nav_tab.f(i + 1, 'active', 'ria-selected="true"'));
+            $('#nav-tabContent').append(ccr_tab.f(i + 1, urlA, urlB, 'in active', signA, signB));
+        } else {
+            $('#trainingTabs').append(ccr_nav_tab.f(i + 1, '', ''));
+            $('#nav-tabContent').append(ccr_tab.f(i + 1, urlA, urlB, '', signA, signB));
+        }
+        var trainingInputs = input_template.f(i + 1, urls[i].processed, order);
+        if (urls[i].pair_id) {
+            trainingInputs += '<input id="T{0}_ID" name="T{0}_ID" type="hidden" value="{1}" />'.f(
+                i + 1, urls[i].pair_id
+            );
+        }
+        $('#nav-tabContent').append(trainingInputs);
+    }
 
-	trainingStimulusPlayed = new Array(urls.length).fill(0);
+    trainingStimulusPlayed = new Array(urls.length).fill(0);
 }
 
 /*
