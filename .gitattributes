@@ -10,4 +10,5 @@ src/configurations/master.cfg -text
 src/P808Template/*.html -text
 src/*.py -text
 src/**/*.py -text
+src/result_parser.py text eol=crlf
 tests/*.py -text
