@@ -137,6 +137,27 @@ def test_ccr_pair_identity_trap_check_ignores_annotated_reuse(ccr_config, monkey
     assert result_parser.check_tps(row, "ccr") == 1
 
 
+def test_ccr_pair_identity_variance_keeps_annotated_trials_reusing_trap_audio(ccr_config, monkeypatch):
+    """
+    Include annotated judgments in the variance check while excluding the unannotated trap.
+
+    :param ccr_config: Isolated parser configuration.
+    :param monkeypatch: Fixture for specifying realized question names.
+    :return: None.
+    """
+    ccr_config["general"]["aggregate_by_pair_id"] = "true"
+    monkeypatch.setattr(result_parser, "question_names", ["q1", "q2", "q3"])
+    trap_url = "https://example.test/shared-b.wav"
+    row = {"input.tp": trap_url}
+    for question, score in (("q1", "-2"), ("q2", "2"), ("q3", "-3")):
+        row[f"answer.{question}_url"] = trap_url
+        row[f"answer.{question}"] = score
+    row["answer.q1_pair_id"] = "main-1"
+    row["answer.q2_pair_id"] = "main-2"
+
+    assert result_parser.check_variance(row, "ccr") == 8
+
+
 @pytest.mark.parametrize("order,raw", [("rp", 2), ("pr", -2)])
 def test_ccr_contrast_uses_clean_preference_in_both_directions(order, raw):
     """

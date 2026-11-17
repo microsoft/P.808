@@ -264,13 +264,18 @@ def check_tps(row, method):
     return correct_tps
 
 
-def check_variance(row):
+def check_variance(row, method):
     """
     Check how is variance of ratings in the session (if the worker just clicked samething)
     :param row:
+    :param method:
     :return:
     """
     r = []
+    pair_identity = (
+        method == "ccr"
+        and config["general"].get("aggregate_by_pair_id", "false").lower() == "true"
+    )
     for q_name in question_names:
         if (
             "gold_question" in config
@@ -285,7 +290,12 @@ def check_variance(row):
             in row[f"answer.{q_name}_url"]
         ):
             continue
-        if config["trapping"]["url_found_in"] in row and len (row[config["trapping"]["url_found_in"]])>0 and row[config["trapping"]["url_found_in"]] in row[f"answer.{q_name}_url"]:
+        if (
+            config["trapping"]["url_found_in"] in row
+            and len(row[config["trapping"]["url_found_in"]]) > 0
+            and row[config["trapping"]["url_found_in"]] in row[f"answer.{q_name}_url"]
+            and not (pair_identity and row.get(f"answer.{q_name}_pair_id", "").strip())
+        ):
             continue
         try:            
             for suf in suffixes:
@@ -1260,7 +1270,7 @@ def data_cleaning(filename, method, wrong_vcodes):
                     d['gq_url'] = rec['url']
                     d['gq_url_2'] = rec['url_2'] 
         # step6. check variance in a session rating
-        d['variance_in_ratings'] = check_variance(row)
+        d['variance_in_ratings'] = check_variance(row, method)
         accept, failures_accept = check_if_session_accepted(d)
         if accept:
             d['accept'] = 1
