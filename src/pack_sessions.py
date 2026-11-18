@@ -299,17 +299,22 @@ def main(argv=None):
     :return: None.
     """
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--audit", type=Path, required=True)
-    parser.add_argument("--repeats", type=int, required=True)
-    parser.add_argument("--session-size", type=int, required=True)
-    parser.add_argument("--id-column", default="item_id")
-    parser.add_argument("--group-column")
-    parser.add_argument("--stratum-column")
-    parser.add_argument("--quota", action="append", default=[], metavar="STRATUM=COUNT")
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--iterations", type=int, default=100000)
+    parser.add_argument("--input", type=Path, required=True, help="CSV with one row per comparison.")
+    parser.add_argument("--output", type=Path, required=True,
+                        help="New assignment CSV (bundle_id, position, item_id, order).")
+    parser.add_argument("--audit", type=Path, required=True,
+                        help="New JSON file with settings, hashes and balance statistics.")
+    parser.add_argument("--repeats", type=int, required=True, help="Appearances per comparison; positive and even.")
+    parser.add_argument("--session-size", type=int, required=True, help="Main comparisons per bundle.")
+    parser.add_argument("--id-column", default="item_id", help="Column with unique comparison IDs.")
+    parser.add_argument("--group-column",
+                        help="Column naming the source (e.g. scene); one comparison per source in a bundle.")
+    parser.add_argument("--stratum-column", help="Column whose values have per-bundle quotas; requires --quota.")
+    parser.add_argument("--quota", action="append", default=[], metavar="STRATUM=COUNT",
+                        help="Comparisons of a stratum per bundle; repeat per stratum, summing to --session-size.")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for reproducible assignments.")
+    parser.add_argument("--iterations", type=int, default=100000,
+                        help="Proposal budget for reducing repeated companions.")
     args = parser.parse_args(argv)
     paths = [path.resolve() for path in (args.input, args.output, args.audit)]
     if len(set(paths)) != 3:

@@ -30,10 +30,11 @@ This describes the configuration for the `master_script.py`. A sample configurat
 Assuming the URL is `http://test.com/D501_C03_M2_S02.wav` is the clip URL, and "03" is the condition name. 
 The pattern will be `.*_c(?P<condition_num>\d{1,2})_.*.wav`, you should also use condition_keys with `condition_num`.
 * (optional)  `condition_keys:` comma separated list of keys appearing in the `condition_pattern`:
-* (optional)  `clip_packing_strategy:random`: Either `random` or `balanced_block`. It specifies how to select clips 
+* (optional)  `clip_packing_strategy:random`: `random`, `balanced_block` or, for CCR/DCR, `prepacked`. It specifies how to select clips 
 which will be assessed in a same HIT. For the `balanced_block` design, `condition_pattern`, `condition_pattern`, and
  `condition_pattern` should be specified.  `number_of_clips_per_session` should be a multiple of the unique values of the 
- key specified in the `block_keys`. 
+ key specified in the `block_keys`. For `prepacked`, `prepacked_sessions` is the path to a CSV with one row per session,
+ usually planned with `src/pack_sessions.py`; see [DCR/CCR preparation](prep_dcr_ccr.md#prepacked-assignments).
 * (optional)  `block_keys:`:  The key(s) to be used for creating the blocks should be specified here. Up to two keys. 
 A comma separated list. For multiple keys, all values of the first key should appear in one block.
 
