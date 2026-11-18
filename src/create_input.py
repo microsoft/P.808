@@ -519,7 +519,7 @@ def create_input_for_dcrccr(cfg, df, output_path):
         add_clips_random_ccr(clips, refs, n_clips_per_session, output_df)
     elif packing_strategy == "prepacked":
         source = cfg["prepacked_sessions"]
-        if os.path.abspath(source) == os.path.abspath(output_path):
+        if os.path.exists(output_path) and os.path.samefile(source, output_path):
             raise ValueError("Prepacked input and output must be different files")
         output_df = pd.read_csv(source, dtype=str, keep_default_na=False)
         if output_df.empty:

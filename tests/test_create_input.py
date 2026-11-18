@@ -199,7 +199,7 @@ def test_prepacked_ccr_preserves_assignments_and_bandwidth_sets(tmp_path):
 
 @pytest.mark.parametrize("case", [
     "missing_column", "empty_url", "bad_order", "empty_id", "unsafe_id", "unsafe_exposure",
-    "bad_role", "conflicting_id", "input_collision",
+    "bad_role", "conflicting_id", "input_collision", "input_symlink_collision",
 ])
 def test_prepacked_ccr_rejects_unusable_assignments(tmp_path, case):
     """
@@ -234,6 +234,11 @@ def test_prepacked_ccr_rejects_unusable_assignments(tmp_path, case):
     source = tmp_path / "prepacked.csv"
     pd.DataFrame(rows).to_csv(source, index=False)
     output = source if case == "input_collision" else tmp_path / "output.csv"
+    if case == "input_symlink_collision":
+        try:
+            output.symlink_to(source)
+        except OSError as error:
+            pytest.skip(f"Cannot create symlink on this platform: {error}")
     before = source.read_bytes()
     with pytest.raises(ValueError):
         create_input.create_input_for_dcrccr({
