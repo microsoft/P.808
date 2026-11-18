@@ -298,6 +298,7 @@ def test_prolific_merge_preserves_ccr_identity_strings(tmp_path, ccr_config):
         "WorkerId": "w", "AssignmentId": "a", "HITId": "h", "HITTypeId": "t", "Answer.studyId": "s",
         "Answer.browser_info": "browser", "Input.bundle_id": "0007",
         "Answer.Q1": "1", "Answer.Q1_pair_id": "001", "Answer.Q2": "-1", "Answer.Q2_pair_id": "NA",
+        "Answer.T1_ID": "002", "Answer.T2_ID": "NA",
     }
     with hitapp.open("w", newline="", encoding="utf-8") as target:
         writer = csv.DictWriter(target, fieldnames=list(hitapp_row))
@@ -317,7 +318,9 @@ def test_prolific_merge_preserves_ccr_identity_strings(tmp_path, ccr_config):
         merged["Answer.Q1_pair_id"],
         merged["Answer.Q2_pair_id"],
         merged["Input.bundle_id"],
-    ) == ("001", "NA", "0007")
+        merged["Answer.T1_ID"],
+        merged["Answer.T2_ID"],
+    ) == ("001", "NA", "0007", "002", "NA")
 
 
 def test_p804_cannot_rate_still_excludes_zero(ccr_config, monkeypatch):

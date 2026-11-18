@@ -2437,7 +2437,8 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     # Re-read CCR identities as raw text: type inference would merge "001" with "1", and NA
     # detection would blank out "NA" (pandas >= 3.1 applies it before converters).
     identity_column = re.compile(
-        r"(answer|input)\.(q\d+_(pair_id|role|order|reference|url|practice_exposure)|bundle_id)", re.IGNORECASE)
+        r"(answer|input)\.(q\d+_(pair_id|role|order|reference|url|practice_exposure)|t\d+_id|bundle_id)",
+        re.IGNORECASE)
     identity_columns = [column for column in hitapp_ans.columns if identity_column.fullmatch(column)]
     if identity_columns:
         identities = pd.read_csv(hitapp_ans_path, usecols=identity_columns, dtype=str, keep_default_na=False)
