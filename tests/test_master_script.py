@@ -336,14 +336,25 @@ def test_ccr_pair_aggregation_requires_comparison_metadata(monkeypatch):
         asyncio.run(master.main(cfg, "ccr", args))
 
 
-@pytest.mark.parametrize("test_method", ["ccr", "dcr"])
-def test_prepacked_order_requires_comparison_metadata(tmp_path, monkeypatch, test_method):
+@pytest.mark.parametrize(
+    ("test_method", "comparison_metadata", "error"),
+    [
+        ("ccr", "false", "Prepacked Qn_ORDER requires comparison_metadata = true"),
+        ("dcr", "false", "Prepacked Qn_ORDER is not supported for DCR"),
+        ("dcr", "true", "Prepacked Qn_ORDER is not supported for DCR"),
+    ],
+)
+def test_prepacked_order_validation_is_method_specific(
+    tmp_path, monkeypatch, test_method, comparison_metadata, error
+):
     """
-    Reject prepacked playback orders that the generated HIT would otherwise randomize.
+    Reject prepacked orders that the selected method cannot honor.
 
     :param tmp_path: Temporary prepacked sessions directory.
     :param monkeypatch: Fixture for the CLI's module layout.
     :param test_method: Listening-test method.
+    :param comparison_metadata: Whether comparison metadata is enabled.
+    :param error: Expected validation error.
     :return: None.
     """
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
@@ -356,13 +367,40 @@ def test_prepacked_order_requires_comparison_metadata(tmp_path, monkeypatch, tes
             "clip_packing_strategy": "prepacked",
             "prepacked_sessions": str(sessions),
         },
-        "hit_app_html": {"comparison_metadata": "false"},
+        "hit_app_html": {"comparison_metadata": comparison_metadata},
     }
     monkeypatch.setattr(master, "prepare_csv_for_create_input", AsyncMock(side_effect=RuntimeError("validated")))
     args = SimpleNamespace(general_assets=None, p831_fest=False, clips=None, gold_clips=None, trapping_clips=None)
 
-    with pytest.raises(SystemExit, match="Prepacked Qn_ORDER requires comparison_metadata = true"):
+    with pytest.raises(SystemExit, match=error):
         asyncio.run(master.main(cfg, test_method, args))
+
+
+def test_dcr_rejects_comparison_metadata_without_order(tmp_path, monkeypatch):
+    """
+    Reject comparison metadata for DCR even when the prepacked file has no order column.
+
+    :param tmp_path: Temporary prepacked sessions directory.
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    sessions = tmp_path / "sessions.csv"
+    sessions.write_text("Q0_R,Q0_P\na.wav,b.wav\n", encoding="utf-8")
+    cfg = {
+        "create_input": {
+            "number_of_clips_per_session": "1",
+            "clip_packing_strategy": "prepacked",
+            "prepacked_sessions": str(sessions),
+        },
+        "hit_app_html": {"comparison_metadata": "true"},
+    }
+    monkeypatch.setattr(master, "prepare_csv_for_create_input", AsyncMock(side_effect=RuntimeError("validated")))
+    args = SimpleNamespace(general_assets=None, p831_fest=False, clips=None, gold_clips=None, trapping_clips=None)
+
+    with pytest.raises(SystemExit, match="DCR comparison_metadata is not supported"):
+        asyncio.run(master.main(cfg, "dcr", args))
 
 
 @pytest.mark.parametrize("test_method", ["ccr", "dcr"])

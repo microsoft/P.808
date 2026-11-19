@@ -1154,11 +1154,17 @@ async def main(cfg, test_method, args):
         prepacked_columns = set(pd.read_csv(cfg["create_input"]["prepacked_sessions"], nrows=0).columns)
         n_clips = int(cfg["create_input"]["number_of_clips_per_session"])
         order_columns = {f"Q{i}_ORDER" for i in range(n_clips)}
+        if test_method == "dcr" and order_columns.intersection(prepacked_columns):
+            raise SystemExit(
+                "Prepacked Qn_ORDER is not supported for DCR; reference and processed clips use fixed positions."
+            )
         if not comparison_metadata and order_columns.intersection(prepacked_columns):
             raise SystemExit(
                 "Prepacked Qn_ORDER requires comparison_metadata = true in hit_app_html; "
                 "otherwise playback order is randomized."
             )
+    if test_method == "dcr" and comparison_metadata:
+        raise SystemExit("DCR comparison_metadata is not supported; it is only available for CCR.")
     if (test_method == "ccr" and not comparison_metadata
             and _is_true(cfg["create_input"].get("aggregate_by_pair_id", "false"))):
         raise SystemExit("CCR aggregate_by_pair_id requires comparison_metadata = true in hit_app_html.")

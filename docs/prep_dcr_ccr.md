@@ -100,9 +100,10 @@ training and controls separately, and route participants to avoid repeated compa
 
 To use the plan, convert it to a prepacked sessions file: one row per `bundle_id`, with the bundle's
 comparisons (plus any controls) as `Q0_R`/`Q0_P`, `Q1_R`/`Q1_P`, and so on. `Qn_R` is the first clip of
-the canonical pair (A) and `Qn_P` the second (B). Playback order and pair IDs are honored with
+the canonical pair (A) and `Qn_P` the second (B). For CCR, playback order and pair IDs are honored with
 `comparison_metadata: true` (below): copy each assignment's `order` to `Qn_ORDER` and its `item_id` to
-`Qn_ID`; `ab` plays A first and `ba` plays B first. The script does not write this file itself.
+`Qn_ID`; `ab` plays A first and `ba` plays B first. DCR always presents Reference and Processed in fixed
+positions; omit `order`/`Qn_ORDER` when preparing a DCR session file. The script does not write this file itself.
 
 ### Prepacked assignments
 
@@ -111,7 +112,8 @@ to use such a file instead of the built-in strategies.
 Each row needs `Q0_R`/`Q0_P` through the configured comparison count. Other columns are preserved;
 supply the usual source-clip and training CSVs.
 
-For CCR, `comparison_metadata: true` in `[hit_app_html]` requires prepacked `Qn_ID`, `Qn_ROLE`,
+`comparison_metadata` is supported only for CCR. For CCR, `comparison_metadata: true` in `[hit_app_html]`
+requires prepacked `Qn_ID`, `Qn_ROLE`,
 `Qn_ORDER` and `Qn_EXPOSURE` columns, which follow comparisons when screen positions are randomized.
 Prepacked `Qn_ORDER` is only honored when `comparison_metadata: true`; otherwise generation rejects the
 configuration rather than silently randomizing the order.
