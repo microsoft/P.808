@@ -1147,14 +1147,23 @@ async def main(cfg, test_method, args):
         elif not(clip_packing_strategy == "random"):
             raise SystemExit("Error: Unexpected value for 'clip_packing_strategy' in the configuration file")
     comparison_metadata = _is_true(cfg_hit_app.get("comparison_metadata", "false"))
+    prepacked_columns = set()
+    if test_method in ("ccr", "dcr") and clip_packing_strategy == "prepacked":
+        prepacked_columns = set(pd.read_csv(cfg["create_input"]["prepacked_sessions"], nrows=0).columns)
+        n_clips = int(cfg["create_input"]["number_of_clips_per_session"])
+        order_columns = {f"Q{i}_ORDER" for i in range(n_clips)}
+        if not comparison_metadata and order_columns.intersection(prepacked_columns):
+            raise SystemExit(
+                "Prepacked Qn_ORDER requires comparison_metadata = true in hit_app_html; "
+                "otherwise playback order is randomized."
+            )
     if (test_method == "ccr" and not comparison_metadata
             and _is_true(cfg["create_input"].get("aggregate_by_pair_id", "false"))):
         raise SystemExit("CCR aggregate_by_pair_id requires comparison_metadata = true in hit_app_html.")
     if test_method == "ccr" and comparison_metadata:
         n_clips = int(cfg["create_input"]["number_of_clips_per_session"])
         required = {f"Q{i}_{field}" for i in range(n_clips) for field in ("ID", "ROLE", "ORDER", "EXPOSURE")}
-        if clip_packing_strategy != "prepacked" or not required.issubset(
-                pd.read_csv(cfg["create_input"]["prepacked_sessions"], nrows=0).columns):
+        if clip_packing_strategy != "prepacked" or not required.issubset(prepacked_columns):
             raise SystemExit("CCR comparison_metadata requires prepacked sessions with Qn_ID, Qn_ROLE, Qn_ORDER and "
                              "Qn_EXPOSURE columns.")
 

@@ -113,6 +113,8 @@ supply the usual source-clip and training CSVs.
 
 For CCR, `comparison_metadata: true` in `[hit_app_html]` requires prepacked `Qn_ID`, `Qn_ROLE`,
 `Qn_ORDER` and `Qn_EXPOSURE` columns, which follow comparisons when screen positions are randomized.
+Prepacked `Qn_ORDER` is only honored when `comparison_metadata: true`; otherwise generation rejects the
+configuration rather than silently randomizing the order.
 IDs must be nonempty, each ID must always name the same audio pair and role, and roles must be
 `main`, `identical` or `contrast`. IDs and nonempty exposure values may contain only letters,
 digits, `_`, `.`, `:` and `-`.

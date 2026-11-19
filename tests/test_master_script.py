@@ -284,6 +284,35 @@ def test_ccr_pair_aggregation_requires_comparison_metadata(monkeypatch):
 
 
 @pytest.mark.parametrize("test_method", ["ccr", "dcr"])
+def test_prepacked_order_requires_comparison_metadata(tmp_path, monkeypatch, test_method):
+    """
+    Reject prepacked playback orders that the generated HIT would otherwise randomize.
+
+    :param tmp_path: Temporary prepacked sessions directory.
+    :param monkeypatch: Fixture for the CLI's module layout.
+    :param test_method: Listening-test method.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master = importlib.import_module("master_script")
+    sessions = tmp_path / "sessions.csv"
+    sessions.write_text("Q0_R,Q0_P,Q0_ORDER\na.wav,b.wav,ab\n", encoding="utf-8")
+    cfg = {
+        "create_input": {
+            "number_of_clips_per_session": "1",
+            "clip_packing_strategy": "prepacked",
+            "prepacked_sessions": str(sessions),
+        },
+        "hit_app_html": {"comparison_metadata": "false"},
+    }
+    monkeypatch.setattr(master, "prepare_csv_for_create_input", AsyncMock(side_effect=RuntimeError("validated")))
+    args = SimpleNamespace(general_assets=None, p831_fest=False, clips=None, gold_clips=None, trapping_clips=None)
+
+    with pytest.raises(SystemExit, match="Prepacked Qn_ORDER requires comparison_metadata = true"):
+        asyncio.run(master.main(cfg, test_method, args))
+
+
+@pytest.mark.parametrize("test_method", ["ccr", "dcr"])
 @pytest.mark.parametrize("bw_max", ["NB-WB", "SWB"])
 def test_ccr_dcr_reject_bandwidth_max_below_fullband(monkeypatch, test_method, bw_max):
     """
