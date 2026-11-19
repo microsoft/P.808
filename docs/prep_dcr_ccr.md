@@ -123,6 +123,8 @@ their supplied hashes; `bw_min` does not relax that client-side check, and `bw_m
 Training rows may specify `order` (`ab`, `ba` or empty) and an optional `pair_id`, exported
 as `Tn_ID` with each shuffled practice comparison. Use only letters, digits, `_`, `.`, `:`
 or `-` in the ID. `append_training_trap: false` omits the appended training comparison.
+An optional `practice_example` column is passed through to custom presentation scripts for
+practice-specific feedback; it has no effect in the stock template.
 
 An optional `presentation_file` loads trusted JSON fields `title`, `style`, `script`,
 `instructions`, `training` and `rating`. Custom replacements must retain stock IDs, containers,

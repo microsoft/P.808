@@ -273,6 +273,8 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
                     f"Invalid training pair ID {pair_id!r}; use only letters, digits, _, ., :, or -"
                 )
             item["pair_id"] = pair_id
+        if "practice_example" in df_train and row["practice_example"].strip():
+            item["practice_example"] = row["practice_example"].strip()
         # Reject unsupported prescribed order before generating a HIT.
         if item.get("order", "ab") not in ("ab", "ba"):
             raise ValueError(f"Invalid training order {item['order']!r}; use ab, ba or leave it empty")

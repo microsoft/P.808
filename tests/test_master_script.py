@@ -178,6 +178,7 @@ def test_ccr_presentation_and_metadata_are_opt_in(
         "training_clips": ["b.wav", "d.wav", "f.wav"],
         "order": ["ab", "ba", "ab"],
         "pair_id": ["practice-1", "practice-2", "practice-3"],
+        "practice_example": ["identical", "strong_worse", "moderate_better"],
     }).to_csv(training, index=False)
     cfg = {
         "allowed_max_hit_in_project": "7", "hit_base_payment": "0.5",
@@ -216,6 +217,9 @@ def test_ccr_presentation_and_metadata_are_opt_in(
     assert len(rating_urls) == (2 if custom else 3)
     assert training_urls[1]["order"] == "ba"
     assert [item["pair_id"] for item in training_urls[:3]] == ["practice-1", "practice-2", "practice-3"]
+    assert [item["practice_example"] for item in training_urls[:3]] == [
+        "identical", "strong_worse", "moderate_better",
+    ]
     assert 'name="T{0}_ID"' in html
     assert "urls[i].pair_id" in html
     assert ("Approved welcome" in html) == bool(custom)
