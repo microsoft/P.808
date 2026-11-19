@@ -139,6 +139,55 @@ expect(frames.length, 0, "frames scheduled after playback");
     subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=10)
 
 
+def test_ccr_training_completion_without_dynamic_code_generation():
+    """
+    Remember practice only after every pair finishes, even when CSP forbids eval.
+
+    :return: None.
+    """
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required to execute template JavaScript.")
+    path = Path(__file__).resolve().parents[1] / "src" / "P808Template" / "CCR_template.html"
+    html = path.read_text(encoding="utf-8")
+    start = html.index("function playedAudioTraining(id){")
+    end = html.index("\n}", html.index("function getSum(", start)) + 2
+    script = html[start:end] + """
+const assert = require("node:assert/strict");
+String.prototype.f = function (value) { return this.replace("{0}", value); };
+const finished = new Map();
+const cookies = [];
+const config = {cookieName: "practice", forceRetrainingInHours: 1, knownQuestionInTrainingUrl: "trap.wav"};
+let trainingStimulusPlayed = [0, 0, 0];
+const $ = selector => ({
+    val: () => finished.get(selector) || 0,
+    off: () => {},
+    attr: () => "clip.wav",
+});
+const createCookie = (...args) => cookies.push(args);
+playedAudioTraining("t_1");
+assert.deepEqual(trainingStimulusPlayed, [0, 0, 0]);
+assert.deepEqual(cookies, []);
+finished.set("#audio_n_finish_t_1", 1);
+playedAudioTraining("t_1");
+playedAudioTraining("t_1");
+assert.deepEqual(trainingStimulusPlayed, [1, 0, 0]);
+assert.deepEqual(cookies, []);
+finished.set("#audio_n_finish_t_3", 1);
+playedAudioTraining("t_3");
+assert.deepEqual(trainingStimulusPlayed, [1, 0, 1]);
+assert.deepEqual(cookies, []);
+finished.set("#audio_n_finish_t_2", 1);
+playedAudioTraining("t_2");
+assert.deepEqual(trainingStimulusPlayed, [1, 1, 1]);
+assert.deepEqual(cookies, [["practice_training", "un_important", 60]]);
+"""
+    subprocess.run(
+        [node, "--disallow-code-generation-from-strings", "-e", script],
+        capture_output=True, text=True, check=True, timeout=10,
+    )
+
+
 def test_ccr_progress_bars_report_current_question_and_completed_ratings():
     """
     Provide accessible progress indicators for both practice and main comparisons.

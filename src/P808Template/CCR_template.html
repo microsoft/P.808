@@ -921,7 +921,7 @@ function playedAudioTraining(id){
 	if (played == 0)
 		return;
 	$('input[name="t{0}"]'.f(id_num)).off('change');
-	eval("trainingStimulusPlayed["+id_num+"-1]=1;");
+    trainingStimulusPlayed[Number(id_num) - 1] = 1;
 	if (trainingStimulusPlayed.reduce(getSum, 0) ==  trainingStimulusPlayed.length){
 		createCookie(config['cookieName']+"_training","un_important",config['forceRetrainingInHours']*60);
 	}
