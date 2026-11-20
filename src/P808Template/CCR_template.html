@@ -1537,7 +1537,7 @@ function set_onclick_listeners(){
 }
 
 /**
- * Refresh the current-question label and completion bar for one rating section.
+ * Refresh progress and navigation, showing the submit reminder only when listening and rating are complete.
  *
  * @param {string} sectionId - The training or rating section to update.
  */
@@ -1547,7 +1547,6 @@ function updateProgressForSection(sectionId){
     var tabsId = isTraining ? "trainingTabs" : "nav-tab-ul";
     var label = document.getElementById(prefix + "-progress-label");
     var bar = document.getElementById(prefix + "-progress-bar");
-    if (!label || !bar) return;
     var total = isTraining ? config.trainingUrls.length : config.questionUrls.length;
     var activeIndex = Math.max(0, $("#" + tabsId + " li.active").index());
     var completed = 0;
@@ -1557,10 +1556,36 @@ function updateProgressForSection(sectionId){
         var listened = finishedField && Number(finishedField.value) > 0;
         if (answered && listened) completed++;
     }
-    label.textContent = (isTraining ? "Practice " : "Comparison ") + (activeIndex + 1) + " of " + total;
-    bar.style.width = (total ? 100 * completed / total : 0) + "%";
-    bar.setAttribute("aria-valuemax", total);
-    bar.setAttribute("aria-valuenow", completed);
+    if (label && bar) {
+        label.textContent = (isTraining ? "Practice " : "Comparison ") + (activeIndex + 1) + " of " + total;
+        bar.style.width = (total ? 100 * completed / total : 0) + "%";
+        bar.setAttribute("aria-valuemax", total);
+        bar.setAttribute("aria-valuenow", completed);
+    }
+    if (isTraining) {
+        $("#next-training a").html(activeIndex === total - 1
+            ? "Go to comparisons"
+            : 'Next <span aria-hidden="true">&rarr;</span>');
+        updateProgressForSection("rating_section");
+    } else {
+        $("#next-rating").toggle(activeIndex < total - 1);
+        var trainingComplete = Array.from(document.querySelectorAll(".trainingFieldset")).every(
+            /**
+             * Accept cached practice, otherwise require an answer and full playback for this comparison.
+             *
+             * @param {HTMLFieldSetElement} fieldset - One practice comparison.
+             * @returns {boolean} Whether this practice comparison is complete or not required.
+             */
+            function (fieldset) {
+                if (fieldset.disabled) return true;
+                var answer = fieldset.querySelector('input[type="radio"]:checked');
+                var finished = answer && document.getElementById("audio_n_finish_t_" + answer.name.substring(1));
+                return !!finished && Number(finished.value) > 0;
+            });
+        var ratingSection = $("#rating_section");
+        $("#thanks").toggle(total > 0 && completed === total && trainingComplete
+            && !ratingSection.hasClass("disabled2_section") && ratingSection.is(":visible"));
+    }
 }
 
 /**
@@ -2919,12 +2944,9 @@ function appendCcrMetadata(number, item) {
 {% endif %}
 
 
-<section class="container" id="thanks">
-{% if cfg.presentation %}
-	<p>Thank you for participating. Please submit your responses.</p>
-{% else %}
-	<p>Thanks for your participation. Please perform more HITs from this group when they are available for you.</p>
-{% endif %}
+<section class="container" id="thanks" style="display: none;" role="status" aria-live="polite">
+	<p>All comparisons are rated. Select <b>Submit</b> to send your responses.
+		Your responses have not been submitted yet.</p>
 </section>
 
 <section class="container" id="max_allowed_HITs_reached" hidden>

@@ -203,6 +203,116 @@ def test_ccr_progress_bars_report_current_question_and_completed_ratings():
     assert 'updateProgressForSection(this.closest("#training") ? "training" : "rating_section")' in html
 
 
+def test_ccr_completion_guidance_requires_ratings_playback_and_active_task():
+    """
+    Update final-item navigation and the submit reminder without bypassing practice or task gates.
+
+    :return: None.
+    """
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required to execute template JavaScript.")
+    path = Path(__file__).resolve().parents[1] / "src" / "P808Template" / "CCR_template.html"
+    html = path.read_text(encoding="utf-8")
+    function = re.search(r"function updateProgressForSection\(sectionId\)\{.*?\n\}", html, re.DOTALL).group(0)
+    script = function + """
+const assert = require("node:assert/strict");
+const config = {trainingUrls: [{}, {}], questionUrls: [{}, {}]};
+const answered = new Map();
+const elements = new Map();
+const ui = {trainingIndex: 0, ratingIndex: 0, trainingNext: "", ratingNext: true, thanks: false,
+            disabled: false, visible: true};
+const fieldsets = [1, 2].map(i => ({
+    disabled: false, querySelector: () => answered.get("t" + i)
+}));
+for (const prefix of ["t", "q"]) {
+    elements.set(prefix + "-progress-label", {textContent: ""});
+    elements.set(prefix + "-progress-bar", {style: {}, setAttribute() {}});
+    for (const i of [1, 2]) elements.set("audio_n_finish_" + prefix + "_" + i, {value: "0"});
+}
+const document = {
+    getElementById: id => elements.get(id),
+    querySelector: selector => answered.get(selector.match(/name="([tq]\\d+)"/)[1]),
+    querySelectorAll: selector => {
+        assert.equal(selector, ".trainingFieldset");
+        return fieldsets;
+    }
+};
+const $ = selector => {
+    switch (selector) {
+        case "#trainingTabs li.active": return {index: () => ui.trainingIndex};
+        case "#nav-tab-ul li.active": return {index: () => ui.ratingIndex};
+        case "#next-training a": return {html: value => {ui.trainingNext = value;}};
+        case "#next-rating": return {toggle: value => {ui.ratingNext = value;}};
+        case "#thanks": return {toggle: value => {ui.thanks = value;}};
+        case "#rating_section": return {hasClass: () => ui.disabled, is: () => ui.visible};
+        default: throw new Error("Unexpected selector: " + selector);
+    }
+};
+const finish = (prefix, i) => {
+    answered.set(prefix + i, {name: prefix + i});
+    elements.get("audio_n_finish_" + prefix + "_" + i).value = "1";
+};
+updateProgressForSection("training");
+assert.match(ui.trainingNext, /^Next /);
+assert.equal(ui.ratingNext, true);
+assert.equal(ui.thanks, false);
+ui.trainingIndex = 1;
+updateProgressForSection("training");
+assert.equal(ui.trainingNext, "Go to comparisons");
+ui.trainingIndex = 0;
+updateProgressForSection("training");
+assert.match(ui.trainingNext, /^Next /);
+ui.ratingIndex = 1;
+updateProgressForSection("rating_section");
+assert.equal(ui.ratingNext, false);
+finish("q", 1);
+finish("q", 2);
+updateProgressForSection("rating_section");
+assert.equal(ui.thanks, false, "unfinished practice blocks completion");
+finish("t", 1);
+answered.set("t2", {name: "t2"});
+updateProgressForSection("training");
+assert.equal(ui.thanks, false, "practice must be heard, not merely answered");
+finish("t", 2);
+updateProgressForSection("training");
+assert.equal(ui.thanks, true, "last practice answer refreshes main completion too");
+ui.disabled = true;
+updateProgressForSection("rating_section");
+assert.equal(ui.thanks, false);
+ui.disabled = false;
+ui.visible = false;
+updateProgressForSection("rating_section");
+assert.equal(ui.thanks, false, "screened-out tasks must not invite submission");
+ui.visible = true;
+for (const i of [1, 2]) {
+    fieldsets[i - 1].disabled = true;
+    answered.delete("t" + i);
+    elements.get("audio_n_finish_t_" + i).value = "0";
+}
+updateProgressForSection("rating_section");
+assert.equal(ui.thanks, true, "cached practice needs no new answers");
+answered.delete("q2");
+updateProgressForSection("rating_section");
+assert.equal(ui.thanks, false);
+answered.set("q2", {name: "q2"});
+elements.get("audio_n_finish_q_2").value = "0";
+updateProgressForSection("rating_section");
+assert.equal(ui.thanks, false, "each main pair must have finished playing");
+finish("q", 2);
+ui.ratingIndex = 0;
+updateProgressForSection("rating_section");
+assert.equal(ui.ratingNext, true, "returning to an earlier tab restores Next");
+assert.equal(ui.thanks, true);
+config.questionUrls = [];
+updateProgressForSection("rating_section");
+assert.equal(ui.thanks, false, "an empty test must not report completion");
+"""
+    subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=10)
+    assert 'id="thanks" style="display: none;" role="status" aria-live="polite"' in html
+    assert "Your responses have not been submitted yet." in html
+
+
 @pytest.mark.parametrize(
     ("custom", "randomize_training", "expected_randomization"),
     [(False, None, "true"), (True, None, "true"), ("wording", None, "true"),
