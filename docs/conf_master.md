@@ -30,7 +30,7 @@ This describes the configuration for the `master_script.py`. A sample configurat
 Assuming the URL is `http://test.com/D501_C03_M2_S02.wav` is the clip URL, and "03" is the condition name. 
 The pattern will be `.*_c(?P<condition_num>\d{1,2})_.*.wav`, you should also use condition_keys with `condition_num`.
 * (optional)  `condition_keys:` comma separated list of keys appearing in the `condition_pattern`:
-* (optional)  `clip_packing_strategy:random`: `random`, `balanced_block` or, for CCR/DCR, `prepacked`. It specifies how to select clips 
+* (optional)  `clip_packing_strategy:random`: `random`, `balanced_block` or, for CCR/DCR, `prepacked`. It specifies how to select clips
 which will be assessed in a same HIT. For `balanced_block`, specify `condition_pattern` and `condition_keys`;
  specify `block_keys` as well when there is more than one condition key. `number_of_clips_per_session`
  must be a multiple of the number of unique values of the first block key. `random` and `balanced_block`

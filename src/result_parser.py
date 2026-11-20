@@ -119,12 +119,12 @@ def check_if_session_accepted(data):
         accept = False
         msg += "Your HIT was rejected because you rated one or more control clip incorrectly. Control clips with instructions are ones where an interruption message asks you to select a score for all questions. We include control clips in the HIT to ensure raters pay attention during the entire HIT and their environment hasn't changed.;"
         failures.append("tps")
-        
+
     if "gold_standard_bigger_equal" in config["acceptance_criteria"] and "correct_gold_question"  in data and data["correct_gold_question"] < int(
         config["acceptance_criteria"]["gold_standard_bigger_equal"]):
         accept = False
         msg += "Your HIT was rejected because you rated one or more control clip incorrectly. Control clips are ones that we know that answer for and should be very easy to rate (they are clearly very good or very poor). They can target one or more scales. We include control clips in the HIT to ensure raters are paying attention during the entire HIT and their environment hasn't changed."
-        failures.append("gold")   
+        failures.append("gold")
     if data['qualification'] is not None and data['qualification'] != 1:
         accept = False
         msg += "Qualification did not passed;"
@@ -139,18 +139,18 @@ def check_if_session_accepted(data):
 def check_if_session_should_be_used(data):
     if data['accept'] != 1:
         return False, []
-    
+
     should_be_used = True
     failures = []
 
     if data['variance_in_ratings'] < float(config['accept_and_use']['variance_bigger_equal']):
         should_be_used = False
         failures.append('variance')
-    
+
     if 'correct_gold_question' in data and data['correct_gold_question'] < int(config['accept_and_use']['gold_standard_bigger_equal']):
         should_be_used = False
         failures.append('gold')
-    
+
     if data['correct_cmps'] is not None and data['correct_cmps'] < int(config['accept_and_use']['correct_cmp_bigger_equal']):
         should_be_used = False
         failures.append('comparisons')
@@ -198,7 +198,7 @@ def check_audio_played(row, method):
 def check_tps(row, method):
     """
     Check if the trapping clips questions are answered correctly
-    legecy issue: there are no trapping questions (in their meaning) in CCR ad DCR. Actually we only have GOld questions, 
+    legecy issue: there are no trapping questions (in their meaning) in CCR ad DCR. Actually we only have GOld questions,
     but they names as TP and evaluated here. To be updated in future.
     :param row:
     :param method: acr, dcr, or ccr
@@ -222,7 +222,7 @@ def check_tps(row, method):
 
     try:
         suffix = ""
-        # p835 
+        # p835
         if method=="p835":
             # only look at the ovrl for tps.
             suffix = "_ovrl"
@@ -242,9 +242,9 @@ def check_tps(row, method):
                     for item in items:
                         if int(row[f"answer.{q_name}_{item}"]) not in tp_correct_ans:
                             found_wrong_ans = True
-            if found_wrong_ans: 
+            if found_wrong_ans:
                 correct_tps = 0
-            else:   
+            else:
                 correct_tps = 1
 
         else:
@@ -297,12 +297,12 @@ def check_variance(row, method):
             and not (pair_identity and row.get(f"answer.{q_name}_pair_id", "").strip())
         ):
             continue
-        try:            
+        try:
             for suf in suffixes:
                 r.append(int(row[f"answer.{q_name}{suf}"]))
         except:
             pass
-    try:        
+    try:
         v = statistics.variance(r)
         return v
     except:
@@ -331,7 +331,7 @@ def get_encoded_correct_ans(url, endcoded_ans_sig, endcoded_ans_bak, endcoded_an
             bak = i
         if tmp==endcoded_ans_ovrl:
             ovrl = i
-    p835_personalized_gold_ans[url] = {'sig': sig, 'bak': bak, 'ovrl': ovrl}    
+    p835_personalized_gold_ans[url] = {'sig': sig, 'bak': bak, 'ovrl': ovrl}
     return p835_personalized_gold_ans[url]
 
 
@@ -344,8 +344,8 @@ def decode_answer(url, encoded):
         if tmp == encoded:
             encoded_to_decoded_ans[encoded] = i
             return i
-    return None   
-            
+    return None
+
 
 
 gold_overrides = {}
@@ -450,10 +450,10 @@ def check_person_rec_qualification(row):
             false_list.append(k)
     # one wrong answer is accepted
     if count_false > 1:
-        return False, count_false, false_list   
-    return True, count_false , false_list 
+        return False, count_false, false_list
+    return True, count_false , false_list
 
-def check_gold_personalized_question(method, row):    
+def check_gold_personalized_question(method, row):
     correct_gq = 0
     try:
         gq_url = row[config["gold_question"]["url_found_in"]]
@@ -480,26 +480,26 @@ def check_gold_personalized_question(method, row):
                     correct_gq = 0
                 #else:
                     ans.append("sig: "+row[f"answer.{q_name}_sig"]+ ', correct: '+str(correct_ans['sig']))
-                
+
                 if correct_ans['bak'] is not None and int(row[f"answer.{q_name}_bak"]) not in range(
                     correct_ans['bak'] - gq_var, correct_ans['bak'] + gq_var + 1
                 ):
                     correct_gq = 0
                 #else:
                     ans.append("bak: "+ row[f"answer.{q_name}_bak"] + ', correct: '+str(correct_ans['bak']))
-                
+
                 if correct_ans['ovrl'] is not None and int(row[f"answer.{q_name}_ovrl"]) not in range(
                     correct_ans['ovrl'] - gq_var, correct_ans['ovrl'] + gq_var + 1
                 ):
                     correct_gq = 0
                 #else:
-                    ans.append("ovrl: "+ row[f"answer.{q_name}_ovrl"] + ', correct: '+str(correct_ans['ovrl']))   
+                    ans.append("ovrl: "+ row[f"answer.{q_name}_ovrl"] + ', correct: '+str(correct_ans['ovrl']))
     except:
         return None, None, None
     return correct_gq, gq_url, ans
 
 # Will be called when two gold questions are used
-def check_2_gold_personalized_question(method, row):    
+def check_2_gold_personalized_question(method, row):
     post_fix = ["", '_2']
     #post_fix = [""]
     correct_gq = 1
@@ -534,7 +534,7 @@ def check_2_gold_personalized_question(method, row):
                             urls += gq_url
                             urls += ','
 
-                    
+
                     if correct_ans['bak'] is not None and int(row[f"answer.{q_name}_bak"]) not in range(
                         correct_ans['bak'] - gq_var, correct_ans['bak'] + gq_var + 1
                     ):
@@ -546,7 +546,7 @@ def check_2_gold_personalized_question(method, row):
                         if gq_url not in urls:
                             urls += gq_url
                             urls += ','
-                    
+
                     if correct_ans['ovrl'] is not None and int(row[f"answer.{q_name}_ovrl"]) not in range(
                         correct_ans['ovrl'] - gq_var, correct_ans['ovrl'] + gq_var + 1
                     ):
@@ -554,7 +554,7 @@ def check_2_gold_personalized_question(method, row):
                         rec[f'ovrl{pf}']= -1
                         correct = 0
                     #else:
-                        ans.append(pf+"ovrl: "+ row[f"answer.{q_name}_ovrl"] + ', correct: '+str(correct_ans['ovrl']))   
+                        ans.append(pf+"ovrl: "+ row[f"answer.{q_name}_ovrl"] + ', correct: '+str(correct_ans['ovrl']))
                         if gq_url not in urls:
                             urls += gq_url
                             urls += ','
@@ -593,7 +593,7 @@ def check_gold_question_P804(method, row):
                     rec[item] = decodec_correct_ans
                     rec[f'{item}_given'] = row[f"answer.{q_name}_{item}"]
                     #print("correct ans:", decodec_correct_ans)
-                    #slider = "" if item in ['sig', 'ovrl'] else "_slide"                                            
+                    #slider = "" if item in ['sig', 'ovrl'] else "_slide"
                     #ans = row[f"answer.{q_name}{slider}_{item}"]
                     ans = row[f"answer.{q_name}_{item}"]
                     #print('Given ans:'+ans)
@@ -615,44 +615,44 @@ def check_gold_question_P804(method, row):
         logger.info(re)
         return -1, gq_url, given_ans_report, None
    # if correct_gq == 0:
-    #    raise Exception(f"Wrong answer for gq: {gq_url}, {given_ans_report}")  
+    #    raise Exception(f"Wrong answer for gq: {gq_url}, {given_ans_report}")
 
     return correct_gq, gq_url, given_ans_report, rec
     #return 1, gq_url, given_ans_report, rec
 
 def check2_gold_questions_P804(method, row):
-    
+
     post_fix = ["", '_2']
     #post_fix = [""]
-    
+
     correct_gq_all = 0
     ans = []
     rec = {}
     given_ans_report = []
     items = ['noise', 'col',  'loud', 'disc', 'reverb', 'sig', 'ovrl']
     gq_var = int(config["gold_question"]["variance"])
-    for pf in post_fix:        
+    for pf in post_fix:
         try:
             correct_gq = 1
-            gq_url = row[f'input.gold_url{pf}']                    
-            rec[f'url{pf}'] = gq_url                        
+            gq_url = row[f'input.gold_url{pf}']
+            rec[f'url{pf}'] = gq_url
             found_question = False
-            
+
             correct = 0
             wrong = 0
             for q_name in question_names:
                 if gq_url in row[f"answer.{q_name}_url"]:
-                    found_question = True                   
+                    found_question = True
                     # found a gold standard question
                     for item in items:
                         # check for all subdimensions
-                        encoded_correct_ans = row["input.gold_"+item+f"_ans{pf}"]                        
+                        encoded_correct_ans = row["input.gold_"+item+f"_ans{pf}"]
                         decodec_correct_ans, item_var = resolve_gold_answer(gq_url, item, encoded_correct_ans, gq_var)
                         rec[f'{item}_{pf}'] = decodec_correct_ans
                         rec[f'{item}_{pf}_given'] = row[f"answer.{q_name}_{item}"]
-                        
-                        ans = row[f"answer.{q_name}_{item}"]                        
-                        
+
+                        ans = row[f"answer.{q_name}_{item}"]
+
                         if (decodec_correct_ans is not None) and ( len(ans)==0 or (int(float(ans)) not in range(
                             decodec_correct_ans - item_var, decodec_correct_ans + item_var + 1))):
                             correct_gq = 0
@@ -662,10 +662,10 @@ def check2_gold_questions_P804(method, row):
                         else:
                             correct += 1
                             rec[f'{item}_{pf}_wrong']= 0
-            
-                
+
+
             if not found_question:
-                raise Exception(f"Gold question was not found in rating section: {gq_url}")  
+                raise Exception(f"Gold question was not found in rating section: {gq_url}")
             rec[f'wrong{pf}'] = wrong
             rec[f'correct{pf}'] = correct
             correct_gq_all += correct_gq
@@ -674,7 +674,7 @@ def check2_gold_questions_P804(method, row):
             logger.info(e)
             return -1, gq_url, given_ans_report, rec
     # if correct_gq == 0:
-        #    raise Exception(f"Wrong answer for gq: {gq_url}, {given_ans_report}")  
+        #    raise Exception(f"Wrong answer for gq: {gq_url}, {given_ans_report}")
 
     return correct_gq_all, gq_url, given_ans_report, rec
     #return 1, gq_url, given_ans_report, rec
@@ -689,8 +689,8 @@ def check_gold_question(method, row):
     correct_gq = 0
     #try:
     gq_url = row[config["gold_question"]["url_found_in"]]
-   
-    if method ==p835_personalized and "input.gold_url_2" in row:   
+
+    if method ==p835_personalized and "input.gold_url_2" in row:
         return check_2_gold_personalized_question(method, row)
     if method =="p804":
         if "url2_found_in" in config["gold_question"]:
@@ -729,12 +729,12 @@ def check_gold_question(method, row):
                     ans.append("bak: "+ row[f"answer.{q_name}_bak"])
                     ans.append("ovrl: "+ row[f"answer.{q_name}_ovrl"])
 
-                    
+
     #except Exception as e:
     #    print(e)
     #    return None
     return correct_gq, gq_url, ans, None
-    
+
 
 
 def digitsum(x):
@@ -1180,7 +1180,7 @@ def data_cleaning(filename, method, wrong_vcodes):
         d['status'] = row['assignmentstatus']
         # Prolific submission status (from the export), carried through for the review step
         d['prolific_status'] = row.get('prolific_status', '') if 'prolific_status' in row else ''
-        
+
         d['ip'] = row['x-real-ip'] if 'x-real-ip' in row else None
         d['study_url'] = row['study_url'] if 'study_url' in row else None
 
@@ -1213,7 +1213,7 @@ def data_cleaning(filename, method, wrong_vcodes):
             check_qualification, msg = check_qualification_answer(row)
             d['qualification'] = 1 if check_qualification else 0
             d['qualification_msg'] = msg
-        else: 
+        else:
             d['qualification'] = None
             d['qualification_msg'] = 'no qualification was shown'
         # check if setup was shown
@@ -1268,7 +1268,7 @@ def data_cleaning(filename, method, wrong_vcodes):
                 #    d["correct_gold_question"] = 1
                 if 'url_2' in rec:
                     d['gq_url'] = rec['url']
-                    d['gq_url_2'] = rec['url_2'] 
+                    d['gq_url_2'] = rec['url_2']
         # step6. check variance in a session rating
         d['variance_in_ratings'] = check_variance(row, method)
         accept, failures_accept = check_if_session_accepted(d)
@@ -1346,7 +1346,7 @@ def data_cleaning(filename, method, wrong_vcodes):
         logger.info(f"   percentage of 'sig_bak':  {round(count_sig_bak*100/len(accept_and_use_sessions),2)} %")
     return worker_list, use_sessions
 
-# new from p910 
+# new from p910
 def evaluate_rater_performance(data, use_sessions, reject_on_failure=False):
     """
     Evaluate the workers performance based on the following criteria in config file:
@@ -1399,7 +1399,7 @@ def evaluate_rater_performance(data, use_sessions, reject_on_failure=False):
     n_submission_removed_only_for_performance = grouped_rej['used_count'].sum()
     logger.info(f'{n_submission_removed_only_for_performance} sessions are removed only because of performance criteria ({section}).')
     workers_list_to_remove = list(grouped_rej['worker_id'])
-    
+
     result = []
     num_not_used_submissions = 0
     for d in data:
@@ -1506,13 +1506,13 @@ def save_approve_rejected_ones_for_gui(data, path, wrong_vcodes):
         wrong_vcodes_assignments = wrong_vcodes[['WorkerId','AssignmentId', 'HITId']].copy()
         wrong_vcodes_assignments["Approve"] = ""
         wrong_vcodes_assignments["Reject"] = "Submitted on Prolific but no completed HIT App task"
-        wrong_vcodes_assignments.rename(columns={'AssignmentId': 'assignmentId'}, inplace=True)        
+        wrong_vcodes_assignments.rename(columns={'AssignmentId': 'assignmentId'}, inplace=True)
         small_df = pd.concat([small_df, wrong_vcodes_assignments], ignore_index=True)
 
     # Count number of duplicate in assignmentId
     small_df['n_duplicate'] = small_df.groupby('assignmentId')['assignmentId'].transform('size')
     small_df['n_duplicate'] = small_df['n_duplicate'].apply(lambda x: x - 1)
-            
+
     save_csv(small_df, path, index=False)
 
 
@@ -1558,7 +1558,7 @@ def save_block_list(block_list, path, wrong_v_code_freq):
 
 def check_wrong_vcode_should_block(wrong_vcodes):
     if wrong_vcodes is None:
-        return []       
+        return []
     # count the number of submissions with no completed HIT App task per worker
     small_df = wrong_vcodes[['WorkerId']].copy()
     grouped = small_df.groupby(['WorkerId']).size().reset_index(name='counts')
@@ -1708,14 +1708,14 @@ def calc_inter_rater_reliability(answer_list, overall_mos, test_method, question
 
     reliability_list = []
     df = pd.DataFrame(answer_list)
-    
+
     tmp = pd.DataFrame(overall_mos)
     if use_condition_level:
         aggregate_on = 'condition_name'
     else:
         aggregate_on = 'file_url'
         # if it is per file, make sure to consider clips that have at least 3 votes
-        tmp = tmp[tmp['n'] >= 3]    
+        tmp = tmp[tmp['n'] >= 3]
     c_df = tmp[[aggregate_on, mos_name]].copy()
     c_df.rename(columns={mos_name: 'mos'}, inplace=True)
 
@@ -1735,7 +1735,7 @@ def calc_inter_rater_reliability(answer_list, overall_mos, test_method, question
             # calculate the variance of mos cal in merged dataframe
             v1 , v2 = merged['mos'].var(), merged[mos_name].var()
             if v1== 0 or v2==0 or len(merged.index) < 2:
-                r = -2                   
+                r = -2
             else:
                 try:
                     r = calc_correlation(merged["mos"].tolist(), merged[mos_name].tolist())
@@ -1889,11 +1889,11 @@ method_to_mos = {
     "p835_personalized_ovrl": "MOS_OVRL",
 
     'p804_noise':'MOS_NOISE',
-    'p804_col':'MOS_COL', 
+    'p804_col':'MOS_COL',
     'p804_loud':'MOS_LOUD',
     'p804_disc':'MOS_DISC',
-    'p804_reverb':'MOS_REVERB', 
-    'p804_sig':'MOS_SIG', 
+    'p804_reverb':'MOS_REVERB',
+    'p804_sig':'MOS_SIG',
     'p804_ovrl':'MOS_OVRL',
 
     "pp835_bak": "MOS_BAK",
@@ -2052,7 +2052,7 @@ def transform(test_method, sessions, agrregate_on_condition, is_worker_specific)
         found_gold_question = False
         for question in question_names:
             # is it a trapping clips question
-            if (config["trapping"]["url_found_in"] in session and 
+            if (config["trapping"]["url_found_in"] in session and
                 session[config["trapping"]["url_found_in"]]
                 == session[f"answer.{question}_url"]
                 and not (pair_identity and session.get(f"answer.{question}_pair_id", "").strip())
@@ -2303,7 +2303,7 @@ def calc_payment_stat(df):
         median_time_in_sec = df["time_diff"].median()
     else:
         median_time_in_sec = df[word_duration_col].median()
-        
+
     payment_text = df['Reward'].values[0]
     paymnet = re.findall(r"\d+\.\d+", payment_text)
 
@@ -2391,7 +2391,7 @@ def calc_correlation(cs, lab, spearman=False):
     if spearman:
         rho, pval = spearmanr(cs, lab)
         return rho
-    
+
     r, pval = pearsonr(cs, lab)
     return r
 
@@ -2446,15 +2446,15 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     logger.info('Combining the Prolific export with the HIT App server answers:')
     # copy index as id column
     hitapp_ans['h_id'] = hitapp_ans.index
-    prolific_ans['p_id'] = prolific_ans.index   
+    prolific_ans['p_id'] = prolific_ans.index
 
     columns_to_remove = prolific_ans.columns.difference(['Submission id','Participant id', 'Completion code', 'Country of birth',
                                              'Country of residence', 'Ethnicity simplified', 'Language',
                                              'Nationality', 'Primary language', 'Sex', 'Time taken', 'Total approvals', 'URL', 'Status'])
-    
+
     prolific_ans.drop(columns=columns_to_remove, inplace=True)
-    
-    
+
+
     hitapp_ans["hitapp_workerid"] = hitapp_ans["WorkerId"]
     hitapp_ans["hitapp_assignmentid"] = hitapp_ans["AssignmentId"].str.strip().str.lower()
     hitapp_ans["hitapp_hitid"] = hitapp_ans["HITId"]
@@ -2462,7 +2462,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     hitapp_ans["HITTypeId"] = hitapp_ans["Answer.studyId"]
     hitapp_ans.rename(columns={"work_duration_sec": "hitapp_work_duration_sec"},  inplace=True)
 
-    # cut rows with no browser_info value from hitapp and save them separately. 
+    # cut rows with no browser_info value from hitapp and save them separately.
     # These rows are the ones that are not submitted by the workers
     hitapp_ans_incomplete = hitapp_ans[hitapp_ans['Answer.browser_info'].isna()]
     hitapp_ans = hitapp_ans[~hitapp_ans['Answer.browser_info'].isna()]
@@ -2470,16 +2470,16 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
     unique_assignments = hitapp_ans_incomplete['hitapp_assignmentid'].unique()
     # print the size
     logger.info(f"   - {len(unique_assignments)} submissions are not completed by the workers.")
-    
+
     # prolific rename columsn
     prolific_ans.rename(columns={"Participant id": "prolific_participant_id",
                                "Completion code": "Answer.v_code",
-                               'Time taken': "WorkTimeInSeconds", 
-                               'Submission id':'prolific_submission_id', 
+                               'Time taken': "WorkTimeInSeconds",
+                               'Submission id':'prolific_submission_id',
                                'Total approvals':'prolific_total_approvals',
                                'URL':'study_url',
                                'Status':'prolific_status'},  inplace=True)
-    
+
     # mark prolific_ans to remove when study_url is nan and lenght of Answer.v_code is not 32
     # (abandoned/returned submissions). Keep any row whose submission id matches a completed
     # HIT App assignment: that proves the participant actually did the task, e.g. a Prolific
@@ -2498,7 +2498,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
 
     # drop rows with no URL, when the concent is revoked the url is empty
     #prolific_ans.dropna(subset=['study_url'], inplace=True)
-   
+
     # check for duplicates in prolific_submission_id and hitapp_assignmentid and keep first
     prolific_ans['prolific_submission_id'] = prolific_ans['prolific_submission_id'].str.strip().str.lower()
     count_duplicate_prolific = prolific_ans['prolific_submission_id'].duplicated(keep='first')
@@ -2512,7 +2512,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
         logger.info(f"   - {len(hitapp_ans[count_duplicate_hitapp])} duplicates in the HITAPP data.")
         # save the duplicates in a separate file
         hitapp_ans[count_duplicate_hitapp].to_csv(hitapp_ans_path.replace('.csv' , '_duplicate_assignment_id.csv'), index=False)
-        hitapp_ans.drop_duplicates(subset=['hitapp_assignmentid'], keep='first', inplace=True)   
+        hitapp_ans.drop_duplicates(subset=['hitapp_assignmentid'], keep='first', inplace=True)
 
     # check if there are submission without conuter part key in hitapp servers
     #not_in_hitapp = prolific_ans[~prolific_ans['Answer.v_code'].isin(hitapp_ans.v_code)]
@@ -2558,7 +2558,7 @@ def combine_prolific_hit_server(prolific_ans_path, hitapp_ans_path):
 
     # last part of prolific_export_68114a150c74b353a03bfd9e.csv
     hitgroup_id =  os.path.basename(prolific_ans_path).split('_')[-1].split('.')[0]
-    not_in_hitapp['HITId'] = 'created_'+hitgroup_id+not_in_hitapp['AssignmentId']    
+    not_in_hitapp['HITId'] = 'created_'+hitgroup_id+not_in_hitapp['AssignmentId']
 
     # Separate the participants who were legitimately SCREENED OUT on Prolific from the
     # genuine "submitted a completion code but no completed HIT App task" cases. Screened-out
@@ -2613,15 +2613,15 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
         workers_to_remove = []
         for suffix in suffixes:
             question_name_suffix = suffix
-            
+
             use_condition_level = config.has_option("general", "condition_pattern")
-            
+
             votes_per_file, vote_per_condition, data_per_worker = transform(
                 test_method,
                 accepted_sessions,
                 config.has_option("general", "condition_pattern"),
                 False,
-            )            
+            )
             votes_to_use = votes_per_file
             #save_tmp_for_debug = True if 'ovrl' in suffix else False
             save_tmp_for_debug = False
@@ -2657,14 +2657,14 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
                 "Transforming data (the ones with 'accepted_and_use' ==1 --> group per clip"
             )
             use_condition_level = config.has_option("general", "condition_pattern")
-            
+
             votes_per_file, vote_per_condition, data_per_worker = transform(
                 test_method,
                 accepted_sessions,
                 config.has_option("general", "condition_pattern"),
                 False,
             )
-            
+
             all_data_per_worker.extend(data_per_worker)
 
             votes_per_file_path = (
@@ -2684,7 +2684,7 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
                 )
                 condition_keys.append("Unknown")
             headers = create_headers_for_per_file_report(test_method, condition_keys)
-            
+
             write_dict_as_csv(votes_per_file, votes_per_file_path, headers=headers)
             logger.info(f'   Votes per files are saved in: {rel_path(votes_per_file_path)}')
             if use_condition_level:
@@ -2703,7 +2703,7 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
             votes_to_use = votes_per_file
             inter_rate_reliability, avg_irr = calc_inter_rater_reliability(accepted_sessions, votes_to_use, test_method, question_name_suffix,
             False)
-            """                                                                
+            """
             votes_to_use = votes_per_file
             inter_rate_reliability, avg_irr = calc_inter_rater_reliability(accepted_sessions, votes_to_use, test_method, question_name_suffix,
             False)
@@ -2711,8 +2711,8 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
             irr_path = os.path.splitext(answer_path)[0] + f'_{question_name_suffix}_irr_report.csv'
             inter_rate_reliability.to_csv(irr_path, index=False)
             irr.append({'scale': question_name_suffix.replace('_',''), 'avg_irr':avg_irr})
-            
-            
+
+
 
         df_irr_summary = pd.DataFrame(irr)
         df_irr_summary.to_csv(os.path.splitext(answer_path)[0] + f'_irr_summary.csv', index=False)
@@ -2730,7 +2730,7 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
                     shared_columns.remove('condition_name')
                     # remove shared_columns from df
                     df.drop(columns=shared_columns, inplace=True)
-                    full_set_conditions = pd.merge(full_set_conditions, df, left_on="condition_name", right_on="condition_name")                    
+                    full_set_conditions = pd.merge(full_set_conditions, df, left_on="condition_name", right_on="condition_name")
 
             votes_per_all_cond_path = (
                 os.path.splitext(answer_path)[0] + f"_votes_per_cond_all.csv"
@@ -2777,12 +2777,12 @@ def analyze_results(config, test_method, answer_path,prolific_ans_path, list_of_
                 if use_condition_level:
                     votes_per_cond_path = (os.path.splitext(answer_path)[0]+ f"_votes_per_cond{item}.csv")
                     df = pd.read_csv(votes_per_cond_path)
-                    df = df[['condition_name','n' ,f'MOS{item.upper()}', f'std{item}', f'95%CI{item}']]                
+                    df = df[['condition_name','n' ,f'MOS{item.upper()}', f'std{item}', f'95%CI{item}']]
                     if merged_cond is None:
-                        merged_cond = df.copy()                    
+                        merged_cond = df.copy()
                     else:
                         df = df.drop(['n'], axis=1)
-                        merged_cond =  pd.merge(merged_cond, df, on='condition_name')   
+                        merged_cond =  pd.merge(merged_cond, df, on='condition_name')
 
             merged.to_csv(os.path.splitext(answer_path)[0]+ f"_votes_per_clip_all-scales.csv", index=False)
             if use_condition_level:
@@ -2864,7 +2864,7 @@ if __name__ == "__main__":
              "clip is authoritative: provided scales are checked with these values and blank "
              "scales are skipped. Clips not listed keep the answers encoded in the answers CSV.")
     #parser.add_argument('--adc' , help="name of Advance Data Cleaning script. If set, the answers will be filtered by that as well",  default=None)
-    
+
     args = parser.parse_args()
     methods = ['acr', 'dcr', 'ccr', 'p835', 'p804','echo_impairment_test', p835_personalized]
     test_method = args.method.lower()
@@ -2879,7 +2879,7 @@ if __name__ == "__main__":
     # answer_path = os.path.join(os.path.dirname(__file__), args.answers)
     answer_path = args.answers
 
-    if args.prolific_answers is None:     
+    if args.prolific_answers is None:
         prolific_ans_path = None
     else:
         prolific_ans_path = args.prolific_answers

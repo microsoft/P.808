@@ -96,7 +96,7 @@ var config ={
 		ld_in: ["in-ear", "over-ear"],
 		working_area: "N",
 		hearing: "normal",
- 		num1: "{{cfg.num1_ans}}",
+		num1: "{{cfg.num1_ans}}",
         num2: "{{cfg.num2_ans}}",
         num3: "{{cfg.num3_ans}}",
         num4: "{{cfg.num4_ans}}",
@@ -191,10 +191,10 @@ $(function() {
 	document.addEventListener('DOMContentLoaded', function() {
 		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 		function updateResult() {
-			if (mediaQuery.matches) {						
+			if (mediaQuery.matches) {
 				$('#rdp_exist').val(1);
 			} else {
-				$('#rdp_exist').val(0);			
+				$('#rdp_exist').val(0);
 			}
 			$('#bit_depth').val(screen.colorDepth);
 		}
@@ -235,7 +235,7 @@ $(function() {
 	const originalCreateElement = document.createElement;
 		document.createElement = function(tagName) {
 		const element = originalCreateElement.call(document, tagName);
-		if (tagName.toLowerCase() === 'script') {    
+		if (tagName.toLowerCase() === 'script') {
 			$('#log_script').val($('#log_script').val()+element.src+";");
 		}
 		return element;
@@ -449,13 +449,13 @@ function validateCMPSection(){
 	cmp_answers= [];
 	for (i = 1; i < 5; i++) {
 		ans = $("input[name='cmp{0}']:checked".f(i)).val();
-	  	if (!ans)
-	  		return;
-	  	cmp_answers.push(ans);
+		if (!ans)
+			return;
+		cmp_answers.push(ans);
 	}
 	math_ans = $('#Math').val();
 	if (!math_ans)
-	  	return;
+		return;
 
 	// 2. check math question via SHA-256 hash (client-side pre-check)
 	verifyMathHash(math_ans).then(function(mathCorrect) {
@@ -505,7 +505,7 @@ async function validateCMPSectionAfterMath(cmp_answers){
 	// 4.2 remove the listener
 	if (n_cmp_feedbacks >=  config["cmp_max_n_feedback"]){
 		$('#setup').find(':input').filter(':visible').each(function(){
-	  		$(this).off('change');
+			$(this).off('change');
 		});
 	}
 }
@@ -513,7 +513,7 @@ async function validateCMPSectionAfterMath(cmp_answers){
 function makeAllCMPsUnChecked(){
 	// remove the listeners
 	$('#setup').find(':input').filter(':visible').each(function(){
-	  		$(this).off('change');
+			$(this).off('change');
 	});
 	// uncheck radio <buttons></buttons>
 	for (i = 1; i < 5; i++) {
@@ -596,8 +596,8 @@ function updateCounterCookie(name, updateBy){
 		createCookie(name, 1, expiry_in_a_month);
 		return 1;
 	}else{
-	 	console.log(c);
-	 	createCookie(name, Number(c)+updateBy, expiry_in_a_month);
+		console.log(c);
+		createCookie(name, Number(c)+updateBy, expiry_in_a_month);
 	}
 	return Number(c)+updateBy;
 }
@@ -954,7 +954,7 @@ function isHeadsetOn(webrtc_raw){
 }
 
 const constraints = {
-  	audio: true,
+	audio: true,
 	video:false
 };
 
@@ -969,9 +969,9 @@ const startHeadsetCheck = async function() {
     .then(devices => {
         var device_list= "";
         for (var i=0;i<devices.length;i++){
-        	if (devices[i].kind.startsWith('audio')){
-    			device_list = device_list+ devices[i].kind + ":" +devices[i].label.toLowerCase() +"+";
-    		}
+		if (devices[i].kind.startsWith('audio')){
+			device_list = device_list+ devices[i].kind + ":" +devices[i].label.toLowerCase() +"+";
+		}
         }
         headsetDetected=isHeadsetOn(device_list);
         $( "#webrtc_raw" ).val(device_list);
@@ -1446,7 +1446,7 @@ function generate_rating_section(){
 				 <div class="center">
 						<button id="btn_start_headset" type="button" class="btn btn-primary center" >Start</button>
 						<div id="status"> </div>
-			  	</div>
+				</div>
 			</div>
 		</div>
 
@@ -1467,7 +1467,7 @@ function generate_rating_section(){
 				<p> Please answer the following <b class="question_number_training"> 0 </b> questions. For each question, please listen to the pairs of the audio clips and give your opinion about the quality of the speech you hear in the <b>processed</b> clip, compare to its reference, on the following scale. <b>Note</b> that the scale will be activated when both clips played until the end. </p>
 				<p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
 
- 				<!-- will be generated -->
+				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="trainingTabs">
 				</ul>
 
@@ -1514,7 +1514,7 @@ function generate_rating_section(){
 				<p> Please answer the following <b class="question_number"> 0 </b> questions. For each question, please listen to the pairs of the audio clips and give your opinion about the quality of the speech you hear in the <b>processed</b> clip, compare to its reference, on the following scale. <b>Note</b> that the scale will be activated when both clips played until the end. </p>
 				<p> There is no right or wrong answer as long as you listen to the audio clips and give your opinion.</p>
 
- 				<!-- will be generated -->
+				<!-- will be generated -->
 				<ul class="nav nav-tabs" role="tablist" id="nav-tab-ul"> </ul>
 				<!-- will be generated -->
 				<div class="tab-content" id="nav-tabContent-rating">	</div>
