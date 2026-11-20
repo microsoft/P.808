@@ -7,8 +7,10 @@ For all the resource files (steps 1-4) an example is provided in `src/test_input
 
 **Note**: make sure to first perform steps listed in the [general preparation process](preparation.md).
 
-**Note**: Within DCR and CCR method, the quality of a speech clip is compared to a `reference` clip e.g. a same clip 
-without being artificially processed.  
+**Note**: DCR compares a speech clip to a reference, for example the same clip without artificial
+processing. CCR can also compare two alternatives with no clean reference, such as microphones
+recording the same scene. The CSV column `references` then labels canonical A, not a known better
+recording; see [Prepacked sessions](prepacked_sessions.md).
 
 1. Upload your **speech clips** and the references in a cloud server and create the `rating_clips.csv` file which 
 contains all URLs to speech clips in a column named `rating_clips` and URLs to the corresponding reference clips in 
@@ -66,60 +68,22 @@ Eligibility passes when any selected device meets `required_playback_device` (`h
 
 ## Optional: vary session bundles
 
-In DCR/CCR a *comparison* is one A/B pair of clips that a listener hears one after the other. A *session*
-is one listener's single sitting (one HIT); its *bundle* is the set of main comparisons assigned to it,
-not counting training and controls.
-
-Use `src/pack_sessions.py` when every comparison must be rated several times by different
-listeners and the make-up of each session matters. The built-in `random` strategy shuffles the clip
-list once and `balanced_block` balances conditions; neither controls how often a comparison is
-repeated, which clip plays first, or which comparisons share a session. The script plans this offline,
-before `master_script.py` runs, and guarantees:
-
-* each comparison appears exactly `--repeats` times, half of them with A played first (`ab`) and half with B
-  played first (`ba`), so a listener bias for the first or second clip cancels out for every comparison;
-* no comparison appears twice in a bundle, and with `--group-column` no two comparisons from the same
-  source (e.g. scene) share a bundle, so a listener does not hear the same material twice in one session;
-* with `--stratum-column` and `--quota`, every bundle holds a fixed number of comparisons per stratum;
-* all bundles are distinct, and a seeded local search lowers how often two comparisons are heard
-  together, so a rating is not always given in the same context;
-* the same input and seed give the same output, and the audit JSON records settings, hashes and balance
-  statistics. Existing output files are never overwritten, and settings that would need padding are rejected.
-
-The input is a CSV with one row per comparison: a unique ID plus optional group and stratum columns.
-
-```powershell
-python src\pack_sessions.py --input comparisons.csv --output assignments.csv --audit assignment_audit.json `
-    --id-column comparison_id --group-column scene --stratum-column stratum `
-    --quota representative=10 --quota supplementary=10 --session-size 20 --repeats 10 --seed 42
-```
-
-`--repeats` must be positive and even; session counts and quotas must fit exactly. The output is
-an assignment plan (`bundle_id`, `position`, `item_id`, `order`), not a publish-batch CSV. Add
-training and controls separately, and route participants to avoid repeated comparisons.
-
-To use the plan, convert it to a prepacked sessions file: one row per `bundle_id`, with the bundle's
-comparisons (plus any controls) as `Q0_R`/`Q0_P`, `Q1_R`/`Q1_P`, and so on. `Qn_R` is the first clip of
-the canonical pair (A) and `Qn_P` the second (B). For CCR, playback order and pair IDs are honored with
-`comparison_metadata: true` (below): copy each assignment's `order` to `Qn_ORDER` and its `item_id` to
-`Qn_ID`; `ab` plays A first and `ba` plays B first. DCR always presents Reference and Processed in fixed
-positions; omit `order`/`Qn_ORDER` when preparing a DCR session file. The script does not write this file itself.
+Use offline session planning when comparisons need repeated ratings with varied companions,
+source-scene exclusion, stratum quotas or exact CCR playback-order balance. The
+[Prepacked sessions guide](prepacked_sessions.md) explains the microphone-comparison use case and
+provides a complete `pack_sessions.py` -> `convert_assignments.py` -> `master_script.py` walkthrough.
+The usual `random` and `balanced_block` strategies remain available for simpler designs.
 
 ### Prepacked assignments
 
-For CCR/DCR, set `clip_packing_strategy: prepacked` and `prepacked_sessions` in `[create_input]`
-to use such a file instead of the built-in strategies.
-Each row needs `Q0_R`/`Q0_P` through the configured comparison count. Other columns are preserved;
-supply the usual source-clip and training CSVs.
+Set `clip_packing_strategy: prepacked` and `prepacked_sessions` in `[create_input]` to load a
+wide-format session CSV instead of generating memberships. Supply the normal clip and training
+CSVs as well. See the guide for [generation commands](prepacked_sessions.md#worked-ccr-pipeline),
+[metadata and controls](prepacked_sessions.md#controls-and-format-details), and
+[DCR compatibility](prepacked_sessions.md#dcr-compatibility).
 
-`comparison_metadata` is supported only for CCR. For CCR, `comparison_metadata: true` in `[hit_app_html]`
-requires prepacked `Qn_ID`, `Qn_ROLE`,
-`Qn_ORDER` and `Qn_EXPOSURE` columns, which follow comparisons when screen positions are randomized.
-Prepacked `Qn_ORDER` is only honored when `comparison_metadata: true`; otherwise generation rejects the
-configuration rather than silently randomizing the order.
-IDs must be nonempty, each ID must always name the same audio pair and role, and roles must be
-`main`, `identical` or `contrast`. IDs and nonempty exposure values may contain only letters,
-digits, `_`, `.`, `:` and `-`.
+## CCR practice and presentation
+
 When online qualification is enabled, CCR/DCR requires all five bandwidth-check answers to match
 their supplied hashes; `bw_min` does not relax that client-side check, and `bw_max` must be `FB`.
 Training rows may specify `order` (`ab`, `ba` or empty) and an optional `pair_id`, exported
@@ -132,11 +96,3 @@ An optional `presentation_file` loads trusted JSON fields `title`, `style`, `scr
 `instructions`, `training` and `rating`. Custom replacements must retain stock IDs, containers,
 prerequisites and native qualification/device/setup/form behavior. Omitting `training` or `rating`
 keeps the native panels; training order is randomized unless `randomize_training_questions: false`.
-
-Set `aggregate_by_pair_id: true` in `[create_input]` to aggregate CCR by comparison ID. This
-requires `comparison_metadata: true` and roles `main`,
-`identical` or `contrast`, exports raw
-trials/control candidates before filtering, and excludes controls from comparison means. Contrast
-controls use degraded A and clean B. In this mode, `file_url` contains the comparison ID, while
-`condition_pattern` is still matched against the processed audio URL. CCR scores
-already express B-minus-A; the audit separately reconstructs second-minus-first.

@@ -41,7 +41,8 @@ which will be assessed in a same HIT. For `balanced_block`, specify `condition_p
  `balanced_block`), generation prints a clear warning and continues with repetitions within sessions.
  Invalid input/configuration still raises an error. These checks cover rating items, not separately
  appended trapping/gold clips. For `prepacked`, `prepacked_sessions` is the path to a CSV with one row per session,
- usually planned with `src/pack_sessions.py`; see [DCR/CCR preparation](prep_dcr_ccr.md#prepacked-assignments).
+ planned with `src/pack_sessions.py` and converted using `src/convert_assignments.py`;
+ see [Prepacked sessions](prepacked_sessions.md).
 * (optional)  `block_keys:`:  The key(s) to be used for creating the blocks should be specified here. Up to two keys. 
 A comma separated list. For multiple keys, all values of the first key should appear in one block.
 
