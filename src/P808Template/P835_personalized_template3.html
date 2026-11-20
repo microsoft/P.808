@@ -199,7 +199,10 @@
 		// gray-zone dispute: a loudspeaker detection may only be disputed when net_db is
 		// below this value (near the threshold); a clearly-loudspeaker reading cannot be disputed
 		deviceCheckDisputeMaxNetDb: {{cfg.device_check_dispute_max_net_db}},
-		cmp_correct_answers: {{ cfg.cmp_correct_answers }},
+		cmp_correct_hashes: {% if cfg.run_online_eval_setup == "true" %}
+			["${cmp_correct_hash1}", "${cmp_correct_hash2}",
+			 "${cmp_correct_hash3}", "${cmp_correct_hash4}"]
+		{% else %}[]{% endif %},
 		cmp_max_n_feedback: {{ cfg.cmp_max_n_feedback }},
 		cmp_pass_threshold: {{ cfg.cmp_pass_threshold }},
 		emailAddress: "{{cfg.contact_email}}",
@@ -824,7 +827,10 @@
 			if (cmp_answers[i] == "o")
 				continue;
 			url = $('span[id="CMP{0}_{1}"]'.f(i + 1, cmp_answers[i].toUpperCase())).attr("data-src");
-			if (config["cmp_correct_answers"].includes(await generateHash(url)))
+			var expectedHash = config["cmp_correct_hashes"][i];
+			var selectedHash = await generateHash(url);
+			if (expectedHash && /^[0-9a-f]{64}$/i.test(expectedHash)
+				&& selectedHash === expectedHash.toLowerCase())
 				correct_ans++;
 		}
 		// 4. shows the message if needed

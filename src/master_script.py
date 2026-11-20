@@ -764,12 +764,7 @@ def _correct_pair_url(row):
         ``pair_ans``.
     :return: The correct clip URL as a string.
     """
-    ans = row.get("pair_ans") if "pair_ans" in row.index else None
-    if isinstance(ans, str) and ans.strip():
-        return ans.strip()
-    a = int((row["pair_a"].rsplit("/", 1)[-1])[:2])
-    b = int((row["pair_b"].rsplit("/", 1)[-1])[:2])
-    return row["pair_a"] if a > b else row["pair_b"]
+    return ca.get_correct_cmp_url(row)
 
 
 def prepare_basic_cfg(df, cmp_pass_threshold=2):

@@ -7,6 +7,7 @@
 """
 
 import argparse
+import hashlib
 from os.path import isfile, join, basename, dirname
 import os
 import configparser as CP
@@ -244,17 +245,42 @@ def add_clips_random_ccr(clips, refs, n_clips_per_session, output_df):
         output_df[f'Q{q}_R'] = refs_sessions[:, q]
 
 
+def get_correct_cmp_url(row):
+    """
+    Resolve the correct clip URL for one setup (CMP) pair.
+
+    :param row: A dataframe row with ``pair_a`` / ``pair_b`` and optionally ``pair_ans``.
+    :return: The correct clip URL as a string.
+    """
+    pair_a = row["pair_a"]
+    pair_b = row["pair_b"]
+    if not isinstance(pair_a, str) or not isinstance(pair_b, str) or pair_a == pair_b:
+        raise ValueError("CMP pair_a and pair_b must be distinct clip URLs")
+
+    answer = row.get("pair_ans")
+    if isinstance(answer, str) and answer.strip():
+        answer = answer.strip()
+        if answer not in (pair_a, pair_b):
+            raise ValueError("pair_ans must match pair_a or pair_b for its CMP pair")
+        return answer
+
+    try:
+        snr_a = int(pair_a.rsplit("/", 1)[-1][:2])
+        snr_b = int(pair_b.rsplit("/", 1)[-1][:2])
+    except ValueError as exc:
+        raise ValueError(
+            "CMP pairs without pair_ans must use clip URLs with a two-digit SNR filename prefix"
+        ) from exc
+    return pair_a if snr_a > snr_b else pair_b
+
+
 def _assign_cmp_answers(df, output_df, new_4):
     """
     Record the correct answer of each setup (CMP) pair for offline grading.
 
-    When the general resource provides an explicit correct answer (``pair_ans``, the
-    URL of the better-quality clip - required for anonymized clips whose file names do
-    not encode the SNR), this adds ``ans_cmp1``..``ans_cmp4`` columns holding ``"a"`` or
-    ``"b"`` to say which slot of each shown pair is the correct one. The result parser
-    reads these to grade the setup without relying on the file name. When ``pair_ans``
-    is absent the columns are not added and the parser falls back to the legacy
-    higher-SNR-file-name heuristic.
+    Resolve each shown pair independently, adding ``ans_cmp1``..``ans_cmp4`` for offline
+    grading and per-pair hashes for the browser setup check. Explicit ``pair_ans`` values
+    are validated against their pair; pairs without one use the legacy SNR filename rule.
 
     :param df: The general/clip dataframe (may contain a ``pair_ans`` column).
     :param output_df: The per-session output dataframe to add the columns to.
@@ -262,12 +288,33 @@ def _assign_cmp_answers(df, output_df, new_4):
         ``CMP1_A, CMP1_B, ... CMP4_A, CMP4_B``.
     :return: None. ``output_df`` is modified in place.
     """
-    if 'pair_ans' not in df.columns or not df['pair_ans'].notna().any():
-        return
-    correct_urls = set(df['pair_ans'].dropna())
+    correct_by_pair = {}
+    for _, row in df.dropna(subset=["pair_a", "pair_b"]).iterrows():
+        pair_a = row["pair_a"]
+        pair_b = row["pair_b"]
+        pair_key = frozenset((pair_a, pair_b))
+        correct_url = get_correct_cmp_url(row)
+        if pair_key in correct_by_pair and correct_by_pair[pair_key] != correct_url:
+            raise ValueError("The same CMP pair has conflicting correct answers")
+        correct_by_pair[pair_key] = correct_url
+
     for k in range(4):
         col_a = new_4[:, 2 * k]
-        output_df[f'ans_cmp{k + 1}'] = ['a' if u in correct_urls else 'b' for u in col_a]
+        col_b = new_4[:, 2 * k + 1]
+        correct_urls = []
+        for pair_a, pair_b in zip(col_a, col_b):
+            pair_key = frozenset((pair_a, pair_b))
+            if pair_key not in correct_by_pair:
+                raise ValueError("A displayed CMP pair has no matching source pair")
+            correct_urls.append(correct_by_pair[pair_key])
+        output_df[f'ans_cmp{k + 1}'] = [
+            "a" if pair_a == correct_url else "b"
+            for pair_a, correct_url in zip(col_a, correct_urls)
+        ]
+        output_df[f'cmp_correct_hash{k + 1}'] = [
+            hashlib.sha256(correct_url.encode("utf-8")).hexdigest()
+            for correct_url in correct_urls
+        ]
 
 
 def create_input_for_acr(cfg, df, output_path, method):

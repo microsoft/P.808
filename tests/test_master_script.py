@@ -1053,6 +1053,41 @@ def test_comparison_analyzer_cfg_uses_environment_comparison_threshold(
         "P808_multi.html",
         "P835_template.html",
         "P835_personalized_template3.html",
+        "echo_impairment_test_template.html",
+        "echo_impairment_test_fest_template.html",
+        "P831_ACR_template.html",
+        "P831_DCR_template.html",
+    ],
+)
+def test_cmp_setup_templates_use_per_question_correct_hashes(template_name):
+    """
+    Verify CMP checks compare each answer with its own question's hash.
+
+    :param template_name: Worker-facing template containing CMP setup questions.
+    :return: None.
+    """
+    path = Path(__file__).resolve().parents[1] / "src" / "P808Template" / template_name
+    template = Template(path.read_text(encoding="utf-8"))
+    html = template.render(cfg={"run_online_eval_setup": "true"})
+    assert re.search(r'cmp_correct_hashes:\s*\["\$\{cmp_correct_hash1\}", "\$\{cmp_correct_hash2\}",', html)
+    assert all(f'"${{cmp_correct_hash{index}}}"' in html for index in range(3, 5))
+    assert 'config["cmp_correct_hashes"][i]' in html
+    assert "selectedHash === expectedHash.toLowerCase()" in html
+    assert 'config["cmp_correct_answers"]' not in html
+
+    disabled_html = template.render(cfg={"run_online_eval_setup": "false"})
+    assert re.search(r"cmp_correct_hashes:\s*\[\s*\]", disabled_html)
+
+
+@pytest.mark.parametrize(
+    "template_name",
+    [
+        "ACR_template.html",
+        "CCR_template.html",
+        "DCR_template.html",
+        "P808_multi.html",
+        "P835_template.html",
+        "P835_personalized_template3.html",
     ],
 )
 @pytest.mark.parametrize("section_id", ["qualification_rejected", "setup_rejected"])

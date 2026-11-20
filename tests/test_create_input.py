@@ -1,5 +1,7 @@
+import hashlib
 from unittest.mock import Mock
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -43,6 +45,7 @@ def _create_comparison_input_data():
             "math": ["math.wav"] * clip_count,
             "pair_a": [f"pair-a-{index}.wav" for index in range(clip_count)],
             "pair_b": [f"pair-b-{index}.wav" for index in range(clip_count)],
+            "pair_ans": [f"pair-b-{index}.wav" for index in range(clip_count)],
             "trapping_clips": [None] * clip_count,
         }
     )
@@ -318,3 +321,49 @@ def test_create_input_for_mturk_preserves_random_ccr_reference_pairs(tmp_path, m
         for index, clip in enumerate(presented_clips):
             assert row[f"Q{index}_R"] == reference_by_clip[clip]
     assert any(count < len(COMPARISON_CONDITIONS) for count in unique_condition_counts)
+
+
+def test_assign_cmp_answers_uses_correct_clip_per_pair():
+    """
+    Keep offline answer slots and browser hashes tied to each CMP pair.
+
+    :return: None.
+    """
+    pairs = pd.DataFrame(
+        {
+            "pair_a": ["A.wav", "B.wav", "30_clean.wav", "D.wav"],
+            "pair_b": ["B.wav", "C.wav", "10_noisy.wav", "A.wav"],
+            "pair_ans": ["B.wav", "C.wav", None, "A.wav"],
+        }
+    )
+    displayed_pairs = np.array(
+        [["A.wav", "B.wav", "B.wav", "C.wav", "30_clean.wav", "10_noisy.wav", "D.wav", "A.wav"]]
+    )
+    output = pd.DataFrame(index=[0])
+
+    create_input._assign_cmp_answers(pairs, output, displayed_pairs)
+
+    assert output.loc[0, ["ans_cmp1", "ans_cmp2", "ans_cmp3", "ans_cmp4"]].tolist() == [
+        "b", "b", "a", "b"
+    ]
+    assert output.loc[0, [
+        "cmp_correct_hash1", "cmp_correct_hash2", "cmp_correct_hash3", "cmp_correct_hash4"
+    ]].tolist() == [
+        hashlib.sha256(url.encode("utf-8")).hexdigest()
+        for url in ["B.wav", "C.wav", "30_clean.wav", "A.wav"]
+    ]
+
+
+def test_assign_cmp_answers_rejects_answer_outside_its_pair():
+    """
+    Reject explicit answer URLs that do not belong to their CMP pair.
+
+    :return: None.
+    """
+    pairs = pd.DataFrame(
+        {"pair_a": ["A.wav"], "pair_b": ["B.wav"], "pair_ans": ["C.wav"]}
+    )
+    displayed_pairs = np.array([["A.wav", "B.wav"] * 4])
+
+    with pytest.raises(ValueError, match="pair_ans must match"):
+        create_input._assign_cmp_answers(pairs, pd.DataFrame(index=[0]), displayed_pairs)
