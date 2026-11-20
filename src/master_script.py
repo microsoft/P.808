@@ -762,7 +762,7 @@ def _correct_pair_url(row):
 
     :param row: A dataframe row (Series) with ``pair_a`` / ``pair_b`` and optionally
         ``pair_ans``.
-    :return: The correct clip URL as a string.
+    :return: The correct clip URL, or None for a legacy equal-SNR pair without an explicit answer.
     """
     return ca.get_correct_cmp_url(row)
 
@@ -785,7 +785,8 @@ def prepare_basic_cfg(df, cmp_pass_threshold=2):
         # page (mirrors the bandwidth-check hashing). The client verifies a selected clip
         # by hashing its URL and matching against this list.
         url = _correct_pair_url(row)
-        cmp_correct_hashes.append(hashlib.sha256(url.encode("utf-8")).hexdigest())
+        if url is not None:
+            cmp_correct_hashes.append(hashlib.sha256(url.encode("utf-8")).hexdigest())
 
     # randomly select numbers for hearing test
     clear_sample_url = "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s0.wav"

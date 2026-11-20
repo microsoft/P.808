@@ -426,7 +426,7 @@ def get_correct_cmp_url(row):
     Resolve the correct clip URL for one setup (CMP) pair.
 
     :param row: A dataframe row with ``pair_a`` / ``pair_b`` and optionally ``pair_ans``.
-    :return: The correct clip URL as a string.
+    :return: The correct clip URL, or None for a legacy equal-SNR pair without an explicit answer.
     """
     pair_a = row["pair_a"]
     pair_b = row["pair_b"]
@@ -447,6 +447,8 @@ def get_correct_cmp_url(row):
         raise ValueError(
             "CMP pairs without pair_ans must use clip URLs with a two-digit SNR filename prefix"
         ) from exc
+    if snr_a == snr_b:
+        return None
     return pair_a if snr_a > snr_b else pair_b
 
 
@@ -457,6 +459,7 @@ def _assign_cmp_answers(df, output_df, new_4):
     Resolve each shown pair independently, adding ``ans_cmp1``..``ans_cmp4`` for offline
     grading and per-pair hashes for the browser setup check. Explicit ``pair_ans`` values
     are validated against their pair; pairs without one use the legacy SNR filename rule.
+    Equal-SNR legacy pairs receive ``"o"`` and no winning-clip hash.
 
     :param df: The general/clip dataframe (may contain a ``pair_ans`` column).
     :param output_df: The per-session output dataframe to add the columns to.
@@ -484,11 +487,11 @@ def _assign_cmp_answers(df, output_df, new_4):
                 raise ValueError("A displayed CMP pair has no matching source pair")
             correct_urls.append(correct_by_pair[pair_key])
         output_df[f'ans_cmp{k + 1}'] = [
-            "a" if pair_a == correct_url else "b"
+            "o" if correct_url is None else "a" if pair_a == correct_url else "b"
             for pair_a, correct_url in zip(col_a, correct_urls)
         ]
         output_df[f'cmp_correct_hash{k + 1}'] = [
-            hashlib.sha256(correct_url.encode("utf-8")).hexdigest()
+            hashlib.sha256(correct_url.encode("utf-8")).hexdigest() if correct_url is not None else ""
             for correct_url in correct_urls
         ]
 

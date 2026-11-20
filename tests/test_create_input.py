@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src import create_input
+from src import create_input, result_parser
 
 
 ACR_COLUMNS = [
@@ -491,6 +491,58 @@ def test_assign_cmp_answers_rejects_answer_outside_its_pair():
     displayed_pairs = np.array([["A.wav", "B.wav"] * 4])
 
     with pytest.raises(ValueError, match="pair_ans must match"):
+        create_input._assign_cmp_answers(pairs, pd.DataFrame(index=[0]), displayed_pairs)
+
+
+@pytest.mark.parametrize(
+    ("pair_ans", "forward_answer"),
+    [(None, "o"), ("", "o"), (float("nan"), "o"), ("50_a.wav", "a"), ("50_b.wav", "b")],
+)
+def test_assign_cmp_answers_grades_legacy_ties_in_both_orders(tmp_path, pair_ans, forward_answer):
+    """
+    Preserve legacy ties in exported answers while honoring explicit winner URLs.
+
+    :param tmp_path: Temporary directory for the generated answer CSV.
+    :param pair_ans: Optional explicit answer; None omits the column entirely.
+    :param forward_answer: Expected answer before swapping the displayed clips.
+    :return: None.
+    """
+    pairs = pd.DataFrame({"pair_a": ["50_a.wav"], "pair_b": ["50_b.wav"]})
+    if pair_ans is not None:
+        pairs["pair_ans"] = pair_ans
+    displayed_pairs = np.array([["50_a.wav", "50_b.wav"] * 4, ["50_b.wav", "50_a.wav"] * 4])
+    output = pd.DataFrame(index=[0, 1])
+    create_input._assign_cmp_answers(pairs, output, displayed_pairs)
+    path = tmp_path / "answers.csv"
+    output.to_csv(path, index=False)
+    exported = pd.read_csv(path, keep_default_na=False)
+
+    for row_index, expected in enumerate([forward_answer, {"a": "b", "b": "a", "o": "o"}[forward_answer]]):
+        for question in range(4):
+            correct_slot = exported.loc[row_index, f"ans_cmp{question + 1}"]
+            assert correct_slot == expected
+            expected_hash = "" if expected == "o" else hashlib.sha256(pair_ans.encode("utf-8")).hexdigest()
+            assert exported.loc[row_index, f"cmp_correct_hash{question + 1}"] == expected_hash
+            for response in ("a", "b", "o"):
+                assert result_parser.check_a_cmp(
+                    *displayed_pairs[row_index, question * 2:question * 2 + 2], response, 1, 1, correct_slot
+                ) == (response == expected)
+
+
+def test_assign_cmp_answers_rejects_conflicting_tie_and_winner():
+    """
+    Reject inconsistent source answers when a legacy tie also has an explicit winner.
+
+    :return: None.
+    """
+    pairs = pd.DataFrame({
+        "pair_a": ["50_a.wav", "50_b.wav"],
+        "pair_b": ["50_b.wav", "50_a.wav"],
+        "pair_ans": [None, "50_b.wav"],
+    })
+    displayed_pairs = np.array([["50_a.wav", "50_b.wav"] * 4])
+
+    with pytest.raises(ValueError, match="conflicting correct answers"):
         create_input._assign_cmp_answers(pairs, pd.DataFrame(index=[0]), displayed_pairs)
 
 

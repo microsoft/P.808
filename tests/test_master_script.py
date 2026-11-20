@@ -1,6 +1,7 @@
 import ast
 import asyncio
 import configparser
+import hashlib
 import importlib
 import json
 import re
@@ -1111,6 +1112,31 @@ def test_general_analyzer_cfg_uses_environment_comparison_threshold(
 
     output = output_path.read_text(encoding="utf-8")
     assert "correct_cmp_bigger_equal: 3" in output
+
+
+def test_prepare_basic_cfg_handles_legacy_ties(monkeypatch):
+    """
+    Generate setup configuration without inventing a winning URL for equal-SNR pairs.
+
+    :param monkeypatch: Fixture for importing the repository source module.
+    :return: None.
+    """
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "src"))
+    master_script = importlib.import_module("master_script")
+    data = pd.DataFrame({
+        "pair_a": ["50_a.wav", "50_c.wav", "10_noisy.wav", None],
+        "pair_b": ["50_b.wav", "50_d.wav", "30_clean.wav", None],
+        "pair_ans": [None, "50_c.wav", None, None],
+        "hearing_test_url": [f"hearing_{index}.wav" for index in range(4)],
+        "hearing_test_ans": [123, 456, 789, 234],
+    })
+
+    config = master_script.prepare_basic_cfg(data, cmp_pass_threshold=3)
+
+    assert config["cmp_correct_answers"] == [
+        hashlib.sha256(url.encode("utf-8")).hexdigest() for url in ["50_c.wav", "30_clean.wav"]
+    ]
+    assert config["cmp_pass_threshold"] == 3
 
 
 def test_comparison_analyzer_cfg_uses_environment_comparison_threshold(
