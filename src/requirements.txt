@@ -4,7 +4,7 @@ numpy
 soundfile
 jinja2
 boto3
-scipy
+scipy>=1.9
 azure-core
 azure-identity
 azure-storage-blob
