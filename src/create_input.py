@@ -7,6 +7,7 @@
 """
 
 import argparse
+import hashlib
 from os.path import isfile, join, basename, dirname
 import os
 import configparser as CP
@@ -84,7 +85,7 @@ def conv_filename_to_condition(f_name, condition_pattern):
     return file_to_condition_map[f_name]
 
 
-def add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session, output_df):
+def add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session, output_df, refs=None):
     """
     Pack clips into sessions that preserve the configured condition blocks.
 
@@ -93,17 +94,19 @@ def add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session
     :param keys: Comma-separated condition keys used to construct blocks.
     :param n_clips_per_session: Number of rating clips in each session.
     :param output_df: Dataframe populated with the generated sessions.
+    :param refs: Optional reference paths paired with the rating clips for DCR/CCR.
     :return: The populated output dataframe.
     """
     block_keys = [x.strip() for x in keys.split(',')]
     if len(block_keys) > 2:
         raise SystemExit("Error: balanced_block design- only up to 2 keys in 'block_keys' are supported")
-
+    items = list(clips) if refs is None else list(zip(clips, refs))
+    identities = list(clips) if refs is None else [frozenset(pair) for pair in items]
     records = []
-    for clip in clips:
+    for index, clip in enumerate(clips):
         condition = conv_filename_to_condition(clip, condition_pattern)
         record = condition.copy()
-        record['url'] = clip
+        record['url'] = index
         records.append(record)
     data = pd.DataFrame.from_records(records)
 
@@ -134,6 +137,25 @@ def add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session
         raise SystemExit("Error: balanced_block design- number_of_clips_per_session should be a multiples of values of "
                          f"first block_key. Found {num_unique[block_keys[0]]} unique values for '{block_keys[0]}'. "
                          f"Therefore number_of_clips_per_session should be a multiples of {num_unique[block_keys[0]]})")
+    allow_repeats = len(items) < n_clips_per_session
+    if len(set(identities)) < len(identities):
+        sessions = _pack_balanced_without_repeats(items, identities, data, block_keys, n_clips_per_session)
+        if sessions is not None:
+            for q in range(n_clips_per_session):
+                if refs is None:
+                    output_df[f'Q{q}'] = [items[session[q]] for session in sessions]
+                else:
+                    output_df[f'Q{q}_P'] = [items[session[q]][0] for session in sessions]
+                    output_df[f'Q{q}_R'] = [items[session[q]][1] for session in sessions]
+            return output_df
+        allow_repeats = True
+    if allow_repeats:
+        n_sessions = math.ceil(len(items) / n_clips_per_session)
+        print(
+            f"WARNING: balanced_block cannot avoid repeated clips/comparisons within {n_sessions} session(s) "
+            f"of {n_clips_per_session} while preserving all input occurrences and condition blocks. "
+            "Continuing with repetitions within sessions. Lower 'number_of_clips_per_session' or reduce "
+            "repeated input occurrences to avoid this.")
     # create the blocks
     #  create block sets
     column_names = [f"url_{i}" for i in range(0, num_unique[block_keys[0]])]
@@ -162,9 +184,15 @@ def add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session
     blocked_df = blocked_df.sample(frac=1).reset_index(drop=True)
     # add extra blocks to have complete sessions
     blocks_per_session = n_clips_per_session // n_clips_in_block
-    if len(blocked_df) % blocks_per_session != 0:
-        n_extra_blocks = int(blocks_per_session - (len(blocked_df) % blocks_per_session))
-        extra_blocks = blocked_df.sample(n=n_extra_blocks)
+    n_partial_blocks = len(blocked_df) % blocks_per_session
+    if n_partial_blocks != 0:
+        n_extra_blocks = int(blocks_per_session - n_partial_blocks)
+        # Prefer blocks outside the partial session; insufficient input requires repeating its own blocks.
+        complete_blocks = blocked_df.iloc[:len(blocked_df) - n_partial_blocks]
+        if complete_blocks.empty:
+            extra_blocks = blocked_df.sample(n=n_extra_blocks, replace=n_extra_blocks > len(blocked_df))
+        else:
+            extra_blocks = complete_blocks.sample(n=n_extra_blocks)
         blocked_df = pd.concat([blocked_df, extra_blocks], ignore_index=True)
 
     # create the sessions
@@ -172,7 +200,12 @@ def add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session
     np_blocks_reshaped = np.reshape(np_blocks, (-1, n_clips_per_session), order='c')
     q_order = random.sample(range(n_clips_per_session), n_clips_per_session)
     for q, source_index in enumerate(q_order):
-        output_df[f'Q{q}'] = np_blocks_reshaped[:, source_index]
+        indices = np_blocks_reshaped[:, source_index]
+        if refs is None:
+            output_df[f'Q{q}'] = [items[index] for index in indices]
+        else:
+            output_df[f'Q{q}_P'] = [items[index][0] for index in indices]
+            output_df[f'Q{q}_R'] = [items[index][1] for index in indices]
     return output_df
 
 
@@ -188,73 +221,245 @@ def add_clips_balanced_block_ccr(clips, refs, condition_pattern, keys, n_clips_p
     :param output_df: Dataframe populated with the generated sessions.
     :return: None. ``output_df`` is modified in place.
     """
-    # create the structure only using clips
-    add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session, output_df)
-    clips = clips.tolist()
-    refs = refs.tolist()
-    for q in range(n_clips_per_session):
-        clip_list = output_df[f'Q{q}'].tolist()
-        ref_list = []
-        for c in clip_list:
-            ref_list.append(refs[clips.index(c)])
-        output_df[f'Q{q}_R'] = ref_list
-        output_df.rename(columns={f'Q{q}': f'Q{q}_P'}, inplace=True)
+    add_clips_balanced_block(clips, condition_pattern, keys, n_clips_per_session, output_df, refs=refs)
+
+
+def _pack_balanced_without_repeats(items, identities, data, block_keys, session_size):
+    """
+    Assign repeated inputs and necessary padding jointly, preserving condition balance.
+
+    Independently shuffled blocks can make a feasible input impossible to pack. Binary assignments
+    instead enforce per-session identity uniqueness and equal first-key counts within each second-key
+    value. Every supplied occurrence is retained; only the final-session deficit may be added.
+
+    :param items: Clip URLs or directed processed/reference pairs.
+    :param identities: Clip identities or unordered comparison identities.
+    :param data: Parsed conditions, one row per supplied item.
+    :param block_keys: One or two keys defining a complete condition block.
+    :param session_size: Number of rating items per session.
+    :return: Sessions containing indices into ``items``, or None if repeat-free packing is infeasible.
+    :raises RuntimeError: If the solver fails without establishing infeasibility.
+    """
+    from scipy.optimize import Bounds, LinearConstraint, milp
+    from scipy.sparse import coo_matrix
+
+    n_sessions = math.ceil(len(items) / session_size)
+    counts = collections.Counter(items)
+    representatives = {item: index for index, item in enumerate(items)}
+    indices = list(representatives.values())
+    random.shuffle(indices)
+    n_types = len(indices)
+    by_identity = collections.defaultdict(list)
+    by_cell = collections.defaultdict(list)
+    for column, index in enumerate(indices):
+        by_identity[identities[index]].append(column)
+        cell = tuple(data.iloc[index][key] for key in block_keys)
+        by_cell[cell].append(column)
+
+    rows, columns, values, lower, upper = [], [], [], [], []
+
+    def constrain(cols, coefficients, minimum, maximum):
+        """
+        Append one sparse linear constraint.
+
+        :param cols: Variable indices.
+        :param coefficients: Corresponding coefficients.
+        :param minimum: Inclusive lower bound.
+        :param maximum: Inclusive upper bound.
+        :return: None.
+        """
+        rows.extend([len(lower)] * len(cols))
+        columns.extend(cols)
+        values.extend(coefficients)
+        lower.append(minimum)
+        upper.append(maximum)
+
+    for column, index in enumerate(indices):
+        constrain(list(range(column, n_sessions * n_types, n_types)), [1] * n_sessions,
+                  counts[items[index]], n_sessions)
+    first_values = list(data[block_keys[0]].unique())
+    second_values = list(data[block_keys[1]].unique()) if len(block_keys) == 2 else [None]
+    for session in range(n_sessions):
+        offset = session * n_types
+        constrain(list(range(offset, offset + n_types)), [1] * n_types, session_size, session_size)
+        for group in by_identity.values():
+            if len(group) > 1:
+                constrain([offset + column for column in group], [1] * len(group), 0, 1)
+        for second in second_values:
+            cells = [(first, second) if len(block_keys) == 2 else (first,) for first in first_values]
+            base = by_cell[cells[0]]
+            for cell in cells[1:]:
+                other = by_cell[cell]
+                constrain([offset + column for column in base + other],
+                          [1] * len(base) + [-1] * len(other), 0, 0)
+    matrix = coo_matrix((values, (rows, columns)), shape=(len(lower), n_sessions * n_types)).tocsc()
+    result = milp(c=np.zeros(n_sessions * n_types), integrality=np.ones(n_sessions * n_types),
+                  bounds=Bounds(0, 1), constraints=LinearConstraint(matrix, lower, upper))
+    if result.status == 2:
+        return None
+    if not result.success:
+        raise RuntimeError(f"Balanced packing solver did not finish: {result.message}")
+    assignment = np.rint(result.x).reshape(n_sessions, n_types)
+    sessions = [[indices[column] for column in np.flatnonzero(row)] for row in assignment]
+    for session in sessions:
+        random.shuffle(session)
+    random.shuffle(sessions)
+    return sessions
+
+
+def _pack_random_sessions(items, keys, n_sessions, n_clips_per_session, label):
+    """
+    Distribute items into sessions, avoiding repeated keys whenever feasible.
+
+    Each key's copies go to distinct sessions, always to the sessions with the most free slots (ties are
+    broken at random). Free slots then never differ by more than one between sessions, so this always
+    succeeds when no key has more copies than there are sessions and there are enough distinct keys.
+    Without padding or repeated input keys, this is a uniform random split, like shuffling and cutting.
+
+    Padding is selected only from identities with room in another session, rather than blindly
+    copying the beginning of the input list. If repeats cannot be avoided at this session count,
+    warn and fall back to padded random packing without discarding any input occurrences.
+
+    :param items: Values to place, before padding to complete sessions.
+    :param keys: Identity of each item; equal keys are kept apart when feasible.
+    :param n_sessions: Number of sessions.
+    :param n_clips_per_session: Number of items per session.
+    :param label: Name of one item in the error message, e.g. ``"clip"`` or ``"comparison"``.
+    :return: List of ``n_sessions`` lists, each holding ``n_clips_per_session`` items in random order.
+    :raises ValueError: If no items were supplied.
+    """
+    if not items:
+        raise ValueError(f"At least one {label} is required.")
+    groups = {}
+    for item, key in zip(items, keys):
+        groups.setdefault(key, []).append(item)
+    copies = list(groups.values())
+    largest = max((len(group) for group in copies), default=0)
+    if len(copies) < n_clips_per_session or largest > n_sessions:
+        print(
+            f"WARNING: random packing cannot avoid repeated {label}s within {n_sessions} session(s) of "
+            f"{n_clips_per_session}: there are {len(copies)} distinct {label}s and the largest input "
+            f"multiplicity is {largest}. Continuing with repetitions within sessions. "
+            f"Lower 'number_of_clips_per_session' or list each {label} fewer times to avoid this.")
+        needed = n_sessions * n_clips_per_session
+        padded = (items * math.ceil(needed / len(items)))[:needed]
+        random.shuffle(padded)
+        return [padded[start:start + n_clips_per_session] for start in range(0, needed, n_clips_per_session)]
+    available = [group for group in copies if len(group) < n_sessions]
+    for _ in range(n_sessions * n_clips_per_session - len(items)):
+        group = random.choice(available)
+        group.append(random.choice(group))
+        if len(group) == n_sessions:
+            available.remove(group)
+    random.shuffle(copies)
+    sessions = [[] for _ in range(n_sessions)]
+    most_free = list(range(n_sessions))
+    random.shuffle(most_free)
+    one_less = []
+    for group in copies:
+        if len(group) <= len(most_free):
+            chosen = [most_free.pop() for _ in group]
+            one_less.extend(chosen)
+        else:
+            # Use every session of the emptier tier, and take the rest at random from the next tier.
+            random.shuffle(one_less)
+            extra = [one_less.pop() for _ in range(len(group) - len(most_free))]
+            chosen = most_free + extra
+            most_free = one_less + most_free
+            random.shuffle(most_free)
+            one_less = extra
+        if not most_free:
+            most_free, one_less = one_less, []
+            random.shuffle(most_free)
+        for session, item in zip(chosen, group):
+            sessions[session].append(item)
+    for session in sessions:
+        random.shuffle(session)
+    return sessions
 
 
 def add_clips_random(clips, n_clips_per_session, output_df, method, column_names):
+    """
+    Pack ACR-style clips into random sessions, warning if within-session repetition is unavoidable.
+
+    :param clips: Dataframe with a ``rating_clips`` column.
+    :param n_clips_per_session: Number of rating clips in each session.
+    :param output_df: Dataframe populated with the generated sessions.
+    :param method: Test method (unused).
+    :param column_names: Clip columns (unused).
+    :return: None. ``output_df`` is modified in place.
+    """
     n_clips = len(clips)
     n_sessions = math.ceil(n_clips / n_clips_per_session)
-    needed_clips = n_sessions * n_clips_per_session
-
-    all_clips = pd.DataFrame()
-    for i in range(int(math.ceil(needed_clips * 1.0 / n_clips))):
-        #all_clips = all_clips.append(clips)
-        all_clips = pd.concat([all_clips, clips], ignore_index=True)
-
-    all_clips = all_clips[:needed_clips]
-    all_clips = all_clips.sample(frac=1).reset_index(drop=True)
-
-    all_clips_rating = all_clips['rating_clips'].to_numpy()
-    clips_rating_sessions = np.reshape(
-        all_clips_rating, (n_sessions, n_clips_per_session))
+    all_clips_rating = clips['rating_clips'].tolist()
+    sessions = _pack_random_sessions(all_clips_rating, all_clips_rating, n_sessions, n_clips_per_session, "clip")
     for q in range(n_clips_per_session):
-        output_df[f'Q{q}'] = clips_rating_sessions[:, q]
+        output_df[f'Q{q}'] = [session[q] for session in sessions]
 
-    
-    print(f'There are {len(all_clips)} clips and {n_sessions} sessions')
+    print(f'There are {n_sessions * n_clips_per_session} clips and {n_sessions} sessions')
 
 
 def add_clips_random_ccr(clips, refs, n_clips_per_session, output_df):
+    """
+    Pack DCR/CCR comparisons into random sessions, warning if within-session repetition is unavoidable.
+
+    :param clips: Series containing the processed clip paths.
+    :param refs: Series containing the corresponding reference clip paths.
+    :param n_clips_per_session: Number of comparisons in each session.
+    :param output_df: Dataframe populated with the generated sessions.
+    :return: None. ``output_df`` is modified in place.
+    """
     n_clips = clips.count()
     n_sessions = math.ceil(n_clips / n_clips_per_session)
-    needed_clips = n_sessions * n_clips_per_session
-
-    full_clips = np.tile(clips.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
-    full_refs = np.tile(refs.to_numpy(), (needed_clips // n_clips) + 1)[:needed_clips]
-
-    full = list(zip(full_clips, full_refs))
-    random.shuffle(full)
-    full_clips, full_refs = zip(*full)
-
-    clips_sessions = np.reshape(full_clips, (n_sessions, n_clips_per_session))
-    refs_sessions = np.reshape(full_refs, (n_sessions, n_clips_per_session))
+    full = list(zip(clips, refs))
+    # The same two clips in either order are the same comparison for the listener.
+    keys = [frozenset(pair) for pair in full]
+    sessions = _pack_random_sessions(full, keys, n_sessions, n_clips_per_session, "comparison")
 
     for q in range(n_clips_per_session):
-        output_df[f'Q{q}_P'] = clips_sessions[:, q]
-        output_df[f'Q{q}_R'] = refs_sessions[:, q]
+        output_df[f'Q{q}_P'] = [session[q][0] for session in sessions]
+        output_df[f'Q{q}_R'] = [session[q][1] for session in sessions]
+
+
+def get_correct_cmp_url(row):
+    """
+    Resolve the correct clip URL for one setup (CMP) pair.
+
+    :param row: A dataframe row with ``pair_a`` / ``pair_b`` and optionally ``pair_ans``.
+    :return: The correct clip URL, or None for a legacy equal-SNR pair without an explicit answer.
+    """
+    pair_a = row["pair_a"]
+    pair_b = row["pair_b"]
+    if not isinstance(pair_a, str) or not isinstance(pair_b, str) or pair_a == pair_b:
+        raise ValueError("CMP pair_a and pair_b must be distinct clip URLs")
+
+    answer = row.get("pair_ans")
+    if isinstance(answer, str) and answer.strip():
+        answer = answer.strip()
+        if answer not in (pair_a, pair_b):
+            raise ValueError("pair_ans must match pair_a or pair_b for its CMP pair")
+        return answer
+
+    try:
+        snr_a = int(pair_a.rsplit("/", 1)[-1][:2])
+        snr_b = int(pair_b.rsplit("/", 1)[-1][:2])
+    except ValueError as exc:
+        raise ValueError(
+            "CMP pairs without pair_ans must use clip URLs with a two-digit SNR filename prefix"
+        ) from exc
+    if snr_a == snr_b:
+        return None
+    return pair_a if snr_a > snr_b else pair_b
 
 
 def _assign_cmp_answers(df, output_df, new_4):
     """
     Record the correct answer of each setup (CMP) pair for offline grading.
 
-    When the general resource provides an explicit correct answer (``pair_ans``, the
-    URL of the better-quality clip - required for anonymized clips whose file names do
-    not encode the SNR), this adds ``ans_cmp1``..``ans_cmp4`` columns holding ``"a"`` or
-    ``"b"`` to say which slot of each shown pair is the correct one. The result parser
-    reads these to grade the setup without relying on the file name. When ``pair_ans``
-    is absent the columns are not added and the parser falls back to the legacy
-    higher-SNR-file-name heuristic.
+    Resolve each shown pair independently, adding ``ans_cmp1``..``ans_cmp4`` for offline
+    grading and per-pair hashes for the browser setup check. Explicit ``pair_ans`` values
+    are validated against their pair; pairs without one use the legacy SNR filename rule.
+    Equal-SNR legacy pairs receive ``"o"`` and no winning-clip hash.
 
     :param df: The general/clip dataframe (may contain a ``pair_ans`` column).
     :param output_df: The per-session output dataframe to add the columns to.
@@ -262,12 +467,33 @@ def _assign_cmp_answers(df, output_df, new_4):
         ``CMP1_A, CMP1_B, ... CMP4_A, CMP4_B``.
     :return: None. ``output_df`` is modified in place.
     """
-    if 'pair_ans' not in df.columns or not df['pair_ans'].notna().any():
-        return
-    correct_urls = set(df['pair_ans'].dropna())
+    correct_by_pair = {}
+    for _, row in df.dropna(subset=["pair_a", "pair_b"]).iterrows():
+        pair_a = row["pair_a"]
+        pair_b = row["pair_b"]
+        pair_key = frozenset((pair_a, pair_b))
+        correct_url = get_correct_cmp_url(row)
+        if pair_key in correct_by_pair and correct_by_pair[pair_key] != correct_url:
+            raise ValueError("The same CMP pair has conflicting correct answers")
+        correct_by_pair[pair_key] = correct_url
+
     for k in range(4):
         col_a = new_4[:, 2 * k]
-        output_df[f'ans_cmp{k + 1}'] = ['a' if u in correct_urls else 'b' for u in col_a]
+        col_b = new_4[:, 2 * k + 1]
+        correct_urls = []
+        for pair_a, pair_b in zip(col_a, col_b):
+            pair_key = frozenset((pair_a, pair_b))
+            if pair_key not in correct_by_pair:
+                raise ValueError("A displayed CMP pair has no matching source pair")
+            correct_urls.append(correct_by_pair[pair_key])
+        output_df[f'ans_cmp{k + 1}'] = [
+            "o" if correct_url is None else "a" if pair_a == correct_url else "b"
+            for pair_a, correct_url in zip(col_a, correct_urls)
+        ]
+        output_df[f'cmp_correct_hash{k + 1}'] = [
+            hashlib.sha256(correct_url.encode("utf-8")).hexdigest() if correct_url is not None else ""
+            for correct_url in correct_urls
+        ]
 
 
 def create_input_for_acr(cfg, df, output_path, method):
@@ -296,9 +522,9 @@ def create_input_for_acr(cfg, df, output_path, method):
         if method == p835_personalized:
             raise Exception(
                 "balanced_block strategy is not supported for personalized P835")
-        add_clips_balanced_block(clips,
+        add_clips_balanced_block(clips["rating_clips"],
                                  cfg["condition_pattern"],
-                                 cfg.get("block_keys", cfg["condition_keys"]),
+                                 cfg.get("block_keys") or cfg["condition_keys"],
                                  n_clips_per_session,
                                  output_df)
         print(f'There are {len(clips)} clips and {n_sessions} sessions')
@@ -329,21 +555,7 @@ def create_input_for_acr(cfg, df, output_path, method):
                                    (n_sessions // math_hash_source.count()) + 1)[:n_sessions]
         output_df['math_hash'] = math_hash_output
 
-    # bandwidth-check sets: sample a whole 5-clip set per session so each session's
-    # clips (comb_bw*), per-position roles (ans_comb_bw*, checked server-side) and
-    # per-position hashes (comb_bw_hash*, used client-side) stay row-aligned.
-    bw_clip_cols = [f'comb_bw{i}' for i in range(1, 6)]
-    if all(c in df.columns for c in bw_clip_cols):
-        bw_set_cols = [c for c in df.columns
-                       if c.startswith('comb_bw') or c.startswith('ans_comb_bw')]
-        bw_sets = df[bw_set_cols].dropna(subset=bw_clip_cols).reset_index(drop=True)
-        if len(bw_sets) > 0:
-            bw_idx = np.tile(np.arange(len(bw_sets)),
-                             (n_sessions // len(bw_sets)) + 1)[:n_sessions]
-            np.random.shuffle(bw_idx)
-            bw_selected = bw_sets.iloc[bw_idx].reset_index(drop=True)
-            for c in bw_set_cols:
-                output_df[c] = bw_selected[c].to_numpy()
+    assign_bw_sets(df, output_df)
 
     # CMPs: 4 pairs are needed for 1 session
     nPairs = 4 * n_sessions
@@ -531,9 +743,50 @@ def create_input_for_dcrccr(cfg, df, output_path):
         )
     elif packing_strategy == "random":
         add_clips_random_ccr(clips, refs, n_clips_per_session, output_df)
+    elif packing_strategy == "prepacked":
+        source = cfg["prepacked_sessions"]
+        if os.path.exists(output_path) and os.path.samefile(source, output_path):
+            raise ValueError("Prepacked input and output must be different files")
+        output_df = pd.read_csv(source, dtype=str, keep_default_na=False)
+        if output_df.empty:
+            raise ValueError("Prepacked sessions must not be empty")
+        required = {f"Q{i}_{side}" for i in range(n_clips_per_session) for side in ("R", "P")}
+        actual = {column for column in output_df if re.fullmatch(r"Q\d+_[RP]", column)}
+        if actual != required:
+            raise ValueError("Prepacked comparison columns do not match number_of_clips_per_session")
+        for column in required:
+            if output_df[column].str.strip().eq("").any():
+                raise ValueError(f"Empty prepacked audio URL in {column}")
+        for column in output_df:
+            if re.fullmatch(r"Q\d+_ORDER", column) and not output_df[column].isin(("ab", "ba")).all():
+                raise ValueError(f"Invalid prepacked presentation order in {column}")
+            if re.fullmatch(r"Q\d+_ID", column) and output_df[column].str.strip().eq("").any():
+                raise ValueError(f"Empty prepacked comparison ID in {column}")
+            if re.fullmatch(r"Q\d+_(?:ID|EXPOSURE)", column):
+                values = output_df[column]
+                if column.endswith("_EXPOSURE"):
+                    values = values[values.str.strip().ne("")]
+                if not values.str.fullmatch(r"[A-Za-z0-9_.:-]+").all():
+                    raise ValueError(
+                        f"Invalid metadata value in {column}; use only letters, digits, _, ., :, or -"
+                    )
+            if re.fullmatch(r"Q\d+_ROLE", column) and not output_df[column].str.strip().isin(
+                    ("main", "identical", "contrast")).all():
+                raise ValueError(f"Invalid prepacked comparison role in {column}")
+        if all(f"Q{i}_ID" in output_df for i in range(n_clips_per_session)):
+            # Pair-ID aggregation pools all votes by ID, so one ID must always name the same comparison.
+            fields = ("ID", "R", "P", "ROLE")
+            identities = pd.concat([
+                output_df.reindex(columns=[f"Q{i}_{field}" for field in fields]).set_axis(fields, axis=1)
+                for i in range(n_clips_per_session)
+            ]).fillna("").apply(lambda column: column.str.strip()).drop_duplicates()
+            conflicting = identities.loc[identities["ID"].duplicated(), "ID"]
+            if not conflicting.empty:
+                raise ValueError(f"Prepacked comparison ID {conflicting.iloc[0]!r} maps to different audio or roles")
 
     n_sessions = len(output_df)
     print(f'{n_clips} clips and {n_sessions} sessions')
+    assign_bw_sets(df, output_df)
 
     # create math
     math_source = df['math'].dropna()
@@ -593,6 +846,28 @@ def create_input_for_dcrccr(cfg, df, output_path):
         output_df['TP'] = full_trappings
     output_df.to_csv(output_path, index=False)
     return len(output_df)
+
+
+def assign_bw_sets(df, output_df):
+    """
+    Assign complete bandwidth sets, keeping audio URLs, roles and hashes row-aligned.
+
+    :param df: General assets table with optional bandwidth-check columns.
+    :param output_df: Session table to update in place.
+    :return: None.
+    """
+    clip_columns = [f"comb_bw{i}" for i in range(1, 6)]
+    if not all(column in df for column in clip_columns):
+        return
+    columns = [column for column in df if column.startswith(("comb_bw", "ans_comb_bw"))]
+    sets = df[columns].dropna(subset=clip_columns).reset_index(drop=True)
+    if sets.empty:
+        return
+    indices = np.tile(np.arange(len(sets)), len(output_df) // len(sets) + 1)[:len(output_df)]
+    np.random.shuffle(indices)
+    selected = sets.iloc[indices].reset_index(drop=True)
+    for column in columns:
+        output_df[column] = selected[column].to_numpy()
 
 
 def create_input_for_mturk(cfg, df, method, output_path):

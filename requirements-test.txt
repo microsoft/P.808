@@ -1,7 +1,7 @@
 numpy
 pandas
 pytest
-scipy
+scipy>=1.9
 azure-identity
 azure-storage-blob
 jinja2

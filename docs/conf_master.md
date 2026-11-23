@@ -30,10 +30,19 @@ This describes the configuration for the `master_script.py`. A sample configurat
 Assuming the URL is `http://test.com/D501_C03_M2_S02.wav` is the clip URL, and "03" is the condition name. 
 The pattern will be `.*_c(?P<condition_num>\d{1,2})_.*.wav`, you should also use condition_keys with `condition_num`.
 * (optional)  `condition_keys:` comma separated list of keys appearing in the `condition_pattern`:
-* (optional)  `clip_packing_strategy:random`: Either `random` or `balanced_block`. It specifies how to select clips 
-which will be assessed in a same HIT. For the `balanced_block` design, `condition_pattern`, `condition_pattern`, and
- `condition_pattern` should be specified.  `number_of_clips_per_session` should be a multiple of the unique values of the 
- key specified in the `block_keys`. 
+* (optional)  `clip_packing_strategy:random`: `random`, `balanced_block` or, for CCR/DCR, `prepacked`. It specifies how to select clips
+which will be assessed in a same HIT. For `balanced_block`, specify `condition_pattern` and `condition_keys`;
+ specify `block_keys` as well when there is more than one condition key. `number_of_clips_per_session`
+ must be a multiple of the number of unique values of the first block key. `random` and `balanced_block`
+ avoid repeating the same clip, or the same two clips in either order, within a session when feasible.
+ Both accept repeated input occurrences and retain them, padding to fill the final session when necessary.
+ The number of sessions is the input row count divided by the session size, rounded up.
+ If repeat-free packing is impossible at that session count (while retaining condition balance for
+ `balanced_block`), generation prints a clear warning and continues with repetitions within sessions.
+ Invalid input/configuration still raises an error. These checks cover rating items, not separately
+ appended trapping/gold clips. For `prepacked`, `prepacked_sessions` is the path to a CSV with one row per session,
+ planned with `src/pack_sessions.py` and converted using `src/convert_assignments.py`;
+ see [Prepacked sessions](prepacked_sessions.md).
 * (optional)  `block_keys:`:  The key(s) to be used for creating the blocks should be specified here. Up to two keys. 
 A comma separated list. For multiple keys, all values of the first key should appear in one block.
 

@@ -90,6 +90,10 @@ If you use this tool in your research please cite it with the following referenc
   * [Using Prolific](docs/running_test_prolific.md)
 * [Analyzing Data](docs/results.md)
 
+For repeated pairwise comparisons, such as choosing between microphones with no clean reference,
+see [Prepacked sessions](docs/prepacked_sessions.md). The guide explains the use case, what offline
+planning adds to random/condition-balanced packing, and how to generate upload-ready files.
+
 ## Using an AI Agent
 
 You can use an AI coding agent (e.g. GitHub Copilot, Claude) to create and run studies

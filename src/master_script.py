@@ -11,6 +11,7 @@ import os
 import asyncio
 import base64
 import hashlib
+import json
 import posixpath
 import random
 import re
@@ -167,10 +168,12 @@ def create_analyzer_cfg_dcr_ccr(cfg, template_path, out_path, general_cfg, n_HIT
     print("Start creating config file for result_parser")
     config = {}
 
-    config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + \
-                      int(cfg['create_input']['number_of_trapping_per_session'])
+    number_of_traps = int(cfg['create_input']['number_of_trapping_per_session'])
+    config['q_num'] = int(cfg['create_input']['number_of_clips_per_session']) + number_of_traps
 
-    config['max_allowed_hits'] = cfg["allowed_max_hit_in_project"] if "allowed_max_hit_in_project" in cfg else min(50, n_HITs)
+    config['max_allowed_hits'] = cfg["hit_app_html"].get("allowed_max_hit_in_project", str(min(50, n_HITs)))
+    config["aggregate_by_pair_id"] = _is_true(cfg["create_input"].get("aggregate_by_pair_id", "false"))
+    config["correct_tps_bigger_equal"] = "1" if number_of_traps else "0"
 
     config['quantity_hits_more_than'] = cfg['hit_app_html']['quantity_hits_more_than']
     config['quantity_bonus'] = cfg['hit_app_html']['quantity_bonus']
@@ -226,6 +229,13 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     config['sum_quality'] = config['quality_bonus'] + float(cfg['hit_base_payment'])
 
     config = {**config, **general_cfg}
+    config["comparison_metadata"] = _is_true(cfg.get("comparison_metadata", "false"))
+    config["randomize_training_questions"] = str(
+        _is_true(cfg.get("randomize_training_questions", "true"))
+    ).lower()
+    if cfg.get("presentation_file"):
+        with open(cfg["presentation_file"], encoding="utf-8") as presentation:
+            config["presentation"] = json.load(presentation)
     # rating urls
     rating_urls = []
     n_clips = int(cfg_g['number_of_clips_per_session'])
@@ -233,26 +243,50 @@ async def create_hit_app_ccr_dcr(cfg, template_path, out_path, training_path, cf
     # 'dummy':'dummy' is added because of current bug in AMT for replacing variable names. See issue #6
     for i in range(0, n_clips):
         rating_urls.append({"ref": f"${{Q{i}_R}}", "processed": f"${{Q{i}_P}}", 'dummy': 'dummy'})
+        if config["comparison_metadata"]:
+            rating_urls[-1].update(
+                pair_id=f"${{Q{i}_ID}}", role=f"${{Q{i}_ROLE}}", order=f"${{Q{i}_ORDER}}",
+                practice_exposure=f"${{Q{i}_EXPOSURE}}",
+            )
 
     if n_traps > 1:
         print("more than 1 trapping clips question is not supported. Proceed with 1 trap")
-    rating_urls.append({"ref": "${TP}", "processed": "${TP}", 'dummy': 'dummy'})
+    if n_traps > 0:
+        rating_urls.append({"ref": "${TP}", "processed": "${TP}", 'dummy': 'dummy'})
     if 'number_of_gold_clips_per_session' in cfg_g:
         print("Gold clips are not supported for CCR and DCR method. Proceed without them")
     config['rating_urls'] = rating_urls
 
     # training urls
-    df_train = pd.read_csv(training_path)
+    # Raw text keeps identities such as "001" and "NA" equal to the main comparison IDs.
+    df_train = pd.read_csv(training_path, dtype=str, keep_default_na=False)
     train_urls = []
     train_ref = None
     for _, row in df_train.iterrows():
         if train_ref is None:
             train_ref = row['training_references']
-        train_urls.append({"ref": f"{row['training_references']}", "processed": f"{row['training_clips']}"})
+        item = {"ref": f"{row['training_references']}", "processed": f"{row['training_clips']}"}
+        if "order" in df_train and row["order"].strip():
+            item["order"] = row["order"].strip()
+        if "pair_id" in df_train and row["pair_id"].strip():
+            pair_id = row["pair_id"].strip()
+            if not re.fullmatch(r"[A-Za-z0-9_.:-]+", pair_id):
+                raise ValueError(
+                    f"Invalid training pair ID {pair_id!r}; use only letters, digits, _, ., :, or -"
+                )
+            item["pair_id"] = pair_id
+        if "practice_example" in df_train and row["practice_example"].strip():
+            item["practice_example"] = row["practice_example"].strip()
+        # Reject unsupported prescribed order before generating a HIT.
+        if item.get("order", "ab") not in ("ab", "ba"):
+            raise ValueError(f"Invalid training order {item['order']!r}; use ab, ba or leave it empty")
+        train_urls.append(item)
     # add a trapping clips to the training section
-    train_urls.append({"ref": f"{train_ref}", "processed": f"{train_ref}"})
+    append_training_trap = _is_true(cfg.get("append_training_trap", "true"))
+    if append_training_trap:
+        train_urls.append({"ref": f"{train_ref}", "processed": f"{train_ref}"})
     config['training_urls'] = train_urls
-    config['training_trap_urls'] = train_ref
+    config['training_trap_urls'] = train_ref if append_training_trap else ""
 
     with open(template_path, 'r') as file:
         content = file.read()
@@ -728,14 +762,9 @@ def _correct_pair_url(row):
 
     :param row: A dataframe row (Series) with ``pair_a`` / ``pair_b`` and optionally
         ``pair_ans``.
-    :return: The correct clip URL as a string.
+    :return: The correct clip URL, or None for a legacy equal-SNR pair without an explicit answer.
     """
-    ans = row.get("pair_ans") if "pair_ans" in row.index else None
-    if isinstance(ans, str) and ans.strip():
-        return ans.strip()
-    a = int((row["pair_a"].rsplit("/", 1)[-1])[:2])
-    b = int((row["pair_b"].rsplit("/", 1)[-1])[:2])
-    return row["pair_a"] if a > b else row["pair_b"]
+    return ca.get_correct_cmp_url(row)
 
 
 def prepare_basic_cfg(df, cmp_pass_threshold=2):
@@ -756,7 +785,8 @@ def prepare_basic_cfg(df, cmp_pass_threshold=2):
         # page (mirrors the bandwidth-check hashing). The client verifies a selected clip
         # by hashing its URL and matching against this list.
         url = _correct_pair_url(row)
-        cmp_correct_hashes.append(hashlib.sha256(url.encode("utf-8")).hexdigest())
+        if url is not None:
+            cmp_correct_hashes.append(hashlib.sha256(url.encode("utf-8")).hexdigest())
 
     # randomly select numbers for hearing test
     clear_sample_url = "https://audiosamplesp808.blob.core.windows.net/p808-assets/clips/sample_hearing_test/s0.wav"
@@ -966,7 +996,15 @@ def get_path(test_method, is_p831_fest):
     return template_path, cfg_path
 
 
-def extend_general_cfg_bw(general, hitapp):
+def extend_general_cfg_bw(general, hitapp, test_method):
+    """
+    Add bandwidth qualification settings and reject incompatible CCR/DCR limits.
+
+    :param general: General configuration values to extend.
+    :param hitapp: HIT app configuration, including online qualification settings.
+    :param test_method: Listening-test method.
+    :return: Updated general configuration.
+    """
     # add BW check config
     if 'bw_min' not in hitapp or 'bw_max' not in hitapp :
         print("Warning: No bandwidth range specified in the config file, consider using updated template for master script. All bandwidth ranges will be allowed.")
@@ -977,6 +1015,12 @@ def extend_general_cfg_bw(general, hitapp):
         assert hitapp['bw_max'] in ['NB-WB', 'SWB', 'FB'], f'bw_max should be one of NB-WB, SWB, FB, but got {hitapp["bw_max"]}'
         bw_min = hitapp['bw_min']
         bw_max = hitapp['bw_max']
+    online_qualification = _is_true(hitapp.get('run_online_eval_qualification', 'true'))
+    if test_method in ('ccr', 'dcr') and online_qualification and bw_max != 'FB':
+        raise SystemExit(
+            "CCR/DCR bandwidth qualification requires bw_max = FB because the HIT requires all bandwidth "
+            "check answers to be correct."
+        )
     general['bw_min'] = bw_min
     general['bw_max'] = bw_max
     return general
@@ -1127,8 +1171,37 @@ async def main(cfg, test_method, args):
             if (',' in cfg["create_input"]["condition_keys"]) & ("block_keys" not in cfg["create_input"]):
                 raise SystemExit("Error: In 'balanced_block' strategy, 'block_keys' should be specified in "
                                  "configuration when 'condition_keys' contains more than one key.")
+        elif clip_packing_strategy == "prepacked":
+            if test_method not in ("ccr", "dcr") or not cfg["create_input"].get("prepacked_sessions"):
+                raise SystemExit("Prepacked CCR/DCR packing requires a prepacked_sessions CSV path.")
         elif not(clip_packing_strategy == "random"):
             raise SystemExit("Error: Unexpected value for 'clip_packing_strategy' in the configuration file")
+    comparison_metadata = _is_true(cfg_hit_app.get("comparison_metadata", "false"))
+    prepacked_columns = set()
+    if test_method in ("ccr", "dcr") and clip_packing_strategy == "prepacked":
+        prepacked_columns = set(pd.read_csv(cfg["create_input"]["prepacked_sessions"], nrows=0).columns)
+        n_clips = int(cfg["create_input"]["number_of_clips_per_session"])
+        order_columns = {f"Q{i}_ORDER" for i in range(n_clips)}
+        if test_method == "dcr" and order_columns.intersection(prepacked_columns):
+            raise SystemExit(
+                "Prepacked Qn_ORDER is not supported for DCR; reference and processed clips use fixed positions."
+            )
+        if not comparison_metadata and order_columns.intersection(prepacked_columns):
+            raise SystemExit(
+                "Prepacked Qn_ORDER requires comparison_metadata = true in hit_app_html; "
+                "otherwise playback order is randomized."
+            )
+    if test_method == "dcr" and comparison_metadata:
+        raise SystemExit("DCR comparison_metadata is not supported; it is only available for CCR.")
+    if (test_method == "ccr" and not comparison_metadata
+            and _is_true(cfg["create_input"].get("aggregate_by_pair_id", "false"))):
+        raise SystemExit("CCR aggregate_by_pair_id requires comparison_metadata = true in hit_app_html.")
+    if test_method == "ccr" and comparison_metadata:
+        n_clips = int(cfg["create_input"]["number_of_clips_per_session"])
+        required = {f"Q{i}_{field}" for i in range(n_clips) for field in ("ID", "ROLE", "ORDER", "EXPOSURE")}
+        if clip_packing_strategy != "prepacked" or not required.issubset(prepacked_columns):
+            raise SystemExit("CCR comparison_metadata requires prepacked sessions with Qn_ID, Qn_ROLE, Qn_ORDER and "
+                             "Qn_EXPOSURE columns.")
 
     # prepare format
     print("Starting to prepare the mturk clips")
@@ -1171,7 +1244,7 @@ async def main(cfg, test_method, args):
         cmp_pass_threshold=_get_cmp_pass_threshold(cfg_hit_app),
     )
     # add BW check config
-    general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app)
+    general_cfg = extend_general_cfg_bw(general_cfg, cfg_hit_app, test_method)
     # optional study-level screen-out completion code (paid for the screening effort),
     # shown when a participant fails the qualification or setup screening. Left as the
     # ${screenout_code} placeholder for the HIT app server to fill when not set in the
